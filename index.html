@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Organizador de Torneo de Karate</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+<div class="login-page">
+  <div class="login-card">
+
+    <!-- Logo -->
+    <div class="login-logo">
+      <div class="logo-big">🥋</div>
+      <h1>Torneo Karate</h1>
+      <p>Sistema de organización y llaves</p>
+    </div>
+
+    <!-- Alerta de estado -->
+    <div id="alert-box" style="display:none;"></div>
+
+    <!-- Vista 1: Login con email/contraseña (organizador) -->
+    <div id="view-login">
+      <form id="form-login" autocomplete="on" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="email">Correo electrónico</label>
+          <input id="email" type="email" class="form-control" placeholder="organizador@ejemplo.com" required autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="password">Contraseña</label>
+          <input id="password" type="password" class="form-control" placeholder="••••••••" required autocomplete="current-password" />
+        </div>
+        <button type="submit" class="btn btn-primary btn-block btn-lg" id="btn-login">
+          Ingresar como Organizador
+        </button>
+      </form>
+
+      <div class="divider-text mt-3"><span>o acceso rápido</span></div>
+
+      <!-- Acceso por código (árbitros) -->
+      <form id="form-code" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="access-code">Código de acceso</label>
+          <input id="access-code" type="text" class="form-control"
+                 placeholder="Ej: KAR-2026"
+                 maxlength="10"
+                 style="text-transform:uppercase;letter-spacing:.1em;"
+                 autocomplete="off" />
+          <p class="form-hint">Para árbitros: ingresa el código que te dio el organizador.</p>
+        </div>
+        <button type="submit" class="btn btn-outline btn-block">
+          Ingresar con Código
+        </button>
+      </form>
+
+      <div class="divider-text mt-3"><span>o</span></div>
+
+      <!-- Acceso público -->
+      <button class="btn btn-ghost btn-block" id="btn-public">
+        👁 Ver torneos públicamente
+      </button>
+    </div>
+
+    <!-- Vista 2: Selector de torneo público -->
+    <div id="view-public-selector" style="display:none;">
+      <div class="flex items-center gap-2 mb-3">
+        <button class="btn btn-ghost btn-sm btn-icon" id="btn-back-public">←</button>
+        <h3 style="font-size:1rem;">Torneos disponibles</h3>
+      </div>
+      <div id="public-tournament-list">
+        <div class="text-center p-3"><span class="spinner"></span></div>
+      </div>
+    </div>
+
+    <!-- Vista 3: Acceso por código — elegir rol visible -->
+    <div id="view-code-success" style="display:none;">
+      <div class="text-center mb-3">
+        <div style="font-size:2rem;">✅</div>
+        <h3 id="code-tournament-name" style="margin-top:.5rem;"></h3>
+        <p class="text-muted text-sm" id="code-role-label"></p>
+      </div>
+      <button class="btn btn-primary btn-block btn-lg" id="btn-enter-with-code">
+        Entrar al torneo
+      </button>
+      <button class="btn btn-ghost btn-block mt-2" id="btn-back-code">← Volver</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+
+  /* ---- Helpers UI ---- */
+  function showAlert(message, type = 'danger') {
+    const box = $('alert-box');
+    box.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+    box.style.display = 'block';
+  }
+  function hideAlert() {
+    $('alert-box').style.display = 'none';
+  }
+  function setLoading(btn, loading) {
+    btn.disabled = loading;
+    btn.dataset.original = btn.dataset.original || btn.textContent;
+    btn.innerHTML = loading ? '<span class="spinner"></span> Entrando...' : btn.dataset.original;
+  }
+  function showView(id) {
+    ['view-login','view-public-selector','view-code-success'].forEach(v => {
+      $(v).style.display = v === id ? 'block' : 'none';
+    });
+    hideAlert();
+  }
+
+  /* ---- Si ya hay sesión activa, redirige ---- */
+  const session = Auth.loadSession();
+  if (session) {
+    const role = session.role;
+    if (role === USER_ROLES.ORGANIZER) window.location.href = 'views/admin.html';
+    else if (role === USER_ROLES.REFEREE) window.location.href = 'views/referee.html';
+    else window.location.href = 'views/public.html';
+  }
+
+  /* ---- Login con email/contraseña ---- */
+  $('form-login').addEventListener('submit', async e => {
+    e.preventDefault();
+    hideAlert();
+    const btn   = $('btn-login');
+    const email = $('email').value.trim();
+    const pass  = $('password').value;
+    setLoading(btn, true);
+
+    /* -- Cuenta de desarrollo local (sin Supabase) -- */
+    if (email === 'ibra@ibra.com' && pass === '123456') {
+      Auth._saveDevSession({ userId: '00000000-0000-0000-0000-000000000001', email, role: USER_ROLES.ORGANIZER, token: 'dev' });
+      window.location.href = 'views/admin.html';
+      return;
+    }
+
+    try {
+      const session = await Auth.login(email, pass);
+      if (session.role === USER_ROLES.ORGANIZER) {
+        window.location.href = 'views/admin.html';
+      } else {
+        window.location.href = 'views/referee.html';
+      }
+    } catch (err) {
+      showAlert(err.message || 'Correo o contraseña incorrectos.');
+    } finally {
+      setLoading(btn, false);
+    }
+  });
+
+  /* ---- Login con código ---- */
+  $('form-code').addEventListener('submit', async e => {
+    e.preventDefault();
+    hideAlert();
+    const code = $('access-code').value.trim();
+    if (!code) { showAlert('Ingresa el código de acceso.'); return; }
+    try {
+      const session = await Auth.loginWithCode(code);
+      $('code-tournament-name').textContent = session.tournamentName || 'Torneo';
+      const roleLabels = {
+        referee: '⚖️ Acceso como Árbitro',
+        public:  '👁 Acceso como Espectador',
+      };
+      $('code-role-label').textContent = roleLabels[session.role] || session.role;
+      showView('view-code-success');
+    } catch (err) {
+      showAlert(err.message || 'Código inválido.');
+    }
+  });
+
+  /* ---- Entrar con código ---- */
+  $('btn-enter-with-code').addEventListener('click', () => {
+    const session = Auth.getSession();
+    if (session?.role === USER_ROLES.REFEREE) window.location.href = 'views/referee.html';
+    else window.location.href = 'views/public.html';
+  });
+
+  $('btn-back-code').addEventListener('click', () => showView('view-login'));
+
+  /* ---- Vista pública ---- */
+  $('btn-public').addEventListener('click', async () => {
+    showView('view-public-selector');
+    await _loadPublicTournaments();
+  });
+
+  $('btn-back-public').addEventListener('click', () => showView('view-login'));
+
+  async function _loadPublicTournaments() {
+    const listEl = $('public-tournament-list');
+    try {
+      // Inicializa Supabase solo para lectura
+      if (SUPABASE_URL && SUPABASE_ANON_KEY && typeof supabase.from !== 'function') {
+        window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      }
+      const tournaments = await Tournament.listPublic();
+      if (!tournaments.length) {
+        listEl.innerHTML = '<p class="text-muted text-center p-3">No hay torneos públicos disponibles.</p>';
+        return;
+      }
+      listEl.innerHTML = tournaments.map(t => `
+        <div class="card mb-2" style="cursor:pointer;" onclick="enterPublic('${t.id}')">
+          <div class="flex justify-between items-center">
+            <div>
+              <strong>${t.name}</strong>
+              <div class="text-muted text-sm mt-1">📍 ${t.location || 'Sin ubicación'} · 📅 ${formatDate(t.date_start)}</div>
+            </div>
+            <span class="badge badge-${_statusColor(t.status)}">${t.status}</span>
+          </div>
+        </div>
+      `).join('');
+    } catch (err) {
+      listEl.innerHTML = `<p class="text-danger text-sm p-2">${err.message}</p>`;
+    }
+  }
+
+  window.enterPublic = function(tournamentId) {
+    Auth.loginAsPublic(tournamentId);
+    window.location.href = 'views/public.html';
+  };
+
+  function _statusColor(status) {
+    const map = { open: 'gold', ongoing: 'green', finished: 'muted', draft: 'blue' };
+    return map[status] || 'muted';
+  }
+
+  /* ---- Formateo ---- */
+  function formatDate(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString('es-ES', { day:'2-digit', month:'short', year:'numeric' });
+  }
+
+})();
+</script>
+</body>
+</html>

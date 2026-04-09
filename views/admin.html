@@ -1,0 +1,2319 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Panel Organizador — Torneo Karate</title>
+  <link rel="stylesheet" href="../css/styles.css" />
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar">
+  <div class="navbar-brand">
+    <button class="btn-hamburger" id="btn-hamburger" aria-label="Menú">☰</button>
+    <div class="logo-icon">🥋</div>
+    <span id="nav-tournament-name">Torneo Karate</span>
+  </div>
+  <div class="navbar-menu">
+    <span class="badge badge-red text-xs mr-2" id="nav-role-badge">Organizador</span>
+    <button class="btn btn-ghost btn-sm" id="btn-logout">Cerrar sesión</button>
+  </div>
+</nav>
+
+<!-- Overlay para cerrar sidebar en móvil -->
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+<!-- Layout principal -->
+<div class="app-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <button class="sidebar-close" id="btn-sidebar-close" aria-label="Cerrar menú">✕</button>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Torneo</div>
+      <div class="sidebar-item active" data-panel="dashboard">
+        <span class="icon">📊</span> Dashboard
+      </div>
+      <div class="sidebar-item" data-panel="tournaments">
+        <span class="icon">🏆</span> Mis Torneos
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Gestión</div>
+      <div class="sidebar-item" data-panel="competitors">
+        <span class="icon">👤</span> Competidores
+      </div>
+      <div class="sidebar-item" data-panel="categories">
+        <span class="icon">🗂</span> Categorías
+      </div>
+      <div class="sidebar-item" data-panel="brackets">
+        <span class="icon">⚔️</span> Llaves
+      </div>
+      <div class="sidebar-item" data-panel="schedule">
+        <span class="icon">📅</span> Programación
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Resultados</div>
+      <div class="sidebar-item" data-panel="medals">
+        <span class="icon">🏅</span> Medallero
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Acceso</div>
+      <div class="sidebar-item" data-panel="codes">
+        <span class="icon">🔑</span> Códigos de acceso
+      </div>
+      <div class="sidebar-item" data-panel="settings">
+        <span class="icon">⚙️</span> Configuración
+      </div>
+    </div>
+  </aside>
+
+  <!-- Contenido principal -->
+  <main class="main-content">
+
+    <!-- =========================================================
+         PANEL: DASHBOARD
+    ========================================================== -->
+    <section id="panel-dashboard" class="panel">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title" id="dash-tournament-name">—</h1>
+          <p class="page-subtitle" id="dash-tournament-info">Selecciona un torneo para comenzar</p>
+        </div>
+        <div class="flex gap-2">
+          <button class="btn btn-outline btn-sm" id="btn-public-link" style="display:none;" title="Copiar enlace público">🌐 Acceso Público</button>
+          <button class="btn btn-outline btn-sm" id="btn-change-status">Cambiar Estado</button>
+          <button class="btn btn-primary" id="btn-new-tournament">+ Nuevo Torneo</button>
+        </div>
+      </div>
+
+      <!-- Info card del torneo activo -->
+      <div class="card mb-3" id="dash-info-card" style="display:none;">
+        <div class="flex gap-3 flex-wrap" style="align-items:center;">
+          <div style="flex:1;min-width:200px;">
+            <div class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:.08em;">Torneo</div>
+            <div style="font-size:1.1rem;font-weight:700;" id="dinfo-name">—</div>
+          </div>
+          <div style="min-width:120px;">
+            <div class="text-xs text-muted">Fecha inicio</div>
+            <div class="text-sm font-semibold" id="dinfo-date">—</div>
+          </div>
+          <div style="min-width:120px;">
+            <div class="text-xs text-muted">Lugar</div>
+            <div class="text-sm font-semibold" id="dinfo-location">—</div>
+          </div>
+          <div style="min-width:100px;">
+            <div class="text-xs text-muted">Estado</div>
+            <div class="text-sm" id="dinfo-status">—</div>
+          </div>
+          <div style="min-width:90px;">
+            <div class="text-xs text-muted">Disciplinas</div>
+            <div class="text-sm" id="dinfo-disciplines">—</div>
+          </div>
+          <div style="min-width:80px;">
+            <div class="text-xs text-muted">Tatamis</div>
+            <div class="text-sm font-semibold" id="dinfo-tatamis">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="grid-4 mb-4" id="dash-stats">
+        <div class="stat-card"><div class="stat-icon blue">🗂</div><div><div class="stat-value" id="stat-categories">—</div><div class="stat-label">Categorías</div></div></div>
+        <div class="stat-card"><div class="stat-icon gold">👤</div><div><div class="stat-value" id="stat-competitors">—</div><div class="stat-label">Competidores</div></div></div>
+        <div class="stat-card"><div class="stat-icon red">⚔️</div><div><div class="stat-value" id="stat-matches">—</div><div class="stat-label">Combates</div></div></div>
+        <div class="stat-card"><div class="stat-icon green">✅</div><div><div class="stat-value" id="stat-progress">—%</div><div class="stat-label">Completado</div></div></div>
+      </div>
+
+    </section>
+
+    <!-- =========================================================
+         PANEL: MIS TORNEOS
+    ========================================================== -->
+    <section id="panel-tournaments" class="panel" style="display:none;">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Mis Torneos</h1>
+          <p class="page-subtitle">Gestiona todos tus torneos</p>
+        </div>
+        <button class="btn btn-primary" id="btn-new-tournament-2">+ Nuevo Torneo</button>
+      </div>
+      <div id="tournaments-list">
+        <div class="text-center p-4"><span class="spinner"></span></div>
+      </div>
+    </section>
+
+    <!-- =========================================================
+         PANEL: COMPETIDORES
+    ========================================================== -->
+    <section id="panel-competitors" class="panel" style="display:none;">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Competidores</h1>
+          <p class="page-subtitle" id="competitors-count-label">—</p>
+        </div>
+        <div class="flex gap-2">
+          <button class="btn btn-outline" id="btn-import-competitors">⬆ Importar CSV</button>
+          <button class="btn btn-primary" id="btn-new-competitor">+ Registrar Competidor</button>
+        </div>
+      </div>
+
+      <!-- Buscador -->
+      <div class="card mb-3">
+        <div class="flex gap-2">
+          <input type="text" class="form-control" id="competitor-search" placeholder="Buscar por nombre, documento o club..." />
+          <select class="form-control" id="competitor-filter-gender" style="max-width:160px;">
+            <option value="">Todos los géneros</option>
+            <option value="M">Masculino</option>
+            <option value="F">Femenino</option>
+          </select>
+          <select class="form-control" id="competitor-filter-belt" style="max-width:180px;">
+            <option value="">Todos los cinturones</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="card p-0">
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Género</th>
+                <th>Edad</th>
+                <th>Peso</th>
+                <th>Cinturón</th>
+                <th>Club</th>
+                <th>Categorías</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="competitors-table-body">
+              <tr><td colspan="8" class="text-center text-muted p-4">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================
+         PANEL: CATEGORÍAS
+    ========================================================== -->
+    <section id="panel-categories" class="panel" style="display:none;">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Categorías</h1>
+          <p class="page-subtitle">Gestiona las divisiones del torneo</p>
+        </div>
+        <div class="flex gap-2">
+          <button class="btn btn-outline btn-gold" id="btn-autogenerate">⚡ Auto-generar</button>
+          <button class="btn btn-outline" id="btn-assign-auto">🔗 Asignar automático</button>
+          <button class="btn btn-outline" id="btn-assign-manual">✏️ Asignar manual</button>
+          <button class="btn btn-primary" id="btn-new-category">+ Categoría Manual</button>
+        </div>
+      </div>
+
+      <div class="alert alert-info mb-3">
+        <span>💡</span>
+        <span><strong>Auto-generar</strong> crea las categorías. <strong>Asignar automático</strong> vincula cada competidor ya inscrito a su categoría según género, edad, peso y cinturón. <strong>Asignar manual</strong> te permite elegir la categoría de cada competidor.</span>
+      </div>
+
+      <div class="card mb-3" id="tatami-manager-bar" style="display:none;">
+        <div class="flex items-center gap-3 flex-wrap" style="padding:.6rem 1rem;">
+          <label class="form-label mb-0" style="white-space:nowrap;">Tatamis del torneo:</label>
+          <select class="form-control" id="cat-tatami-count" style="max-width:160px;" onchange="updateTatamiCount(this.value)">
+            <option value="1">1 Tatami</option>
+            <option value="2">2 Tatamis</option>
+            <option value="3">3 Tatamis</option>
+            <option value="4">4 Tatamis</option>
+            <option value="5">5 Tatamis</option>
+            <option value="6">6 Tatamis</option>
+            <option value="7">7 Tatamis</option>
+            <option value="8">8 Tatamis</option>
+            <option value="9">9 Tatamis</option>
+            <option value="10">10 Tatamis</option>
+          </select>
+          <button class="btn btn-outline btn-sm" id="btn-redistribute-tatamis" onclick="redistributeTatamis()">🔄 Redistribuir tatamis</button>
+          <span class="text-muted" style="font-size:.8rem;">Redistribuir reasigna todas las categorías en round-robin intercalando kata/kumite.</span>
+        </div>
+      </div>
+
+      <div id="categories-list">
+        <div class="text-center p-4"><span class="spinner"></span></div>
+      </div>
+    </section>
+
+    <!-- =========================================================
+         PANEL: LLAVES
+    ========================================================== -->
+    <section id="panel-brackets" class="panel" style="display:none;">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Llaves</h1>
+          <p class="page-subtitle" id="brackets-category-label">Selecciona una categoría</p>
+        </div>
+        <div class="flex gap-2" id="bracket-actions" style="display:none!important;">
+          <a href="referee.html" target="_blank" class="btn btn-ghost btn-sm">⚖️ Ver Panel Árbitro</a>
+          <button class="btn btn-outline" id="btn-regenerate">🔄 Regenerar</button>
+          <button class="btn btn-primary" id="btn-generate">⚡ Generar Llaves</button>
+        </div>
+      </div>
+
+      <div class="flex gap-3">
+        <!-- Lista de categorías -->
+        <div style="min-width:280px;max-width:280px;">
+          <div class="card p-0" style="max-height:calc(100vh - 200px);overflow-y:auto;">
+            <div id="brackets-category-list" style="padding:.5rem;">
+              <div class="text-center p-4"><span class="spinner"></span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Vista del bracket -->
+        <div class="flex-1">
+          <div class="card">
+            <!-- Selector de sistema de llave -->
+            <div class="flex items-center justify-between mb-3" id="bracket-system-selector" style="display:none!important;">
+              <label class="form-label mb-0">Sistema de llave:</label>
+              <select class="form-control" id="select-bracket-system" style="max-width:280px;">
+                <option value="auto">⚡ Automático</option>
+                <option value="single_elimination">⚔️ Eliminación Simple</option>
+                <option value="repechage">🏅 Eliminación + Repesca (WKF)</option>
+                <option value="round_robin">🔄 Round-Robin</option>
+                <option value="double_elimination">🔁 Doble Eliminación</option>
+              </select>
+            </div>
+            <div id="bracket-display">
+              <div class="empty-state">
+                <div class="empty-icon">⚔️</div>
+                <h3>Sin categoría seleccionada</h3>
+                <p>Elige una categoría de la izquierda para ver o generar sus llaves.</p>
+              </div>
+            </div>
+            <!-- Avanzar ronda kata (solo visible en kata) -->
+            <div id="kata-advance-bar" style="display:none;" class="mt-3">
+              <div class="alert alert-success flex items-center justify-between">
+                <span id="kata-advance-msg">✅ Ronda completada. ¿Avanzar al siguiente nivel?</span>
+                <button class="btn btn-primary btn-sm" id="btn-advance-kata">⬆ Avanzar ronda →</button>
+              </div>
+            </div>
+            <!-- Podio de la categoría (se muestra cuando isComplete) -->
+            <div id="podio-display" style="display:none;" class="mt-3"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================
+         PANEL: PROGRAMACIÓN
+    ========================================================== -->
+    <section id="panel-schedule" class="panel" style="display:none;">
+      <div class="page-header">
+        <h1 class="page-title">Programación de Tatamis</h1>
+      </div>
+      <div class="card">
+        <div class="empty-state">
+          <div class="empty-icon">📅</div>
+          <h3>Programación</h3>
+          <p>Asigna combates a tatamis y horarios. Disponible una vez generadas las llaves.</p>
+          <button class="btn btn-primary" onclick="switchPanel('brackets')">Ver Llaves</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================
+         PANEL: CÓDIGOS DE ACCESO
+    ========================================================== -->
+    <section id="panel-codes" class="panel" style="display:none;">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Códigos de Acceso</h1>
+          <p class="page-subtitle">Genera códigos para árbitros y espectadores</p>
+        </div>
+        <button class="btn btn-primary" id="btn-new-code">+ Generar Código</button>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="card-title">⚖️ Códigos de Árbitros</h3>
+            <button class="btn btn-outline btn-sm" onclick="generateCode('referee')">＋ Nuevo</button>
+          </div>
+          <div id="codes-referee-list">
+            <div class="text-center p-3"><span class="spinner"></span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="card-title">👁 Acceso Público</h3>
+            <button class="btn btn-outline btn-sm" onclick="generateCode('public')">＋ Nuevo</button>
+          </div>
+          <div id="codes-public-list">
+            <div class="text-center p-3"><span class="spinner"></span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="alert alert-info mt-3">
+        <span>ℹ️</span>
+        <span>Los árbitros ingresan su código en la pantalla de acceso → son redirigidos automáticamente al panel de árbitro.</span>
+      </div>
+    </section>
+
+    <!-- =========================================================
+         PANEL: MEDALLERO
+    ========================================================== -->
+    <section id="panel-medals" class="panel" style="display:none;">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Medallero</h1>
+          <p class="page-subtitle">Posiciones por club al finalizar categorías</p>
+        </div>
+        <button class="btn btn-outline" id="btn-refresh-medals">🔄 Actualizar</button>
+      </div>
+      <div id="medals-content">
+        <div class="text-center p-4"><span class="spinner"></span></div>
+      </div>
+      <div class="mt-3" id="medals-podio-list"></div>
+    </section>
+
+    <!-- =========================================================
+         PANEL: CONFIGURACIÓN
+    ========================================================== -->
+    <section id="panel-settings" class="panel" style="display:none;">
+      <div class="page-header">
+        <h1 class="page-title">Configuración</h1>
+      </div>
+
+      <!-- Gestión de Usuarios -->
+      <div class="card container-md mb-3">
+        <h3 class="card-title mb-3">👤 Gestión de Usuarios</h3>
+
+        <!-- Crear usuario -->
+        <div class="mb-4">
+          <h4 class="mb-2" style="font-size:.95rem;font-weight:600;">Crear nuevo usuario organizador</h4>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" id="new-user-email" placeholder="usuario@ejemplo.com" autocomplete="off" />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Contraseña</label>
+              <input type="password" class="form-control" id="new-user-pass" placeholder="Mínimo 6 caracteres" autocomplete="new-password" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Confirmar contraseña</label>
+              <input type="password" class="form-control" id="new-user-pass2" placeholder="Repite la contraseña" autocomplete="new-password" />
+            </div>
+          </div>
+          <button class="btn btn-primary" id="btn-create-user">＋ Crear usuario</button>
+          <div id="create-user-result" class="mt-2"></div>
+        </div>
+
+        <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0;" />
+
+        <!-- Cambiar contraseña propia -->
+        <div class="mb-4">
+          <h4 class="mb-2" style="font-size:.95rem;font-weight:600;">Cambiar mi contraseña</h4>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Nueva contraseña</label>
+              <input type="password" class="form-control" id="change-pass-new" placeholder="Mínimo 6 caracteres" autocomplete="new-password" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Confirmar nueva contraseña</label>
+              <input type="password" class="form-control" id="change-pass-new2" placeholder="Repite la contraseña" autocomplete="new-password" />
+            </div>
+          </div>
+          <button class="btn btn-outline" id="btn-change-pass">🔑 Cambiar contraseña</button>
+          <div id="change-pass-result" class="mt-2"></div>
+        </div>
+
+        <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0;" />
+
+        <!-- Lista de usuarios -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <h4 style="font-size:.95rem;font-weight:600;margin:0;">Usuarios registrados</h4>
+            <button class="btn btn-ghost btn-sm" id="btn-refresh-users">🔄 Actualizar</button>
+          </div>
+          <div id="users-list">
+            <div class="text-center p-3"><span class="spinner"></span></div>
+          </div>
+        </div>
+
+        <div class="alert alert-warning mt-3">
+          <span>⚠️</span>
+          <span>Para que el usuario quede activo sin confirmar email, desactiva <strong>Email Confirmation</strong> en el panel de Supabase → Authentication → Settings.</span>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+</div>
+
+<!-- Barra de navegación inferior (solo móvil) -->
+<nav class="mobile-bottom-nav" id="mobile-bottom-nav">
+  <button class="nav-tab active" data-panel="dashboard">
+    <span class="tab-icon">📊</span>Dashboard
+  </button>
+  <button class="nav-tab" data-panel="competitors">
+    <span class="tab-icon">👤</span>Competidores
+  </button>
+  <button class="nav-tab" data-panel="brackets">
+    <span class="tab-icon">⚔️</span>Llaves
+  </button>
+  <button class="nav-tab" data-panel="medals">
+    <span class="tab-icon">🏅</span>Medallero
+  </button>
+  <button class="nav-tab" id="btn-mobile-menu">
+    <span class="tab-icon">☰</span>Menú
+  </button>
+</nav>
+
+<!-- ===================== MODALES ===================== -->
+
+<!-- Modal: Nuevo Torneo -->
+<div class="modal-overlay" id="modal-tournament">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="modal-tournament-title">Nuevo Torneo</h3>
+      <button class="btn btn-ghost btn-icon" onclick="Display.closeModal('modal-tournament')">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="form-tournament" novalidate>
+        <div class="form-group">
+          <label class="form-label">Nombre del torneo *</label>
+          <input type="text" class="form-control" id="t-name" placeholder="Ej: Torneo Nacional de Karate 2026" required />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Fecha de inicio *</label>
+            <input type="date" class="form-control" id="t-date-start" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Fecha de cierre</label>
+            <input type="date" class="form-control" id="t-date-end" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Lugar</label>
+          <input type="text" class="form-control" id="t-location" placeholder="Ciudad, Recinto" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Descripción</label>
+          <textarea class="form-control" id="t-description" rows="2" placeholder="Información adicional..."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Disciplinas *</label>
+          <div class="flex gap-2 flex-wrap">
+            <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;">
+              <input type="checkbox" id="t-disc-kumite" value="kumite" checked /> 🥊 Kumite
+            </label>
+            <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;">
+              <input type="checkbox" id="t-disc-kata" value="kata" /> 🥋 Kata
+            </label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Sistema de llaves por defecto</label>
+          <select class="form-control" id="t-bracket-system">
+            <option value="auto">⚡ Automático (recomendado)</option>
+            <option value="single_elimination">⚔️ Eliminación Simple</option>
+            <option value="repechage">🏅 Eliminación + Repesca (WKF)</option>
+            <option value="round_robin">🔄 Round-Robin</option>
+            <option value="double_elimination">🔁 Doble Eliminación</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Número de tatamis *</label>
+          <select class="form-control" id="t-num-tatamis">
+            <option value="1">1 Tatami</option>
+            <option value="2">2 Tatamis</option>
+            <option value="3">3 Tatamis</option>
+            <option value="4">4 Tatamis</option>
+            <option value="5">5 Tatamis</option>
+            <option value="6">6 Tatamis</option>
+            <option value="8">8 Tatamis</option>
+            <option value="10">10 Tatamis</option>
+          </select>
+          <p class="text-xs text-muted mt-1">Las categorías se distribuirán automáticamente entre los tatamis.</p>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="Display.closeModal('modal-tournament')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-tournament">Guardar Torneo</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Registrar Competidor -->
+<div class="modal-overlay" id="modal-competitor">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">Registrar Competidor</h3>
+      <button class="btn btn-ghost btn-icon" onclick="Display.closeModal('modal-competitor')">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="form-competitor" novalidate>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Nombre completo *</label>
+            <input type="text" class="form-control" id="c-name" placeholder="Apellido, Nombre" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Documento / Pasaporte</label>
+            <input type="text" class="form-control" id="c-doc" placeholder="Número de documento" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Género *</label>
+            <select class="form-control" id="c-gender" required>
+              <option value="">Seleccionar...</option>
+              <option value="M">Masculino</option>
+              <option value="F">Femenino</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Fecha de nacimiento *</label>
+            <input type="date" class="form-control" id="c-dob" required />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Peso (kg) *</label>
+            <input type="number" class="form-control" id="c-weight" placeholder="Ej: 67.5" step="0.1" min="10" max="220" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Cinturón *</label>
+            <select class="form-control" id="c-belt" required>
+              <option value="">Seleccionar...</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Club / Dojo</label>
+            <input type="text" class="form-control" id="c-club" placeholder="Nombre del club" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">País</label>
+            <input type="text" class="form-control" id="c-country" placeholder="Ej: Chile" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Modalidad *</label>
+          <div class="flex gap-3" style="padding:.4rem 0;">
+            <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;">
+              <input type="radio" name="c-discipline" id="c-discipline-kumite" value="kumite" checked /> Kumite
+            </label>
+            <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;">
+              <input type="radio" name="c-discipline" id="c-discipline-kata" value="kata" /> Kata
+            </label>
+            <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;">
+              <input type="radio" name="c-discipline" id="c-discipline-both" value="both" /> Ambos
+            </label>
+          </div>
+        </div>
+        <div id="competitor-category-preview" style="display:none;">
+          <div class="divider"></div>
+          <p class="text-sm text-muted mb-1">Categorías que se asignarán automáticamente:</p>
+          <div id="category-preview-tags" class="flex gap-1 flex-wrap"></div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="Display.closeModal('modal-competitor')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-competitor">Registrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Resultado de Combate -->
+<div class="modal-overlay" id="modal-result">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">Registrar Resultado</h3>
+      <button class="btn btn-ghost btn-icon" onclick="Display.closeModal('modal-result')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="result-match-id" />
+      <p class="text-muted text-sm mb-3">Selecciona al ganador del combate:</p>
+      <div class="flex gap-2">
+        <button class="btn btn-outline flex-1" id="btn-winner-a" style="flex-direction:column;height:auto;padding:1rem;">
+          <span id="result-name-a" style="font-size:1rem;font-weight:700;">—</span>
+          <span class="text-muted text-sm">Competidor A</span>
+        </button>
+        <button class="btn btn-outline flex-1" id="btn-winner-b" style="flex-direction:column;height:auto;padding:1rem;">
+          <span id="result-name-b" style="font-size:1rem;font-weight:700;">—</span>
+          <span class="text-muted text-sm">Competidor B</span>
+        </button>
+      </div>
+      <div class="form-row mt-3">
+        <div class="form-group">
+          <label class="form-label">Puntos A</label>
+          <input type="number" class="form-control" id="result-score-a" min="0" max="99" placeholder="—" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Puntos B</label>
+          <input type="number" class="form-control" id="result-score-b" min="0" max="99" placeholder="—" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notas (opcional)</label>
+        <input type="text" class="form-control" id="result-notes" placeholder="Ej: Hansoku, descalificación..." />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="Display.closeModal('modal-result')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-result" disabled>Guardar Resultado</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Ver Resultado (Solo Lectura) -->
+<div class="modal-overlay" id="modal-result-readonly">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <h3 class="modal-title">📋 Resultado del Combate</h3>
+        <span class="badge badge-muted text-xs" style="margin-left:.5rem;">Solo lectura · Verificación</span>
+      </div>
+      <button class="btn btn-ghost btn-icon" onclick="Display.closeModal('modal-result-readonly')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-info mb-3" style="display:flex;gap:.5rem;align-items:flex-start;">
+        <span>⚠️</span>
+        <p class="text-sm m-0">Este resultado ya fue registrado. Vista de solo lectura para verificación.</p>
+      </div>
+      <div id="ro-content"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="Display.closeModal('modal-result-readonly')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Mover competidor a otra categoría -->
+<div class="modal-overlay" id="modal-move-category">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <h3 class="modal-title">📦 Cambiar Categoría</h3>
+      <button class="btn btn-ghost btn-icon" onclick="Display.closeModal('modal-move-category')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="text-sm text-muted mb-3" id="move-cat-competitor-name">Competidor</p>
+      <div class="form-group">
+        <label class="form-label">Mover a la categoría:</label>
+        <select class="form-control" id="move-cat-target">
+          <option value="">— Selecciona una categoría —</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="Display.closeModal('modal-move-category')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirm-move-cat">Mover</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Importar CSV -->
+<div class="modal-overlay" id="modal-csv">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-header">
+      <h3 class="modal-title">Importar Competidores por CSV</h3>
+      <button class="btn btn-ghost btn-icon" onclick="Display.closeModal('modal-csv')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-info mb-3">
+        <span>📋</span>
+        <div>
+          <strong>Formato del CSV</strong> — primera fila debe ser el encabezado:<br/>
+          <code style="font-size:.8rem;">nombre,documento,genero,fecha_nacimiento,peso,cinturon,club,pais,modalidad</code><br/>
+          <span class="text-sm">Cinturón: blanco / amarillo / naranja / verde / azul / marron / negro</span><br/>
+          <span class="text-sm">Género: M o F &nbsp;·&nbsp; Fecha: YYYY-MM-DD &nbsp;·&nbsp; Peso: número decimal</span><br/>
+          <span class="text-sm">Modalidad: <strong>kumite</strong> (default) / kata / ambos</span>
+        </div>
+      </div>
+
+      <!-- Carga desde archivo -->
+      <div class="form-group">
+        <label class="form-label">Cargar archivo .csv</label>
+        <input type="file" class="form-control" id="csv-file-input" accept=".csv,text/csv" />
+      </div>
+
+      <div class="text-center text-muted text-sm my-2">— o pega el contenido directamente —</div>
+
+      <div class="form-group">
+        <label class="form-label">Contenido CSV</label>
+        <textarea class="form-control" id="csv-textarea" rows="8"
+          placeholder="nombre,documento,genero,fecha_nacimiento,peso,cinturon,club,pais,modalidad&#10;Garcia Juan,12345678,M,2005-03-15,67.5,azul,Dojo Sakura,Argentina,kumite&#10;Lopez Maria,,F,2008-07-22,52,verde,Club Bushido,Chile,kata&#10;Torres Pedro,87654321,M,2007-11-01,60,marron,Dojo Sakura,Argentina,ambos"></textarea>
+      </div>
+
+      <div id="csv-preview" style="display:none;">
+        <div class="divider"></div>
+        <p class="text-sm text-muted mb-1">Vista previa: <span id="csv-preview-count">0</span> competidores detectados</p>
+        <div class="card p-0" style="max-height:160px;overflow-y:auto;">
+          <table class="table table-sm">
+            <thead><tr><th>Nombre</th><th>Gén.</th><th>Nacimiento</th><th>Peso</th><th>Cinturón</th><th>Club</th><th>Modalidad</th></tr></thead>
+            <tbody id="csv-preview-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="csv-result" style="display:none;" class="mt-2"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="Display.closeModal('modal-csv')">Cancelar</button>
+      <button class="btn btn-outline" id="btn-csv-preview">🔍 Vista previa</button>
+      <button class="btn btn-primary" id="btn-csv-import" disabled>⬆ Importar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Asignación Manual de Competidores a Categorías -->
+<div class="modal-overlay" id="modal-assign">
+  <div class="modal" style="max-width:960px;">
+    <div class="modal-header">
+      <h3 class="modal-title">Asignar Competidores a Categorías</h3>
+      <button class="btn btn-ghost btn-icon" onclick="Display.closeModal('modal-assign')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-info mb-3" style="font-size:.85rem;">
+        <span>💡</span>
+        <span>Seleccioná la categoría destino para cada competidor y hacé clic en <strong>Asignar</strong>. Los competidores ya asignados a esa categoría se omiten automáticamente.</span>
+      </div>
+      <div id="assign-table-wrap" style="max-height:400px;overflow-y:auto;">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Competidor</th>
+              <th>Gén.</th>
+              <th>Edad</th>
+              <th>Peso</th>
+              <th>Cinturón</th>
+              <th>Club / País</th>
+              <th>Categoría destino</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="assign-tbody"></tbody>
+        </table>
+      </div>
+      <div id="assign-result" class="mt-2"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="Display.closeModal('modal-assign')">Cerrar</button>
+      <button class="btn btn-primary" id="btn-assign-all">📌 Asignar todos</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Cambiar Estado del Torneo -->
+<div class="modal-overlay" id="modal-change-status">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <h3 class="modal-title">Cambiar Estado del Torneo</h3>
+      <button class="btn btn-ghost btn-icon" onclick="Display.closeModal('modal-change-status')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="text-sm text-muted mb-3" id="status-modal-tournament-name">—</p>
+      <div id="status-options" class="flex gap-2" style="flex-direction:column;">
+        <label class="card" style="cursor:pointer;padding:.75rem 1rem;display:flex;align-items:center;gap:.75rem;">
+          <input type="radio" name="new-status" value="draft" />
+          <span>🔵 <strong>Borrador</strong> — Solo visible para el organizador</span>
+        </label>
+        <label class="card" style="cursor:pointer;padding:.75rem 1rem;display:flex;align-items:center;gap:.75rem;">
+          <input type="radio" name="new-status" value="open" />
+          <span>🟡 <strong>Inscripción Abierta</strong> — Acepta registros de competidores</span>
+        </label>
+        <label class="card" style="cursor:pointer;padding:.75rem 1rem;display:flex;align-items:center;gap:.75rem;">
+          <input type="radio" name="new-status" value="closed" />
+          <span>🟠 <strong>Inscripción Cerrada</strong> — No acepta nuevos registros</span>
+        </label>
+        <label class="card" style="cursor:pointer;padding:.75rem 1rem;display:flex;align-items:center;gap:.75rem;">
+          <input type="radio" name="new-status" value="ongoing" />
+          <span>🟢 <strong>En Progreso</strong> — Torneo en curso</span>
+        </label>
+        <label class="card" style="cursor:pointer;padding:.75rem 1rem;display:flex;align-items:center;gap:.75rem;">
+          <input type="radio" name="new-status" value="finished" />
+          <span>⚫ <strong>Finalizado</strong> — Torneo terminado</span>
+        </label>
+        <label class="card" style="cursor:pointer;padding:.75rem 1rem;display:flex;align-items:center;gap:.75rem;">
+          <input type="radio" name="new-status" value="cancelled" />
+          <span>🔴 <strong>Cancelado</strong></span>
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="Display.closeModal('modal-change-status')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirm-status">Cambiar Estado</button>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
+<script src="../js/config.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/tournament.js"></script>
+<script src="../js/categories.js"></script>
+<script src="../js/competitors.js"></script>
+<script src="../js/bracket.js"></script>
+<script src="../js/matches.js"></script>
+<script src="../js/display.js"></script>
+<script>
+(function () {
+  /* ---- Verificar sesión ---- */
+  if (!Auth.isAuthenticated()) window.location.href = '../index.html';
+
+  /* ---- Constantes de estado ---- */
+  const STATUS_LABELS = {
+    draft:     'Borrador',
+    open:      'Inscripción Abierta',
+    closed:    'Inscripción Cerrada',
+    ongoing:   'En Progreso',
+    finished:  'Finalizado',
+    cancelled: 'Cancelado',
+  };
+
+  /* ---- Estado de la app ---- */
+  const state = {
+    activeTournament: null,
+    activeCategory:   null,
+    selectedWinnerId: null,
+    pollingInterval:  null,  // for brackets panel
+    bracketSub:       null,  // real-time subscription
+  };
+
+  /* ---- Init Supabase ---- */
+  if (SUPABASE_URL && SUPABASE_ANON_KEY && typeof supabase.from !== 'function') {
+    window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+
+  /* ---- Navegación por sidebar ---- */
+  function switchPanel(panelId) {
+    // Detener polling y suscripción si salimos de brackets
+    if (state.pollingInterval) {
+      clearInterval(state.pollingInterval);
+      state.pollingInterval = null;
+    }
+    if (state.bracketSub) {
+      try { state.bracketSub.unsubscribe(); } catch (_) {}
+      state.bracketSub = null;
+    }
+    document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
+    document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+    const panel = document.getElementById(`panel-${panelId}`);
+    if (panel) panel.style.display = 'block';
+    const sidebar = document.querySelector(`[data-panel="${panelId}"]`);
+    if (sidebar) sidebar.classList.add('active');
+    _onPanelLoad(panelId);
+  }
+  window.switchPanel = switchPanel;
+
+  document.querySelectorAll('.sidebar-item').forEach(item => {
+    item.addEventListener('click', () => switchPanel(item.dataset.panel));
+  });
+
+  /* ---- Carga inicial ---- */
+  async function init() {
+    if (!supabase || typeof supabase.from !== 'function') {
+      Display.toast('❌ No se pudo conectar con Supabase. Verifica tu conexión a internet.', 'error');
+      return;
+    }
+    // Restaurar/refrescar sesión de Supabase Auth (necesario para peticiones autenticadas)
+    if (!Auth.isDevMode()) {
+      try { await supabase.auth.getSession(); } catch (_) {}
+      // Refrescar token automáticamente cuando Supabase lo renueve
+      supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'TOKEN_REFRESHED') {
+          console.log('[Auth] Token renovado automáticamente.');
+        }
+        if (event === 'SIGNED_OUT') {
+          Auth.logout();
+        }
+      });
+    }
+    await _loadLastTournament();
+    switchPanel('dashboard');
+  }
+
+  async function _loadLastTournament() {
+    try {
+      const tournaments = await Tournament.listMine();
+      if (tournaments.length) {
+        state.activeTournament = tournaments[0];
+        _updateNavTournamentName(state.activeTournament.name);
+        await _refreshDashboard();
+      }
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  }
+
+  function _updateNavTournamentName(name) {
+    document.getElementById('nav-tournament-name').textContent = name || 'Torneo Karate';
+    document.getElementById('dash-tournament-name').textContent = name || '—';
+  }
+
+  async function _refreshDashboard() {
+    if (!state.activeTournament) return;
+    const t = state.activeTournament;
+
+    // Subtitle info line
+    document.getElementById('dash-tournament-info').textContent =
+      `📅 ${formatDate(t.date_start)}${t.location ? ' · 📍 ' + t.location : ''} · ${t.status}`;
+
+    // Info card
+    const infoCard = document.getElementById('dash-info-card');
+    infoCard.style.display = 'block';
+    document.getElementById('dinfo-name').textContent         = t.name || '—';
+    document.getElementById('dinfo-date').textContent         = t.date_start ? formatDate(t.date_start) : '—';
+    document.getElementById('dinfo-location').textContent     = t.location || '—';
+    document.getElementById('dinfo-status').innerHTML         = `<span class="status-dot ${t.status}"></span> ${STATUS_LABELS[t.status] || t.status}`;
+    document.getElementById('dinfo-disciplines').textContent  = (t.disciplines || ['kumite']).join(' + ');
+    document.getElementById('dinfo-tatamis').textContent      = (t.num_tatamis || 1) + ' tatami(s)';
+
+    // Public link button
+    const pubBtn = document.getElementById('btn-public-link');
+    pubBtn.style.display = 'inline-flex';
+    pubBtn.dataset.tid = t.id;
+
+    try {
+      const stats = await Tournament.getStats(t.id);
+      document.getElementById('stat-categories').textContent  = stats.categories;
+      document.getElementById('stat-competitors').textContent = stats.competitors;
+      document.getElementById('stat-matches').textContent     = stats.totalMatches;
+      document.getElementById('stat-progress').textContent    = stats.progress + '%';
+    } catch (_) {}
+  }
+
+  /* ---- Acciones por panel ---- */
+  async function _onPanelLoad(panelId) {
+    if (!state.activeTournament && panelId !== 'tournaments' && panelId !== 'settings') {
+      Display.toast('Primero crea o selecciona un torneo.', 'warning');
+      switchPanel('tournaments');
+      return;
+    }
+    if (panelId === 'dashboard')    await _refreshDashboard();
+    if (panelId === 'tournaments')  await _loadTournamentList();
+    if (panelId === 'competitors')  await _loadCompetitors();
+    if (panelId === 'categories')   await _loadCategories();
+    if (panelId === 'brackets')     { await _loadBracketPanel(); _startBracketPolling(); }
+    if (panelId === 'medals')       await _loadMedals();
+    if (panelId === 'codes')        await _loadCodes();
+    if (panelId === 'settings')     _loadUsersList();
+  }
+
+  /* ---- TORNEOS ---- */
+  async function _loadTournamentList() {
+    const el = document.getElementById('tournaments-list');
+    try {
+      const list = await Tournament.listMine();
+      if (!list.length) {
+        el.innerHTML = `<div class="empty-state"><div class="empty-icon">🏆</div><h3>Sin torneos</h3><p>Crea tu primer torneo para comenzar.</p></div>`;
+        return;
+      }
+      el.innerHTML = list.map(t => `
+        <div class="card mb-2">
+          <div class="flex justify-between items-center">
+            <div style="flex:1;cursor:pointer;" onclick="selectTournament('${t.id}')">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="status-dot ${t.status}"></span>
+                <strong>${t.name}</strong>
+              </div>
+              <div class="text-muted text-sm">📅 ${formatDate(t.date_start)} · 📍 ${t.location || 'Sin ubicación'} · <em>${STATUS_LABELS[t.status] || t.status}</em></div>
+            </div>
+            <div class="flex gap-2 items-center">
+              ${(t.disciplines || []).map(d => `<span class="badge badge-${d === 'kumite' ? 'red' : 'gold'}">${d}</span>`).join('')}
+              <button class="btn btn-ghost btn-sm btn-icon" title="Eliminar torneo"
+                onclick="event.stopPropagation();removeTournament('${t.id}','${t.name.replace(/'/g, '\\x27')}')">🗑</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    } catch (e) {
+      el.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
+  }
+
+  window.selectTournament = async function(id) {
+    try {
+      state.activeTournament = await Tournament.getById(id);
+      _updateNavTournamentName(state.activeTournament.name);
+      Display.toast(`Torneo "${state.activeTournament.name}" seleccionado.`, 'success');
+      switchPanel('dashboard');
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  };
+
+  /* ---- COMPETIDORES ---- */
+  async function _loadCompetitors() {
+    if (!state.activeTournament) return;
+    document.getElementById('competitors-count-label').textContent = 'Cargando...';
+    const tbody = document.getElementById('competitors-table-body');
+    try {
+      const list = await Competitors.listByTournament(state.activeTournament.id);
+      document.getElementById('competitors-count-label').textContent = `${list.length} competidor(es) inscrito(s)`;
+      if (!list.length) {
+        tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">👤</div><h3>Sin competidores</h3><p>Registra el primer competidor del torneo.</p></div></td></tr>`;
+        return;
+      }
+      tbody.innerHTML = list.map(c => {
+        const belt = BELTS.find(b => b.id === c.belt_id);
+        const age  = c.dob ? _calcAge(c.dob, state.activeTournament.date_start) : '—';
+        return `<tr>
+          <td><strong>${c.full_name}</strong></td>
+          <td>${c.gender === 'M' ? '♂ Masc.' : '♀ Fem.'}</td>
+          <td>${age} años</td>
+          <td>${c.weight} kg</td>
+          <td>
+            <span class="badge" style="background:${belt?.color || '#444'};color:${belt?.textColor || '#fff'};">
+              ${belt?.label || c.belt_id}
+            </span>
+          </td>
+          <td class="text-muted">${c.club || '—'}</td>
+          <td class="text-muted text-xs">${c.category_id ? '1 categoría' : '—'}</td>
+          <td><button class="btn btn-ghost btn-sm btn-icon" title="Eliminar" onclick="removeCompetitor('${c.registration_id}')">🗑</button></td>
+        </tr>`;
+      }).join('');
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="8"><div class="alert alert-danger">${e.message}</div></td></tr>`;
+    }
+  }
+
+  window.removeCompetitor = async function(regId) {
+    if (!confirm('¿Eliminar este competidor del torneo?')) return;
+    try {
+      await Competitors.unregister(regId);
+      Display.toast('Competidor eliminado.', 'success');
+      await _loadCompetitors();
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  };
+
+  /* ---- Helper: inyecta registrations_count en categorías (modo dev) ---- */
+  function _enrichCatsWithCounts(cats) {
+    if (!Auth.isDevMode()) return cats;  // Supabase ya trae el campo
+    const regs    = JSON.parse(localStorage.getItem('ot_dev_registrations') || '[]');
+    const matches = JSON.parse(localStorage.getItem('ot_dev_matches')       || '[]');
+    return cats.map(c => {
+      const catMatches  = matches.filter(m => m.category_id === c.id && m.status !== 'bye');
+      const finishedCnt = catMatches.filter(m => m.status === 'finished').length;
+      return {
+        ...c,
+        registrations_count: regs.filter(r => r.category_id === c.id).length,
+        matches_count:        catMatches.length,
+        finished_count:       finishedCnt,
+      };
+    });
+  }
+
+  /* ---- CATEGORÍAS ---- */
+  async function _loadCategories() {
+    if (!state.activeTournament) return;
+    // Populate tatami selector and show bar
+    const tatamiBar = document.getElementById('tatami-manager-bar');
+    const tatamiSel = document.getElementById('cat-tatami-count');
+    if (tatamiBar && tatamiSel) {
+      tatamiSel.value = String(parseInt(state.activeTournament.num_tatamis, 10) || 1);
+      tatamiBar.style.display = '';
+    }
+    const el = document.getElementById('categories-list');
+    el.innerHTML = '<div class="text-center p-4"><span class="spinner"></span></div>';
+    try {
+      const cats = _enrichCatsWithCounts(
+        await Categories.listByTournament(state.activeTournament.id)
+      );
+      Display.renderCategoryList(el, cats, cat => {
+        state.activeCategory = cat;
+        switchPanel('brackets');
+      });
+    } catch (e) {
+      el.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
+  }
+
+  /* ---- LLAVES ---- */
+  async function _loadBracketPanel() {
+    if (!state.activeTournament) return;
+    const listEl = document.getElementById('brackets-category-list');
+    listEl.innerHTML = '<div class="text-center p-4"><span class="spinner"></span></div>';
+    try {
+      const cats = _enrichCatsWithCounts(
+        await Categories.listByTournament(state.activeTournament.id)
+      );
+      Display.renderCategoryList(listEl, cats, async cat => {
+        state.activeCategory = cat;
+        await _loadBracket(cat);
+      });
+      if (state.activeCategory) await _loadBracket(state.activeCategory);
+    } catch (e) {
+      listEl.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
+  }
+
+  async function _loadBracket(category) {
+    const catLabel = category.name || Categories.buildLabel(category);
+    const tatamiLabel = category.tatami ? ` — Tatami ${category.tatami}` : '';
+    document.getElementById('brackets-category-label').textContent = catLabel + tatamiLabel;
+    document.getElementById('bracket-actions').style.display = 'flex';
+    document.getElementById('bracket-system-selector').style.display = 'flex';
+    document.getElementById('select-bracket-system').value = category.bracket_system || 'auto';
+
+    const displayEl = document.getElementById('bracket-display');
+    displayEl.innerHTML = '<div class="text-center p-4"><span class="spinner"></span></div>';
+    try {
+      // ---- Verificar competidor solitario ----
+      const competitors = await Competitors.listByCategory(category.id);
+      if (competitors.length <= 1) {
+        _showSoloCompetitorWarning(displayEl, category, competitors);
+        document.getElementById('kata-advance-bar').style.display = 'none';
+        document.getElementById('podio-display').style.display = 'none';
+        return;
+      }
+
+      let matches = await Bracket.getByCategoryId(category.id);
+
+      // En modo dev los matches solo tienen IDs — enriquecer con nombres
+      if (Auth.isDevMode() && matches.length) {
+        const regs  = JSON.parse(localStorage.getItem('ot_dev_registrations') || '[]');
+        const comps = JSON.parse(localStorage.getItem('ot_dev_competitors')    || '[]');
+        const _byRegId = id => {
+          const reg  = regs.find(r => r.id === id);
+          const comp = reg ? comps.find(c => c.id === reg.competitor_id) : null;
+          return comp ? { full_name: comp.full_name, club: comp.club } : null;
+        };
+        matches = matches.map(m => ({
+          ...m,
+          competitor_a: m.competitor_a_id ? { full_name: _byRegId(m.competitor_a_id)?.full_name, competitors: _byRegId(m.competitor_a_id) } : null,
+          competitor_b: m.competitor_b_id ? { full_name: _byRegId(m.competitor_b_id)?.full_name, competitors: _byRegId(m.competitor_b_id) } : null,
+          winner:       m.winner_id       ? { full_name: _byRegId(m.winner_id)?.full_name,       competitors: _byRegId(m.winner_id) }       : null,
+        }));
+      }
+
+      Display.renderBracket(displayEl, matches, category, {
+        editable: true,
+        onMatchClick: match => openResultModal(match),
+      });
+
+      // ---- Kata: mostrar botón de avanzar ronda si corresponde ----
+      const advanceBar = document.getElementById('kata-advance-bar');
+      const podioDisplayEl = document.getElementById('podio-display');
+      if (category.discipline === 'kata') {
+        const kataMatches = matches.filter(m => m.bracket_type === 'kata_round');
+        if (kataMatches.length) {
+          const maxRound    = Math.max(...kataMatches.map(m => m.round || 1));
+          const currentRound = kataMatches.filter(m => m.round === maxRound);
+          const allDone      = currentRound.every(m => m.status === 'finished');
+          const canAdvance   = allDone && currentRound.length > 4;
+          advanceBar.style.display = canAdvance ? 'block' : 'none';
+          if (canAdvance) {
+            document.getElementById('kata-advance-msg').textContent =
+              `✅ Ronda ${maxRound} completada con ${currentRound.length} atletas. ¿Avanzar a la siguiente ronda?`;
+          }
+        } else { advanceBar.style.display = 'none'; }
+      } else {
+        advanceBar.style.display = 'none';
+      }
+
+      // ---- Podio ----
+      const podio = await Bracket.getPodio(category.id);
+      if (podio?.positions?.length) {
+        const medals = ['🥇','🥈','🥉'];
+        podioDisplayEl.style.display = 'block';
+        podioDisplayEl.innerHTML = `
+          <h4 class="text-sm text-muted mb-2" style="text-transform:uppercase;">🏆 Podio Final</h4>
+          <div class="flex gap-2 flex-wrap">
+            ${podio.positions.map(p => `
+              <div class="card text-center" style="min-width:140px;padding:.75rem;">
+                <div style="font-size:2rem;">${medals[p.position - 1] || p.position + '°'}</div>
+                <div class="font-semibold mt-1">${p.full_name || '—'}</div>
+                <div class="text-xs text-muted">${p.club || ''}</div>
+              </div>`).join('')}
+          </div>`;
+      } else {
+        podioDisplayEl.style.display = 'none';
+      }
+    } catch (e) {
+      displayEl.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
+  }
+
+  /* ---- Advertencia: competidor solitario en categoría ---- */
+  let _moveCatRegistrationId = null;
+
+  function _showSoloCompetitorWarning(displayEl, category, competitors) {
+    const comp = competitors[0] || null;
+    const compName = comp?.full_name || '—';
+    const compClub = comp?.club || '';
+    const regId    = comp?.registration_id || null;
+    const count    = competitors.length;
+
+    displayEl.innerHTML = `
+      <div class="alert" style="border:2px solid #f59e0b;background:#fffbeb;border-radius:8px;padding:1.25rem;">
+        <div style="font-size:2rem;text-align:center;margin-bottom:.5rem;">⚠️</div>
+        <h3 style="text-align:center;margin:0 0 .25rem;" class="font-semibold">
+          ${count === 0 ? 'Categoría vacía' : 'Solo 1 competidor'}
+        </h3>
+        <p class="text-center text-muted text-sm mb-3">
+          ${count === 0
+            ? 'No hay competidores inscritos. Registra al menos 2 para generar llaves.'
+            : `<strong>${compName}</strong>${compClub ? ' · ' + compClub : ''} no tiene rival. Necesita al menos 1 más para competir.`
+          }
+        </p>
+        ${count === 1 ? `
+          <div class="flex gap-2 justify-center flex-wrap">
+            <button class="btn btn-outline" onclick="_openMoveCategoryModal('${regId}','${compName.replace(/'/g, '\\x27')}')">
+              📦 Cambiar categoría
+            </button>
+            <button class="btn btn-ghost text-danger" onclick="_confirmRemoveCompetitor('${regId}','${compName.replace(/'/g, '\\x27')}')">
+              🗑 Quitar del torneo
+            </button>
+          </div>` : ''}
+      </div>`;
+  }
+
+  window._openMoveCategoryModal = async function(registrationId, competitorName) {
+    _moveCatRegistrationId = registrationId;
+    document.getElementById('move-cat-competitor-name').textContent =
+      `Mover a "${competitorName}" a otra categoría:`;
+    const sel = document.getElementById('move-cat-target');
+    sel.innerHTML = '<option value="">— Selecciona —</option>';
+    try {
+      const cats = await Categories.listByTournament(state.activeTournament.id);
+      cats.forEach(c => {
+        if (c.id === state.activeCategory?.id) return; // no mostrar la actual
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.name || Categories.buildLabel(c);
+        sel.appendChild(opt);
+      });
+    } catch (_) {}
+    Display.openModal('modal-move-category');
+  };
+
+  window._confirmRemoveCompetitor = async function(registrationId, competitorName) {
+    if (!confirm(`¿Quitar a "${competitorName}" del torneo? Esta acción no se puede deshacer.`)) return;
+    try {
+      await Competitors.unregister(registrationId);
+      Display.toast(`${competitorName} retirado del torneo.`, 'success');
+      await _loadBracketPanel();
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  };
+
+  document.getElementById('btn-confirm-move-cat').addEventListener('click', async () => {
+    const targetCatId = document.getElementById('move-cat-target').value;
+    if (!targetCatId) { Display.toast('Selecciona una categoría destino.', 'warning'); return; }
+    try {
+      await Competitors.moveCategory(_moveCatRegistrationId, targetCatId);
+      Display.closeModal('modal-move-category');
+      Display.toast('Competidor movido exitosamente.', 'success');
+      await _loadBracketPanel();
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  });
+
+  document.getElementById('btn-generate').addEventListener('click', async () => {
+    if (!state.activeCategory) { Display.toast('Selecciona una categoría.', 'warning'); return; }
+    try {
+      const result = await Bracket.generate(state.activeCategory.id);
+      if (result.warnings?.length) {
+        alert('⚠️ Competidores del mismo dojo en primera ronda (inevitable por la cantidad):\n\n' + result.warnings.join('\n'));
+      }
+      Display.toast('¡Llaves generadas exitosamente!', 'success');
+      await _loadBracket(state.activeCategory);
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  });
+
+  document.getElementById('btn-regenerate').addEventListener('click', async () => {
+    if (!state.activeCategory) return;
+    if (!confirm('¿Regenerar las llaves? Se borrarán los combates pendientes.')) return;
+    try {
+      const result = await Bracket.regenerate(state.activeCategory.id);
+      if (result.warnings?.length) {
+        alert('⚠️ Competidores del mismo dojo en primera ronda (inevitable por la cantidad):\n\n' + result.warnings.join('\n'));
+      }
+      Display.toast('Llaves regeneradas.', 'success');
+      await _loadBracket(state.activeCategory);
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  });
+
+  /* ---- Selector de sistema de llave ---- */
+  document.getElementById('select-bracket-system').addEventListener('change', async (e) => {
+    if (!state.activeCategory) return;
+    const newSystem = e.target.value;
+
+    try {
+      // Guardar el sistema elegido en la categoría
+      await Categories.update(state.activeCategory.id, { bracket_system: newSystem });
+      state.activeCategory.bracket_system = newSystem;
+
+      // ¿Ya hay llaves generadas?
+      const existing = await Bracket.getByCategoryId(state.activeCategory.id);
+      if (existing.length) {
+        if (!confirm(`¿Cambiar a "${newSystem}" y regenerar las llaves? Se borrarán los combates pendientes.`)) {
+          // Revertir el selector visualmente sin cambiar nada más
+          e.target.value = state.activeCategory.bracket_system;
+          return;
+        }
+        const result = await Bracket.generate(state.activeCategory.id);
+        if (result.warnings?.length) {
+          alert('⚠️ Competidores del mismo dojo en primera ronda (inevitable por la cantidad):\n\n' + result.warnings.join('\n'));
+        }
+        Display.toast('Sistema actualizado y llaves regeneradas.', 'success');
+        await _loadBracket(state.activeCategory);
+      } else {
+        Display.toast('Sistema de llave actualizado.', 'success');
+      }
+    } catch (err) {
+      Display.toast(err.message, 'error');
+    }
+  });
+
+  /* ---- Asignar competidores a categorías: automático ---- */
+  document.getElementById('btn-assign-auto').addEventListener('click', async () => {
+    if (!state.activeTournament) { Display.toast('Seleccioná un torneo primero.', 'warning'); return; }
+    if (!confirm('¿Asignar automáticamente todos los competidores inscritos a sus categorías correspondientes?')) return;
+    try {
+      const allEntries = await Competitors.listByTournament(state.activeTournament.id);
+      if (!allEntries.length) { Display.toast('No hay competidores inscritos.', 'warning'); return; }
+
+      // Deduplicar por id (listByTournament devuelve 1 entrada por inscripción)
+      const seen = new Set();
+      const competitors = allEntries.filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
+
+      let assigned = 0, alreadyHad = 0;
+      for (const comp of competitors) {
+        const categoryIds = await Categories.assignCompetitor(comp, state.activeTournament.id);
+        for (const catId of categoryIds) {
+          try {
+            await _assignOneToCategory(comp, catId, state.activeTournament.id);
+            assigned++;
+          } catch {
+            alreadyHad++;
+          }
+        }
+      }
+      const msg = assigned > 0
+        ? `✓ ${assigned} inscripción(es) creada(s)${alreadyHad ? ` · ${alreadyHad} ya existían` : ''}.`
+        : `Todos los competidores ya estaban asignados a sus categorías.`;
+      Display.toast(msg, assigned > 0 ? 'success' : 'info');
+      await _loadCategories();
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  });
+
+  /* ---- Asignar competidores a categorías: manual ---- */
+  document.getElementById('btn-assign-manual').addEventListener('click', async () => {
+    if (!state.activeTournament) { Display.toast('Seleccioná un torneo primero.', 'warning'); return; }
+    const resultEl = document.getElementById('assign-result');
+    resultEl.innerHTML = '';
+    const tbody     = document.getElementById('assign-tbody');
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center"><span class="spinner"></span></td></tr>';
+    Display.openModal('modal-assign');
+    try {
+      const [competitors, categories] = await Promise.all([
+        Competitors.listByTournament(state.activeTournament.id),
+        Categories.listByTournament(state.activeTournament.id),
+      ]);
+      if (!competitors.length) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No hay competidores inscritos.</td></tr>';
+        return;
+      }
+      if (!categories.length) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No hay categorías. Primero auto-generá o creá categorías manualmente.</td></tr>';
+        return;
+      }
+      const catOptions = categories.map(c =>
+        `<option value="${c.id}">${c.name || Categories.buildLabel(c)}</option>`
+      ).join('');
+
+      function _calcAge(dob) {
+        if (!dob) return '—';
+        const today = new Date(), birth = new Date(dob);
+        let age = today.getFullYear() - birth.getFullYear();
+        if (today.getMonth() < birth.getMonth() ||
+           (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())) age--;
+        return age + ' años';
+      }
+      function _beltLabel(beltId) {
+        const b = (typeof BELTS !== 'undefined' ? BELTS : []).find(b => b.id === beltId);
+        return b ? b.label : (beltId || '—');
+      }
+      function _genderLabel(g) { return g === 'M' ? 'Masc.' : g === 'F' ? 'Fem.' : (g || '—'); }
+
+      tbody.innerHTML = competitors.map(comp => `
+        <tr data-comp-id="${comp.id}">
+          <td><strong>${comp.full_name}</strong></td>
+          <td>${_genderLabel(comp.gender)}</td>
+          <td>${_calcAge(comp.dob)}</td>
+          <td>${comp.weight != null ? comp.weight + ' kg' : '—'}</td>
+          <td>${_beltLabel(comp.belt_id)}</td>
+          <td>${[comp.club, comp.country].filter(Boolean).join(' / ') || '—'}</td>
+          <td>
+            <select class="form-control" style="min-width:180px;" data-cat-select>
+              <option value="">— elegir —</option>
+              ${catOptions}
+            </select>
+          </td>
+          <td>
+            <button class="btn btn-sm btn-outline" data-btn-single>Asignar</button>
+          </td>
+        </tr>
+      `).join('');
+
+      // Botón individual
+      tbody.querySelectorAll('[data-btn-single]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const row    = btn.closest('tr');
+          const compId = row.dataset.compId;
+          const catId  = row.querySelector('[data-cat-select]').value;
+          if (!catId) { Display.toast('Elegí una categoría.', 'warning'); return; }
+          const comp = competitors.find(c => c.id === compId);
+          btn.disabled = true; btn.textContent = '...';
+          try {
+            await _assignOneToCategory(comp, catId, state.activeTournament.id);
+            btn.textContent = '✓';
+            btn.classList.replace('btn-outline', 'btn-success');
+          } catch (e) {
+            btn.disabled = false; btn.textContent = 'Asignar';
+            Display.toast(e.message, 'error');
+          }
+        });
+      });
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="8" class="alert alert-danger">${e.message}</td></tr>`;
+    }
+  });
+
+  document.getElementById('btn-assign-all').addEventListener('click', async () => {
+    const rows = document.querySelectorAll('#assign-tbody tr[data-comp-id]');
+    let ok = 0, skip = 0, fail = 0;
+    const competitorsList = await Competitors.listByTournament(state.activeTournament.id);
+    for (const row of rows) {
+      const compId = row.dataset.compId;
+      const catId  = row.querySelector('[data-cat-select]').value;
+      if (!catId) { skip++; continue; }
+      const comp = competitorsList.find(c => c.id === compId);
+      const btn  = row.querySelector('[data-btn-single]');
+      try {
+        await _assignOneToCategory(comp, catId, state.activeTournament.id);
+        ok++; if (btn) { btn.textContent = '✓'; btn.classList.replace('btn-outline','btn-success'); btn.disabled=true; }
+      } catch { fail++; }
+    }
+    document.getElementById('assign-result').innerHTML =
+      `<div class="alert alert-${fail ? 'warning' : 'success'}">
+        Asignados: <strong>${ok}</strong> &nbsp;·&nbsp; Sin categoría seleccionada: <strong>${skip}</strong> &nbsp;·&nbsp; Errores: <strong>${fail}</strong>
+      </div>`;
+    if (ok > 0) await _loadCategories();
+  });
+
+  async function _assignOneToCategory(competitor, categoryId, tournamentId) {
+    // Crea la inscripción directamente en la categoría elegida.
+    // categories.js — _devCreateReg / real createRegistration según modo.
+    if (Auth.isDevMode()) {
+      // Reutiliza el helper interno de competitors.js si está expuesto,
+      // de lo contrario re-registra al competidor forzando la categoría.
+      const regs = JSON.parse(localStorage.getItem('ot_dev_registrations') || '[]');
+      const alreadyIn = regs.find(r => r.competitor_id === competitor.id && r.category_id === categoryId);
+      if (alreadyIn) return; // Ya está
+      regs.push({
+        id:            'r-' + Date.now() + '-' + Math.random().toString(36).slice(2,7),
+        competitor_id: competitor.id,
+        tournament_id: tournamentId,
+        category_id:   categoryId,
+        created_at:    new Date().toISOString(),
+      });
+      localStorage.setItem('ot_dev_registrations', JSON.stringify(regs));
+      return;
+    }
+    // Modo Supabase
+    const { error } = await supabase.from('registrations').insert({
+      competitor_id:  competitor.id,
+      tournament_id:  tournamentId,
+      category_id:    categoryId,
+    });
+    if (error && !error.message.includes('duplicate')) throw error;
+  }
+
+  /* ---- Auto-generar categorías ---- */
+  document.getElementById('btn-autogenerate').addEventListener('click', async () => {
+    if (!state.activeTournament) return;
+    if (!confirm('¿Generar categorías automáticamente? Se analizarán todos los competidores inscritos.')) return;
+    try {
+      const created = await Categories.autoGenerate(state.activeTournament.id);
+      Display.toast(`${created.length} categoría(s) creada(s).`, 'success');
+      await _loadCategories();
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  });
+
+  window.updateTatamiCount = async function(val) {
+    if (!state.activeTournament) return;
+    const n = Math.max(1, Math.min(10, parseInt(val, 10) || 1));
+    try {
+      await Tournament.update(state.activeTournament.id, { num_tatamis: n });
+      state.activeTournament.num_tatamis = n;
+      Display.toast(`Número de tatamis actualizado a ${n}.`, 'success');
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  };
+
+  window.redistributeTatamis = async function() {
+    if (!state.activeTournament) return;
+    const numTatamis = parseInt(state.activeTournament.num_tatamis, 10) || 1;
+    if (!confirm(`¿Redistribuir todas las categorías en ${numTatamis} tatami(s)?`)) return;
+    try {
+      const cats = await Categories.listByTournament(state.activeTournament.id);
+      if (!cats.length) { Display.toast('No hay categorías para redistribuir.', 'warning'); return; }
+      const kumiteCats = cats.filter(c => c.discipline === 'kumite');
+      const kataCats   = cats.filter(c => c.discipline === 'kata');
+      const otherCats  = cats.filter(c => c.discipline !== 'kumite' && c.discipline !== 'kata');
+      const interleaved = [];
+      const maxLen = Math.max(kumiteCats.length, kataCats.length);
+      for (let i = 0; i < maxLen; i++) {
+        if (i < kumiteCats.length) interleaved.push(kumiteCats[i]);
+        if (i < kataCats.length)   interleaved.push(kataCats[i]);
+      }
+      interleaved.push(...otherCats);
+      let updated = 0;
+      for (let i = 0; i < interleaved.length; i++) {
+        const newTatami = numTatamis > 1 ? (i % numTatamis) + 1 : 1;
+        if (interleaved[i].tatami !== newTatami) {
+          await Categories.update(interleaved[i].id, { tatami: newTatami });
+          updated++;
+        }
+      }
+      Display.toast(`Redistribución completa: ${updated} categoría(s) actualizadas.`, 'success');
+      await _loadCategories();
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  };
+
+  /* ---- Modal: Nuevo Torneo ---- */
+  ['btn-new-tournament','btn-new-tournament-2'].forEach(id => {
+    document.getElementById(id)?.addEventListener('click', () => {
+      document.getElementById('form-tournament').reset();
+      document.getElementById('modal-tournament-title').textContent = 'Nuevo Torneo';
+      Display.openModal('modal-tournament');
+    });
+  });
+
+  /* ---- Cambiar Estado del Torneo ---- */
+  document.getElementById('btn-change-status').addEventListener('click', () => {
+    if (!state.activeTournament) {
+      Display.toast('Selecciona un torneo primero.', 'warning');
+      return;
+    }
+    document.getElementById('status-modal-tournament-name').textContent =
+      `Torneo: "${state.activeTournament.name}"`;
+    // Marcar el estado actual
+    document.querySelectorAll('input[name="new-status"]').forEach(r => {
+      r.checked = r.value === state.activeTournament.status;
+    });
+    Display.openModal('modal-change-status');
+  });
+
+  document.getElementById('btn-confirm-status').addEventListener('click', async () => {
+    const selected = document.querySelector('input[name="new-status"]:checked');
+    if (!selected) { Display.toast('Selecciona un estado.', 'warning'); return; }
+    const newStatus = selected.value;
+    if (newStatus === state.activeTournament.status) {
+      Display.closeModal('modal-change-status');
+      return;
+    }
+    try {
+      const updated = await Tournament.setStatus(state.activeTournament.id, newStatus);
+      state.activeTournament = updated;
+      Display.closeModal('modal-change-status');
+      Display.toast(`Estado cambiado a "${STATUS_LABELS[newStatus] || newStatus}".`, 'success');
+      await _refreshDashboard();
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  });
+
+  /* ---- Eliminar Torneo ---- */
+  window.removeTournament = async function(id, name) {
+    if (!confirm(`¿Eliminar el torneo "${name}"?\nSolo se pueden eliminar torneos en estado Borrador.\nEsta acción no se puede deshacer.`)) return;
+    try {
+      await Tournament.remove(id);
+      Display.toast(`Torneo "${name}" eliminado.`, 'success');
+      // Si era el torneo activo, limpiar
+      if (state.activeTournament?.id === id) {
+        state.activeTournament = null;
+        _updateNavTournamentName('');
+        document.getElementById('dash-info-card').style.display = 'none';
+      }
+      await _loadTournamentList();
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  };
+
+  document.getElementById('btn-save-tournament').addEventListener('click', async () => {
+    const disciplines = [];
+    if (document.getElementById('t-disc-kumite').checked) disciplines.push('kumite');
+    if (document.getElementById('t-disc-kata').checked)   disciplines.push('kata');
+    const data = {
+      name:           document.getElementById('t-name').value,
+      date_start:     document.getElementById('t-date-start').value,
+      date_end:       document.getElementById('t-date-end').value,
+      location:       document.getElementById('t-location').value,
+      description:    document.getElementById('t-description').value,
+      bracket_system: document.getElementById('t-bracket-system').value,
+      num_tatamis:    document.getElementById('t-num-tatamis').value,
+      disciplines,
+    };
+    try {
+      const created = await Tournament.create(data);
+      state.activeTournament = created;
+      _updateNavTournamentName(created.name);
+      Display.closeModal('modal-tournament');
+      Display.toast('¡Torneo creado!', 'success');
+      switchPanel('dashboard');
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  });
+
+  /* ---- Modal: Registrar Competidor ---- */
+  // Poblar select de cinturones
+  const beltSelect = document.getElementById('c-belt');
+  BELTS.forEach(b => {
+    const opt = document.createElement('option');
+    opt.value = b.id; opt.textContent = b.label;
+    beltSelect.appendChild(opt);
+  });
+
+  document.getElementById('btn-new-competitor').addEventListener('click', () => {
+    document.getElementById('form-competitor').reset();
+    Display.openModal('modal-competitor');
+  });
+
+  /* ---- Importar CSV ---- */
+  const DISCIPLINE_ALIAS = {
+    kumite: 'kumite', kumite_: 'kumite',
+    kata: 'kata',
+    ambos: 'both', both: 'both', 'ambas': 'both',
+  };
+  function _normalizeDiscipline(v) {
+    return DISCIPLINE_ALIAS[(v || '').toLowerCase().trim()] || 'kumite';
+  }
+
+  const BELT_ALIAS = {
+    blanco:'blanco', white:'blanco',
+    amarillo:'amarillo', yellow:'amarillo',
+    naranja:'naranja', orange:'naranja',
+    verde:'verde', green:'verde',
+    azul:'azul', blue:'azul',
+    marron:'marron', marrón:'marron', brown:'marron',
+    negro:'negro', black:'negro',
+  };
+
+  function _parseCsv(text) {
+    const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) throw new Error('El CSV debe tener al menos una fila de datos además del encabezado.');
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    return lines.slice(1).map((line, i) => {
+      const cols = line.split(',').map(c => c.trim());
+      const row  = {};
+      headers.forEach((h, idx) => { row[h] = cols[idx] || ''; });
+      return {
+        full_name:   row['nombre']           || '',
+        document_id: row['documento']        || '',
+        gender:      (row['genero'] || row['género'] || '').toUpperCase(),
+        dob:         row['fecha_nacimiento'] || row['fecha'] || '',
+        weight:      row['peso']             || '',
+        belt_id:     BELT_ALIAS[(row['cinturon'] || row['cinturón'] || '').toLowerCase()] || row['cinturon'] || '',
+        club:        row['club']             || '',
+        country:     row['pais'] || row['país'] || 'Argentina',
+        discipline:  _normalizeDiscipline(row['modalidad'] || row['discipline'] || ''),
+        _row:        i + 2,
+      };
+    });
+  }
+
+  let _csvParsed = [];
+
+  document.getElementById('btn-import-competitors').addEventListener('click', () => {
+    if (!state.activeTournament) { Display.toast('Primero selecciona un torneo.', 'warning'); return; }
+    document.getElementById('csv-textarea').value = '';
+    document.getElementById('csv-file-input').value = '';
+    document.getElementById('csv-preview').style.display = 'none';
+    document.getElementById('csv-result').style.display  = 'none';
+    document.getElementById('btn-csv-import').disabled = true;
+    _csvParsed = [];
+    Display.openModal('modal-csv');
+  });
+
+  document.getElementById('csv-file-input').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => { document.getElementById('csv-textarea').value = ev.target.result; };
+    reader.readAsText(file, 'UTF-8');
+  });
+
+  document.getElementById('btn-csv-preview').addEventListener('click', () => {
+    try {
+      _csvParsed = _parseCsv(document.getElementById('csv-textarea').value);
+      document.getElementById('csv-preview-count').textContent = _csvParsed.length;
+      document.getElementById('csv-preview-tbody').innerHTML = _csvParsed.map(r => `
+        <tr>
+          <td class="text-sm">${r.full_name || '<span class="text-danger">?</span>'}</td>
+          <td class="text-sm">${r.gender}</td>
+          <td class="text-sm">${r.dob}</td>
+          <td class="text-sm">${r.weight} kg</td>
+          <td class="text-sm">${r.belt_id}</td>
+          <td class="text-sm">${r.club}</td>
+          <td class="text-sm"><span class="badge ${r.discipline === 'kata' ? 'badge-gold' : r.discipline === 'both' ? 'badge-green' : 'badge-red'}">${r.discipline}</span></td>
+        </tr>`).join('');
+      document.getElementById('csv-preview').style.display = 'block';
+      document.getElementById('csv-result').style.display  = 'none';
+      document.getElementById('btn-csv-import').disabled = false;
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  });
+
+  document.getElementById('btn-csv-import').addEventListener('click', async () => {
+    if (!_csvParsed.length) return;
+    const btn = document.getElementById('btn-csv-import');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Importando...';
+    try {
+      const { success, errors } = await Competitors.registerBatch(_csvParsed, state.activeTournament.id);
+      let html = '';
+      if (success.length) html += `<div class="alert alert-success">✅ ${success.length} competidor(es) importado(s) correctamente.</div>`;
+      if (errors.length)  html += `<div class="alert alert-danger">❌ ${errors.length} error(es):<ul class="mt-1">${
+        errors.map(e => `<li class="text-sm">Fila ${e.row?._row || '?'}: ${e.message}</li>`).join('')
+      }</ul></div>`;
+      document.getElementById('csv-result').innerHTML = html;
+      document.getElementById('csv-result').style.display = 'block';
+      if (success.length) await _loadCompetitors();
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    } finally {
+      btn.innerHTML = '⬆ Importar';
+    }
+  });
+
+  document.getElementById('btn-save-competitor').addEventListener('click', async () => {
+    const data = {
+      full_name:   document.getElementById('c-name').value,
+      document_id: document.getElementById('c-doc').value,
+      gender:      document.getElementById('c-gender').value,
+      dob:         document.getElementById('c-dob').value,
+      weight:      document.getElementById('c-weight').value,
+      belt_id:     document.getElementById('c-belt').value,
+      club:        document.getElementById('c-club').value,
+      country:     document.getElementById('c-country').value,
+      discipline:  document.querySelector('input[name="c-discipline"]:checked')?.value || 'kumite',
+    };
+    try {
+      await Competitors.register(data, state.activeTournament.id);
+      Display.closeModal('modal-competitor');
+      Display.toast('Competidor registrado.', 'success');
+      await _loadCompetitors();
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  });
+
+  /* ---- Modal: Resultado ---- */
+  let _resultMatchCache = null;
+
+  function openResultModal(match) {
+    if (match.status === 'finished') {
+      _openReadonlyResult(match);
+      return;
+    }
+    _resultMatchCache = match;
+    state.selectedWinnerId = null;
+    document.getElementById('result-match-id').value  = match.id;
+    document.getElementById('result-name-a').textContent = match.competitor_a?.competitors?.full_name || 'Competidor A';
+    document.getElementById('result-name-b').textContent = match.competitor_b?.competitors?.full_name || 'Competidor B';
+    document.getElementById('result-score-a').value = '';
+    document.getElementById('result-score-b').value = '';
+    document.getElementById('result-notes').value   = '';
+    document.getElementById('btn-winner-a').classList.remove('btn-primary');
+    document.getElementById('btn-winner-b').classList.remove('btn-primary');
+    document.getElementById('btn-save-result').disabled = true;
+    Display.openModal('modal-result');
+  }
+
+  function _openReadonlyResult(match) {
+    const nameA = match.competitor_a?.competitors?.full_name || match.competitor_a?.full_name || 'Competidor A';
+    const nameB = match.competitor_b?.competitors?.full_name || match.competitor_b?.full_name || 'Competidor B';
+    const clubA = match.competitor_a?.competitors?.club     || match.competitor_a?.club     || '';
+    const clubB = match.competitor_b?.competitors?.club     || match.competitor_b?.club     || '';
+    const isKata    = match.bracket_type === 'kata_round';
+    const winnerIsA = match.winner_id && match.winner_id === match.competitor_a_id;
+    const winnerIsB = match.winner_id && match.winner_id === match.competitor_b_id;
+
+    let content = '';
+    if (isKata) {
+      content = `
+        <div class="text-center p-3">
+          <div class="font-semibold" style="font-size:1.1rem;">${nameA}</div>
+          <div class="text-muted text-sm">${clubA}</div>
+          <div class="mt-2" style="font-size:2.5rem;font-weight:700;color:var(--primary);">${match.score_a ?? '—'}</div>
+          <div class="text-muted text-sm">Puntaje Kata</div>
+        </div>`;
+    } else {
+      content = `
+        <div class="flex gap-3" style="align-items:stretch;">
+          <div class="card flex-1 text-center ${winnerIsA ? '' : ''}" style="padding:1rem;${winnerIsA ? 'border:2px solid var(--success);' : ''}">
+            ${winnerIsA ? '<div style="font-size:1.5rem;">🥇</div>' : '<div style="font-size:1.5rem;opacity:.3;">🥊</div>'}
+            <div class="font-semibold mt-1">${nameA}</div>
+            <div class="text-muted text-sm">${clubA}</div>
+            ${match.score_a != null ? `<div class="mt-2" style="font-size:1.4rem;font-weight:700;">${match.score_a}</div><div class="text-muted text-xs">puntos</div>` : ''}
+            ${winnerIsA ? '<div class="badge badge-success mt-2">GANADOR</div>' : ''}
+          </div>
+          <div class="text-muted font-semibold" style="display:flex;align-items:center;">vs</div>
+          <div class="card flex-1 text-center" style="padding:1rem;${winnerIsB ? 'border:2px solid var(--success);' : ''}">
+            ${winnerIsB ? '<div style="font-size:1.5rem;">🥇</div>' : '<div style="font-size:1.5rem;opacity:.3;">🥊</div>'}
+            <div class="font-semibold mt-1">${nameB}</div>
+            <div class="text-muted text-sm">${clubB}</div>
+            ${match.score_b != null ? `<div class="mt-2" style="font-size:1.4rem;font-weight:700;">${match.score_b}</div><div class="text-muted text-xs">puntos</div>` : ''}
+            ${winnerIsB ? '<div class="badge badge-success mt-2">GANADOR</div>' : ''}
+          </div>
+        </div>`;
+    }
+    if (match.notes) {
+      content += `<div class="form-group mt-3"><label class="form-label">Notas</label><p class="text-sm">${match.notes}</p></div>`;
+    }
+    document.getElementById('ro-content').innerHTML = content;
+    Display.openModal('modal-result-readonly');
+  }
+
+  ['a','b'].forEach(side => {
+    document.getElementById(`btn-winner-${side}`).addEventListener('click', () => {
+      state.selectedWinnerId = side === 'a'
+        ? _resultMatchCache?.competitor_a_id
+        : _resultMatchCache?.competitor_b_id;
+      document.getElementById(`btn-winner-${side}`).classList.add('btn-primary');
+      document.getElementById(`btn-winner-${side === 'a' ? 'b' : 'a'}`).classList.remove('btn-primary');
+      document.getElementById('btn-save-result').disabled = false;
+    });
+  });
+
+  document.addEventListener('match:click', async e => {
+    try {
+      let match = await Matches.getById(e.detail.matchId);
+      // En dev mode el match no tiene nombres — enriquecer igual que _loadBracket
+      if (Auth.isDevMode() && match) {
+        const regs  = JSON.parse(localStorage.getItem('ot_dev_registrations') || '[]');
+        const comps = JSON.parse(localStorage.getItem('ot_dev_competitors')    || '[]');
+        const byRegId = id => {
+          const reg  = regs.find(r => r.id === id);
+          const comp = reg ? comps.find(c => c.id === reg.competitor_id) : null;
+          return comp ? { full_name: comp.full_name, club: comp.club } : null;
+        };
+        match = {
+          ...match,
+          competitor_a: match.competitor_a_id ? { full_name: byRegId(match.competitor_a_id)?.full_name, competitors: byRegId(match.competitor_a_id) } : null,
+          competitor_b: match.competitor_b_id ? { full_name: byRegId(match.competitor_b_id)?.full_name, competitors: byRegId(match.competitor_b_id) } : null,
+        };
+      }
+      openResultModal(match);
+    } catch (err) {
+      Display.toast(err.message, 'error');
+    }
+  });
+
+  document.getElementById('btn-save-result').addEventListener('click', async () => {
+    if (!state.selectedWinnerId) { Display.toast('Selecciona al ganador.', 'warning'); return; }
+    try {
+      await Matches.recordResult(document.getElementById('result-match-id').value, {
+        winner_id: state.selectedWinnerId,
+        score_a:   document.getElementById('result-score-a').value || null,
+        score_b:   document.getElementById('result-score-b').value || null,
+        notes:     document.getElementById('result-notes').value   || null,
+      });
+      Display.closeModal('modal-result');
+      Display.toast('Resultado guardado.', 'success');
+      if (state.activeCategory) await _loadBracket(state.activeCategory);
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  });
+
+  /* ---- Códigos de acceso ---- */
+  window.generateCode = async function(role) {
+    if (!state.activeTournament) { Display.toast('Primero selecciona un torneo.', 'warning'); return; }
+    try {
+      const code = await Auth.generateCode(state.activeTournament.id, role);
+      Display.toast(`Código generado: ${code.code}`, 'success');
+      await _loadCodes();
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  };
+
+  async function _loadCodes() {
+    if (!state.activeTournament) return;
+    try {
+      const codes = await Auth.getCodesForTournament(state.activeTournament.id);
+      const refereeEl = document.getElementById('codes-referee-list');
+      const publicEl  = document.getElementById('codes-public-list');
+
+      const refCodes  = codes.filter(c => c.role === 'referee');
+      const pubCodes  = codes.filter(c => c.role === 'public');
+
+      function _renderCodeList(el, list, role) {
+        if (!list.length) {
+          el.innerHTML = `<div class="text-center text-muted p-3">Sin códigos. Genera uno con el botón +</div>`;
+          return;
+        }
+        el.innerHTML = list.map(c => `
+          <div class="flex items-center justify-between p-2 ${c.active === false ? 'opacity-50' : ''}"
+               style="border-bottom:1px solid var(--border);">
+            <div>
+              <code style="font-size:1.1rem;letter-spacing:.1em;font-weight:700;">${c.code}</code>
+              <div class="text-xs text-muted">${c.active === false ? '🔴 Desactivado' : '🟢 Activo'}</div>
+            </div>
+            <div class="flex gap-1">
+              <button class="btn btn-ghost btn-sm btn-icon" title="Copiar" onclick="navigator.clipboard.writeText('${c.code}').then(()=>Display.toast('Copiado','success'))">📋</button>
+              ${c.active !== false ? `<button class="btn btn-ghost btn-sm btn-icon text-danger" title="Desactivar" onclick="deactivateCode('${c.id}')">🚫</button>` : ''}
+            </div>
+          </div>
+        `).join('');
+      }
+
+      _renderCodeList(refereeEl, refCodes, 'referee');
+      _renderCodeList(publicEl,  pubCodes, 'public');
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  }
+
+  window.deactivateCode = async function(codeId) {
+    if (!confirm('¿Desactivar este código? Los árbitros con este código deberán reiniciar sesión.')) return;
+    try {
+      await Auth.deactivateCode(codeId);
+      Display.toast('Código desactivado.', 'info');
+      await _loadCodes();
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  };
+
+  /* ---- Medallero ---- */
+  async function _loadMedals() {
+    if (!state.activeTournament) return;
+    const medalEl  = document.getElementById('medals-content');
+    const podioEl  = document.getElementById('medals-podio-list');
+    medalEl.innerHTML = '<div class="text-center p-4"><span class="spinner"></span></div>';
+    podioEl.innerHTML = '';
+
+    try {
+      const cats      = await Categories.listByTournament(state.activeTournament.id);
+      const allPodio  = JSON.parse(localStorage.getItem('ot_dev_podio') || '{}');
+      const clubMedals = {};
+
+      // Categorías con podio
+      const finishedCats = [];
+      for (const cat of cats) {
+        const catPodio = allPodio[cat.id];
+        if (!catPodio?.positions?.length) continue;
+        finishedCats.push({ cat, podio: catPodio });
+
+        for (const p of catPodio.positions) {
+          const club = p.club || 'Sin club';
+          if (!clubMedals[club]) clubMedals[club] = { gold: 0, silver: 0, bronze: 0 };
+          if (p.position === 1) clubMedals[club].gold++;
+          else if (p.position === 2) clubMedals[club].silver++;
+          else if (p.position === 3) clubMedals[club].bronze++;
+        }
+      }
+
+      if (!Object.keys(clubMedals).length) {
+        medalEl.innerHTML = `<div class="empty-state"><div class="empty-icon">🏅</div><h3>Sin resultados aún</h3><p>El medallero se completa automáticamente al finalizar cada categoría.</p></div>`;
+      } else {
+        const sorted = Object.entries(clubMedals)
+          .map(([club, m]) => ({ club, ...m, total: m.gold + m.silver + m.bronze }))
+          .sort((a, b) => b.gold - a.gold || b.silver - a.silver || b.bronze - a.bronze);
+
+        medalEl.innerHTML = `
+          <div class="card p-0">
+            <table class="table">
+              <thead>
+                <tr><th>#</th><th>Club / Equipo</th><th class="text-center">🥇</th><th class="text-center">🥈</th><th class="text-center">🥉</th><th class="text-center">Total</th></tr>
+              </thead>
+              <tbody>
+                ${sorted.map((r, i) => `
+                  <tr>
+                    <td>${i + 1}</td>
+                    <td><strong>${r.club}</strong></td>
+                    <td class="text-center">${r.gold   || ''}</td>
+                    <td class="text-center">${r.silver || ''}</td>
+                    <td class="text-center">${r.bronze || ''}</td>
+                    <td class="text-center"><strong>${r.total}</strong></td>
+                  </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>`;
+      }
+
+      // Podios por categoría
+      if (finishedCats.length) {
+        podioEl.innerHTML = `
+          <h3 class="text-sm text-muted mb-2" style="text-transform:uppercase;">Podios por Categoría</h3>
+          ${finishedCats.map(({ cat, podio }) => `
+            <div class="card mb-2" style="padding:.75rem;">
+              <div class="font-semibold mb-2">${cat.name || Categories.buildLabel(cat) || '—'}${cat.tatami ? ` <span class="badge badge-muted text-xs ml-1">Tatami ${cat.tatami}</span>` : ''}</div>
+              <div class="flex gap-2 flex-wrap">
+                ${podio.positions.map(p => {
+                  const medal = p.position === 1 ? '🥇' : p.position === 2 ? '🥈' : '🥉';
+                  return `<div class="badge badge-muted" style="font-size:.85rem;padding:.3rem .6rem;">${medal} ${p.full_name || '—'} <span class="text-muted">(${p.club || '—'})</span></div>`;
+                }).join('')}
+              </div>
+            </div>`).join('')}`;
+      }
+    } catch (e) {
+      medalEl.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
+  }
+
+  document.getElementById('btn-refresh-medals')?.addEventListener('click', () => _loadMedals());
+
+  /* ---- Polling de llaves ---- */
+  function _startBracketPolling() {
+    if (state.pollingInterval) clearInterval(state.pollingInterval);
+    state.pollingInterval = setInterval(async () => {
+      if (state.activeCategory) await _loadBracket(state.activeCategory);
+    }, 8000);
+
+    // Suscripción en tiempo real (BroadcastChannel en dev, Supabase Realtime en prod)
+    if (state.bracketSub) { try { state.bracketSub.unsubscribe(); } catch (_) {} }
+    const tid = state.activeTournament?.id;
+    if (tid) {
+      state.bracketSub = Matches.subscribeToTournament(tid, async () => {
+        if (state.activeCategory) await _loadBracket(state.activeCategory);
+        // Actualizar medallero si está visible
+        const medalPanel = document.getElementById('panel-medals');
+        if (medalPanel && medalPanel.style.display !== 'none') await _loadMedals();
+      });
+    }
+  }
+
+  /* ---- Avanzar ronda de kata ---- */
+  document.getElementById('btn-advance-kata').addEventListener('click', async () => {
+    if (!state.activeCategory) return;
+    if (!confirm('¿Avanzar a la siguiente ronda de kata con los mejores puntajes?')) return;
+    try {
+      await Bracket.advanceKataRound(state.activeCategory.id);
+      Display.toast('Siguiente ronda de kata generada.', 'success');
+      await _loadBracket(state.activeCategory);
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  });
+
+  /* ---- Logout ---- */
+  document.getElementById('btn-logout').addEventListener('click', () => Auth.logout());
+
+  /* ---- Acceso Público — abrir vista pública en nueva ventana ---- */
+  document.getElementById('btn-public-link').addEventListener('click', () => {
+    const tid = document.getElementById('btn-public-link').dataset.tid;
+    if (!tid) return;
+    const url = `${window.location.origin}/views/public.html?t=${tid}`;
+    window.open(url, '_blank');
+  });
+
+  /* ================================================================
+     CONFIGURACIÓN — Gestión de Usuarios
+  ================================================================ */
+
+  /* Crear nuevo usuario */
+  document.getElementById('btn-create-user').addEventListener('click', async () => {
+    const email  = document.getElementById('new-user-email').value.trim();
+    const pass   = document.getElementById('new-user-pass').value;
+    const pass2  = document.getElementById('new-user-pass2').value;
+    const resultEl = document.getElementById('create-user-result');
+    resultEl.innerHTML = '';
+
+    if (!email) {
+      resultEl.innerHTML = `<div class="alert alert-danger">El email es obligatorio.</div>`;
+      return;
+    }
+    if (pass.length < 6) {
+      resultEl.innerHTML = `<div class="alert alert-danger">La contraseña debe tener al menos 6 caracteres.</div>`;
+      return;
+    }
+    if (pass !== pass2) {
+      resultEl.innerHTML = `<div class="alert alert-danger">Las contraseñas no coinciden.</div>`;
+      return;
+    }
+
+    const btn = document.getElementById('btn-create-user');
+    btn.disabled = true;
+    btn.textContent = 'Creando...';
+    try {
+      await Auth.createUser(email, pass);
+      resultEl.innerHTML = `<div class="alert alert-success">✅ Usuario <strong>${email}</strong> creado correctamente.</div>`;
+      document.getElementById('new-user-email').value = '';
+      document.getElementById('new-user-pass').value  = '';
+      document.getElementById('new-user-pass2').value = '';
+      await _loadUsersList();
+    } catch (e) {
+      resultEl.innerHTML = `<div class="alert alert-danger">❌ ${e.message}</div>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '＋ Crear usuario';
+    }
+  });
+
+  /* Cambiar contraseña propia */
+  document.getElementById('btn-change-pass').addEventListener('click', async () => {
+    const pass  = document.getElementById('change-pass-new').value;
+    const pass2 = document.getElementById('change-pass-new2').value;
+    const resultEl = document.getElementById('change-pass-result');
+    resultEl.innerHTML = '';
+
+    if (pass.length < 6) {
+      resultEl.innerHTML = `<div class="alert alert-danger">La contraseña debe tener al menos 6 caracteres.</div>`;
+      return;
+    }
+    if (pass !== pass2) {
+      resultEl.innerHTML = `<div class="alert alert-danger">Las contraseñas no coinciden.</div>`;
+      return;
+    }
+
+    const btn = document.getElementById('btn-change-pass');
+    btn.disabled = true;
+    btn.textContent = 'Guardando...';
+    try {
+      await Auth.changePassword(pass);
+      resultEl.innerHTML = `<div class="alert alert-success">✅ Contraseña actualizada correctamente.</div>`;
+      document.getElementById('change-pass-new').value  = '';
+      document.getElementById('change-pass-new2').value = '';
+    } catch (e) {
+      resultEl.innerHTML = `<div class="alert alert-danger">❌ ${e.message}</div>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '🔑 Cambiar contraseña';
+    }
+  });
+
+  /* Actualizar lista de usuarios */
+  document.getElementById('btn-refresh-users').addEventListener('click', () => _loadUsersList());
+
+  async function _loadUsersList() {
+    const el = document.getElementById('users-list');
+    el.innerHTML = `<div class="text-center p-3"><span class="spinner"></span></div>`;
+
+    // En dev mode mostrar aviso
+    if (Auth.isDevMode()) {
+      el.innerHTML = `<div class="alert alert-warning">Modo dev activo — la lista de usuarios requiere conexión real con Supabase.</div>`;
+      return;
+    }
+
+    try {
+      const profiles = await Auth.listProfiles();
+      if (!profiles.length) {
+        el.innerHTML = `<div class="text-muted text-sm p-2">No hay usuarios registrados aún.</div>`;
+        return;
+      }
+      el.innerHTML = profiles.map(p => `
+        <div class="flex items-center justify-between p-2 mb-1" style="background:var(--bg-secondary);border-radius:6px;">
+          <div>
+            <span class="badge badge-${p.role === 'organizer' ? 'gold' : 'red'} mr-2">${p.role}</span>
+            <span class="text-sm">${p.id}</span>
+          </div>
+          <span class="text-muted text-xs">${p.created_at ? new Date(p.created_at).toLocaleDateString('es-ES') : '—'}</span>
+        </div>
+      `).join('');
+    } catch (e) {
+      el.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
+  }
+
+  /* Cargar lista al abrir el panel de configuración */
+  /* (se llama desde _onPanelLoad cuando panelId === 'settings') */
+
+  /* ---- Helpers ---- */
+  function formatDate(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString('es-ES', { day:'2-digit', month:'short', year:'numeric' });
+  }
+  function _calcAge(dob, refDate) {
+    const birth = new Date(dob), ref = new Date(refDate || Date.now());
+    let age = ref.getFullYear() - birth.getFullYear();
+    const m = ref.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && ref.getDate() < birth.getDate())) age--;
+    return age;
+  }
+
+  /* ---- Navegación móvil: drawer + barra inferior ---- */
+  function _openSidebar() {
+    document.getElementById('sidebar').classList.add('open');
+    document.getElementById('sidebar-overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function _closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar-overlay').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  document.getElementById('btn-hamburger').addEventListener('click', _openSidebar);
+  document.getElementById('btn-sidebar-close').addEventListener('click', _closeSidebar);
+  document.getElementById('sidebar-overlay').addEventListener('click', _closeSidebar);
+  document.getElementById('btn-mobile-menu')?.addEventListener('click', _openSidebar);
+
+  // Cerrar drawer al seleccionar item en móvil
+  document.querySelectorAll('.sidebar-item').forEach(item => {
+    item.addEventListener('click', () => {
+      if (window.innerWidth <= 900) _closeSidebar();
+    });
+  });
+
+  // Sincronizar barra inferior con el panel activo
+  function _syncBottomNav(panelId) {
+    document.querySelectorAll('.mobile-bottom-nav .nav-tab[data-panel]').forEach(tab => {
+      tab.classList.toggle('active', tab.dataset.panel === panelId);
+    });
+  }
+
+  // Intercept switchPanel para actualizar barra inferior
+  const _origSwitchPanel = switchPanel;
+  window.switchPanel = function(panelId) {
+    _origSwitchPanel(panelId);
+    _syncBottomNav(panelId);
+  };
+
+  // Nav tabs de la barra inferior
+  document.querySelectorAll('.mobile-bottom-nav .nav-tab[data-panel]').forEach(tab => {
+    tab.addEventListener('click', () => window.switchPanel(tab.dataset.panel));
+  });
+
+  /* ---- Arrancar ---- */
+  init();
+})();
+</script>
+</body>
+</html>

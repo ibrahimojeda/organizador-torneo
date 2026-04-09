@@ -1,0 +1,177 @@
+-- ============================================================
+--  ORGANIZADOR DE TORNEO — Configuración RLS de Supabase
+--  Ejecutar COMPLETO en: Supabase Dashboard → SQL Editor
+-- ============================================================
+
+-- ============================================================
+--  0. COLUMNAS FALTANTES
+-- ============================================================
+
+-- num_tatamis en tournaments
+ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS num_tatamis smallint NOT NULL DEFAULT 1;
+
+-- discipline en competitors (preferencia del competidor: kata / kumite / both)
+ALTER TABLE competitors ADD COLUMN IF NOT EXISTS discipline text NOT NULL DEFAULT 'kumite';
+
+-- Corregir CHECK constraint de status (open/closed/ongoing/cancelled son valores válidos)
+ALTER TABLE tournaments DROP CONSTRAINT IF EXISTS tournaments_status_check;
+ALTER TABLE tournaments ADD CONSTRAINT tournaments_status_check
+  CHECK (status IN ('draft','open','closed','ongoing','finished','cancelled'));
+
+-- Recargar schema cache de PostgREST (necesario después de ALTER TABLE)
+NOTIFY pgrst, 'reload schema';
+
+-- ============================================================
+--  1. TABLA tournaments
+--     SELECT público · INSERT/UPDATE/DELETE solo autenticados
+--     UPDATE/DELETE restringido al organizador dueño del torneo
+-- ============================================================
+DROP POLICY IF EXISTS "tournaments_select" ON tournaments;
+DROP POLICY IF EXISTS "tournaments_insert" ON tournaments;
+DROP POLICY IF EXISTS "tournaments_update" ON tournaments;
+DROP POLICY IF EXISTS "tournaments_delete" ON tournaments;
+
+CREATE POLICY "tournaments_select" ON tournaments
+  FOR SELECT USING (true);
+
+CREATE POLICY "tournaments_insert" ON tournaments
+  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+
+CREATE POLICY "tournaments_update" ON tournaments
+  FOR UPDATE USING (auth.uid() = organizer_id);
+
+CREATE POLICY "tournaments_delete" ON tournaments
+  FOR DELETE USING (auth.uid() = organizer_id);
+
+
+-- ============================================================
+--  2. TABLA categories
+-- ============================================================
+DROP POLICY IF EXISTS "categories_select" ON categories;
+DROP POLICY IF EXISTS "categories_write" ON categories;
+
+CREATE POLICY "categories_select" ON categories
+  FOR SELECT USING (true);
+
+CREATE POLICY "categories_write" ON categories
+  FOR ALL USING (auth.uid() IS NOT NULL);
+
+
+-- ============================================================
+--  3. TABLA competitors
+-- ============================================================
+DROP POLICY IF EXISTS "competitors_select" ON competitors;
+DROP POLICY IF EXISTS "competitors_write" ON competitors;
+
+CREATE POLICY "competitors_select" ON competitors
+  FOR SELECT USING (true);
+
+CREATE POLICY "competitors_write" ON competitors
+  FOR ALL USING (auth.uid() IS NOT NULL);
+
+
+-- ============================================================
+--  4. TABLA registrations
+-- ============================================================
+DROP POLICY IF EXISTS "registrations_select" ON registrations;
+DROP POLICY IF EXISTS "registrations_write" ON registrations;
+
+CREATE POLICY "registrations_select" ON registrations
+  FOR SELECT USING (true);
+
+CREATE POLICY "registrations_write" ON registrations
+  FOR ALL USING (auth.uid() IS NOT NULL);
+
+
+-- ============================================================
+--  5. TABLA matches
+--     INSERT: solo autenticados (organizador genera llaves)
+--     UPDATE: también anónimos (árbitros usan código, no Supabase Auth)
+--     DELETE: solo autenticados
+-- ============================================================
+DROP POLICY IF EXISTS "matches_select" ON matches;
+DROP POLICY IF EXISTS "matches_insert" ON matches;
+DROP POLICY IF EXISTS "matches_update" ON matches;
+DROP POLICY IF EXISTS "matches_delete" ON matches;
+
+CREATE POLICY "matches_select" ON matches
+  FOR SELECT USING (true);
+
+CREATE POLICY "matches_insert" ON matches
+  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+
+CREATE POLICY "matches_update" ON matches
+  FOR UPDATE USING (true);   -- árbitros actualizan sin Supabase Auth
+
+CREATE POLICY "matches_delete" ON matches
+  FOR DELETE USING (auth.uid() IS NOT NULL);
+
+
+-- ============================================================
+--  6. TABLA tournament_codes
+--     SELECT público (árbitros validan código sin estar logueados)
+--     INSERT/UPDATE/DELETE solo autenticados (organizador)
+-- ============================================================
+DROP POLICY IF EXISTS "codes_select" ON tournament_codes;
+DROP POLICY IF EXISTS "codes_insert" ON tournament_codes;
+DROP POLICY IF EXISTS "codes_update" ON tournament_codes;
+DROP POLICY IF EXISTS "codes_delete" ON tournament_codes;
+
+CREATE POLICY "codes_select" ON tournament_codes
+  FOR SELECT USING (true);
+
+CREATE POLICY "codes_insert" ON tournament_codes
+  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+
+CREATE POLICY "codes_update" ON tournament_codes
+  FOR UPDATE USING (auth.uid() IS NOT NULL);
+
+CREATE POLICY "codes_delete" ON tournament_codes
+  FOR DELETE USING (auth.uid() IS NOT NULL);
+
+
+-- ============================================================
+--  7. TABLA profiles
+--     Cada usuario ve y modifica su propio perfil.
+--     Los organizadores autenticados pueden leer todos los perfiles
+--     (necesario para mostrar la lista de usuarios en Configuración).
+-- ============================================================
+DROP POLICY IF EXISTS "profiles_select" ON profiles;
+DROP POLICY IF EXISTS "profiles_insert" ON profiles;
+DROP POLICY IF EXISTS "profiles_update" ON profiles;
+
+CREATE POLICY "profiles_select" ON profiles
+  FOR SELECT USING (auth.uid() IS NOT NULL);   -- cualquier usuario autenticado puede listar
+
+CREATE POLICY "profiles_insert" ON profiles
+  FOR INSERT WITH CHECK (auth.uid() = id);
+
+CREATE POLICY "profiles_update" ON profiles
+  FOR UPDATE USING (auth.uid() = id);
+
+
+-- ============================================================
+--  8. TRIGGER: auto-crear perfil de organizador al registrarse
+--     Cada vez que alguien se crea en Supabase Auth,
+--     se inserta automáticamente en profiles con role='organizer'
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.profiles (id, role, full_name)
+  VALUES (new.id, 'organizer', '')
+  ON CONFLICT (id) DO NOTHING;
+  RETURN new;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_new_user();

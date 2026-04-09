@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Torneo Karate — Vista Pública</title>
+  <link rel="stylesheet" href="../css/styles.css" />
+</head>
+<body>
+
+<!-- Navbar pública (sin login) -->
+<nav class="navbar">
+  <div class="navbar-brand">
+    <div class="logo-icon">🥋</div>
+    <span id="nav-tournament-name">Cargando torneo...</span>
+  </div>
+  <div class="navbar-menu">
+    <span class="badge badge-blue mr-2">Vista Pública</span>
+    <span class="status-dot green" id="live-indicator" title="En vivo"></span>
+    <span class="text-xs text-muted ml-1" id="live-text">En vivo</span>
+  </div>
+</nav>
+
+<!-- Hero del torneo -->
+<div id="tournament-hero" class="tournament-hero" style="display:none;">
+  <div class="tournament-hero-inner">
+    <div class="tournament-hero-date" id="hero-date">—</div>
+    <h1 class="tournament-hero-title" id="hero-name">Cargando...</h1>
+    <p class="tournament-hero-place" id="hero-location">—</p>
+    <div class="flex gap-2 justify-center mt-2 flex-wrap">
+      <span class="badge badge-muted" id="hero-status">—</span>
+      <span class="badge badge-muted" id="hero-cats">—</span>
+      <span class="badge badge-muted" id="hero-competitors">—</span>
+    </div>
+  </div>
+</div>
+
+<!-- Página no encontrada -->
+<div id="view-not-found" class="container mt-4" style="display:none;">
+  <div class="empty-state">
+    <div class="empty-icon">🔍</div>
+    <h2>Torneo no encontrado</h2>
+    <p class="text-muted">El enlace puede ser incorrecto o el torneo es privado.</p>
+    <a href="../index.html" class="btn btn-primary mt-2">Ver torneos públicos</a>
+  </div>
+</div>
+
+<!-- Selección de torneos (cuando no hay ID en URL) -->
+<div id="view-select-tournament" class="container mt-4">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Torneos</h1>
+      <p class="page-subtitle">Sigue las llaves en tiempo real.</p>
+    </div>
+    <input type="text" class="form-control" style="max-width:260px;" id="search-tournaments" placeholder="🔍 Buscar torneo..." oninput="filterTournaments(this.value)" />
+  </div>
+
+  <div id="tournaments-grid" class="grid-3 gap-3">
+    <div class="card text-center p-4"><span class="spinner"></span></div>
+  </div>
+</div>
+
+<!-- Vista de categorías del torneo -->
+<div id="view-tournament" style="display:none;" class="container mt-3">
+  <div class="tabs" id="main-tabs">
+    <div class="tabs-list" id="tabs-list">
+      <button class="tab-btn active" data-tab="tab-categories">Categorías</button>
+      <button class="tab-btn" data-tab="tab-schedule">Programa</button>
+      <button class="tab-btn" data-tab="tab-results">Resultados</button>
+      <button class="tab-btn" data-tab="tab-dojos">🏘 Dojos</button>
+    </div>
+
+    <!-- Tab: Categorías + Llaves -->
+    <div class="tab-panel active" id="tab-categories">
+      <div class="flex gap-2 mb-3 flex-wrap" id="filter-bar">
+        <select class="form-control form-control-sm" id="filter-discipline" onchange="filterCategories()">
+          <option value="">Todas las disciplinas</option>
+          <option value="kumite">Kumite</option>
+          <option value="kata">Kata</option>
+        </select>
+        <select class="form-control form-control-sm" id="filter-gender" onchange="filterCategories()">
+          <option value="">Ambos géneros</option>
+          <option value="M">Masculino</option>
+          <option value="F">Femenino</option>
+        </select>
+        <input type="text" class="form-control form-control-sm" id="filter-cat-search"
+               placeholder="🔍 Buscar categoría..." oninput="filterCategories()" style="max-width:220px;" />
+      </div>
+
+      <div id="categories-list" class="grid-2 gap-2">
+        <div class="card text-center p-4"><span class="spinner"></span></div>
+      </div>
+    </div>
+
+    <!-- Tab: Programa del día -->
+    <div class="tab-panel" id="tab-schedule">
+      <div id="schedule-content">
+        <div class="card text-center p-4"><span class="spinner"></span></div>
+      </div>
+    </div>
+
+    <!-- Tab: Resultados finales -->
+    <div class="tab-panel" id="tab-results">
+      <div id="results-content">
+        <div class="empty-state" style="padding:2.5rem;">
+          <div class="empty-icon">🏆</div>
+          <p class="text-muted">Los resultados estarán disponibles al finalizar el torneo.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Dojos inscritos -->
+    <div class="tab-panel" id="tab-dojos">
+      <div class="form-group mb-3" style="max-width:340px;">
+        <label class="form-label">Seleccionar Dojo / Club</label>
+        <select class="form-control" id="dojo-select" onchange="onDojoSelect(this.value)">
+          <option value="">Selecciona un dojo...</option>
+        </select>
+      </div>
+      <div id="dojo-content">
+        <div class="empty-state" style="padding:2rem;">
+          <div class="empty-icon">🏘</div>
+          <p class="text-muted">Selecciona un dojo para ver sus competidores y categorías.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Vista del bracket de una categoría -->
+<div id="view-bracket" style="display:none;" class="container mt-3">
+  <div class="page-header">
+    <button class="btn btn-outline btn-sm" id="btn-back-categories">← Categorías</button>
+    <div>
+      <h2 id="bracket-category-name" class="page-title" style="font-size:1.4rem;margin-bottom:.1rem;">—</h2>
+      <p id="bracket-category-meta" class="text-muted text-sm">—</p>
+    </div>
+    <div class="flex gap-1 flex-wrap" id="bracket-header-badges"></div>
+  </div>
+
+  <div id="bracket-display-area">
+    <div class="card text-center p-4"><span class="spinner"></span></div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
+<script src="../js/config.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/tournament.js"></script>
+<script src="../js/categories.js"></script>
+<script src="../js/competitors.js"></script>
+<script src="../js/bracket.js"></script>
+<script src="../js/matches.js"></script>
+<script src="../js/display.js"></script>
+<script>
+(function () {
+  if (SUPABASE_URL && SUPABASE_ANON_KEY && typeof supabase.from !== 'function') {
+    window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+
+  /* ---- MODO SOLO-LECTURA: bloquear todos los métodos de escritura ---- */
+  const _ERR_READONLY = () => { throw new Error('Esta vista es de solo lectura.'); };
+  try {
+    // Matches
+    Matches.startMatch    = _ERR_READONLY;
+    Matches.saveResult    = _ERR_READONLY;
+    Matches.assignSchedule= _ERR_READONLY;
+    // Bracket
+    Bracket.generate      = _ERR_READONLY;
+    Bracket.regenerate    = _ERR_READONLY;
+    // Categories
+    Categories.create     = _ERR_READONLY;
+    Categories.update     = _ERR_READONLY;
+    Categories.remove     = _ERR_READONLY;
+    Categories.autoGenerate = _ERR_READONLY;
+    // Tournament
+    Tournament.create     = _ERR_READONLY;
+    Tournament.update     = _ERR_READONLY;
+    Tournament.setStatus  = _ERR_READONLY;
+    Tournament.remove     = _ERR_READONLY;
+    // Competitors
+    Competitors.create    = _ERR_READONLY;
+    Competitors.update    = _ERR_READONLY;
+    Competitors.remove    = _ERR_READONLY;
+  } catch (_) {} // los módulos pueden no exponer todos — ignorar
+
+  const state = {
+    tournamentId:    null,
+    tournament:      null,
+    categories:      [],
+    allTournaments:  [],
+    realtimeSub:     null,
+    activeCategoryId: null,
+    dojoCompetitors: [],
+  };
+
+  /* ---- Parsear URL params ---- */
+  const params = new URLSearchParams(window.location.search);
+  const tid = params.get('t') || params.get('tournament');
+
+  if (tid) {
+    state.tournamentId = tid;
+    document.getElementById('view-select-tournament').style.display = 'none';
+    _loadTournament(tid);
+  } else {
+    _loadPublicList();
+  }
+
+  /* ---- Cargar torneo específico ---- */
+  async function _loadTournament(id) {
+    try {
+      const t = await Tournament.getById(id);
+      if (!t || t.status === 'draft') {
+        document.getElementById('view-not-found').style.display = 'block';
+        return;
+      }
+      state.tournament = t;
+      _renderHero(t);
+      document.getElementById('view-tournament').style.display = 'block';
+      document.getElementById('tournament-hero').style.display = 'block';
+      Display.initTabs(document.getElementById('main-tabs'));
+      await _loadCategories(id);
+      await _loadSchedule(id);
+      await _loadDojos(id);
+      _subscribeRealtime(id);
+    } catch (e) {
+      document.getElementById('view-not-found').style.display = 'block';
+    }
+  }
+
+  function _renderHero(t) {
+    document.getElementById('nav-tournament-name').textContent = t.name;
+    document.title = `${t.name} — Torneo Karate`;
+    document.getElementById('hero-name').textContent = t.name;
+    document.getElementById('hero-location').textContent = t.location || '';
+    document.getElementById('hero-date').textContent = t.date_start ? formatDate(t.date_start) : '';
+    document.getElementById('hero-status').textContent = STATUS_LABELS[t.status] || t.status;
+    document.getElementById('hero-cats').textContent = '— categorías';
+    document.getElementById('hero-competitors').textContent = '— competidores';
+    if (t.status !== 'active') {
+      document.getElementById('live-indicator').className = 'status-dot gray';
+      document.getElementById('live-text').textContent = STATUS_LABELS[t.status] || t.status;
+    }
+  }
+
+  /* ---- Cargar lista pública de torneos ---- */
+  async function _loadPublicList() {
+    try {
+      const list = await Tournament.listPublic();
+      state.allTournaments = list;
+      _renderTournamentGrid(list);
+    } catch (e) {
+      document.getElementById('tournaments-grid').innerHTML =
+        `<div class="alert alert-danger">${e.message}</div>`;
+    }
+  }
+
+  function _renderTournamentGrid(list) {
+    const grid = document.getElementById('tournaments-grid');
+    if (!list.length) {
+      grid.innerHTML = `<div class="empty-state"><div class="empty-icon">🏆</div><p>No hay torneos públicos activos.</p></div>`;
+      return;
+    }
+    grid.innerHTML = list.map(t => `
+      <a href="?t=${t.id}" class="card card-hover" style="display:block;text-decoration:none;">
+        <div class="flex items-center justify-between mb-1">
+          <span class="badge ${STATUS_BADGE[t.status] || 'badge-muted'}">${STATUS_LABELS[t.status] || t.status}</span>
+          <span class="text-xs text-muted">${t.date_start ? formatDate(t.date_start) : ''}</span>
+        </div>
+        <div class="font-semibold mt-1" style="font-size:1.05rem;">${t.name}</div>
+        <div class="text-sm text-muted mt-0">${t.location || ''}</div>
+      </a>
+    `).join('');
+  }
+
+  window.filterTournaments = function(q) {
+    const f = q.toLowerCase();
+    _renderTournamentGrid(state.allTournaments.filter(t =>
+      t.name.toLowerCase().includes(f) || (t.location || '').toLowerCase().includes(f)
+    ));
+  };
+
+  /* ---- Categorías ---- */
+  async function _loadCategories(tid) {
+    try {
+      const cats = await Categories.listByTournament(tid);
+      state.categories = cats;
+      document.getElementById('hero-cats').textContent = `${cats.length} categorías`;
+      _renderCategoriesGrid(cats);
+    } catch (e) {
+      document.getElementById('categories-list').innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
+  }
+
+  function _renderCategoriesGrid(cats) {
+    const el = document.getElementById('categories-list');
+    if (!cats.length) {
+      el.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><p>Sin categorías generadas aún.</p></div>`;
+      return;
+    }
+    el.innerHTML = cats.map(c => {
+      const total = c.registrations?.length || 0;
+      return `
+      <div class="card card-hover category-card" style="cursor:pointer;" onclick="openBracket('${c.id}')">
+        <div class="category-card-header">
+          <span class="badge ${DISC_BADGE[c.discipline] || 'badge-muted'}">${c.discipline?.toUpperCase() || '—'}</span>
+          <span class="badge ${c.gender === 'M' ? 'badge-blue' : 'badge-pink'}">${c.gender === 'M' ? '♂ Masc.' : '♀ Fem.'}</span>
+        </div>
+        <div class="category-card-name mt-1">${c.name || Categories.buildLabel(c)}</div>
+        <div class="flex items-center justify-between mt-2">
+          <span class="text-sm text-muted">${total} competidores</span>
+          <span class="badge ${BRACKET_BADGE[c.bracket_system] || 'badge-muted'} text-xs">${BRACKET_LABELS[c.bracket_system] || c.bracket_system || '—'}</span>
+        </div>
+        <div class="progress-bar mt-2">
+          <div class="progress-fill" style="width:${Math.min(100, (c.matches_done || 0) / Math.max(1, c.matches_total || 1) * 100)}%"></div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  window.filterCategories = function() {
+    const disc   = document.getElementById('filter-discipline').value;
+    const gender = document.getElementById('filter-gender').value;
+    const q      = document.getElementById('filter-cat-search').value.toLowerCase();
+    _renderCategoriesGrid(state.categories.filter(c =>
+      (!disc   || c.discipline === disc) &&
+      (!gender || c.gender === gender) &&
+      (!q      || (c.name || '').toLowerCase().includes(q))
+    ));
+  };
+
+  /* ---- Abrir bracket de categoría ---- */
+  window.openBracket = async function(categoryId) {
+    state.activeCategoryId = categoryId;
+    const cat = state.categories.find(c => c.id === categoryId);
+    document.getElementById('view-tournament').style.display = 'none';
+    document.getElementById('tournament-hero').style.display = 'none';
+    document.getElementById('view-bracket').style.display = 'block';
+    document.getElementById('bracket-category-name').textContent = cat?.name || '—';
+    document.getElementById('bracket-category-meta').textContent = Categories.buildLabel(cat) || '';
+    const area = document.getElementById('bracket-display-area');
+    area.innerHTML = '<div class="card text-center p-4"><span class="spinner"></span></div>';
+    try {
+      const matches = await Matches.listByCategory(categoryId);
+      Display.renderBracket(area, matches, cat, { readonly: true });
+      if (cat?.bracket_system === 'round_robin') {
+        const standings = Matches.getRoundRobinStandings(matches);
+        const standEl = document.createElement('div');
+        standEl.className = 'mt-3';
+        Display.renderStandings(standEl, standings);
+        area.appendChild(standEl);
+      }
+      // Mostrar podio si categoría finalizada
+      const podio = await Bracket.getPodio(categoryId);
+      if (podio?.positions?.length) {
+        const medals = ['🥇','🥈','🥉'];
+        const podioEl = document.createElement('div');
+        podioEl.className = 'mt-3';
+        podioEl.innerHTML = `
+          <h4 class="text-sm text-muted mb-2" style="text-transform:uppercase;">🏆 Podio Final</h4>
+          <div class="flex gap-2 flex-wrap">
+            ${podio.positions.map(p => `
+              <div class="card text-center" style="min-width:130px;padding:.6rem;">
+                <div style="font-size:1.8rem;">${medals[p.position - 1] || p.position + '°'}</div>
+                <div class="font-semibold mt-1">${p.full_name || '—'}</div>
+                <div class="text-xs text-muted">${p.club || ''}</div>
+              </div>`).join('')}
+          </div>`;
+        area.appendChild(podioEl);
+      }
+    } catch (e) {
+      area.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
+  };
+
+  document.getElementById('btn-back-categories').addEventListener('click', () => {
+    document.getElementById('view-bracket').style.display = 'none';
+    document.getElementById('view-tournament').style.display = 'block';
+    document.getElementById('tournament-hero').style.display = 'block';
+    state.activeCategoryId = null;
+  });
+
+  /* ---- Programa ---- */
+  async function _loadSchedule(tid) {
+    const el = document.getElementById('schedule-content');
+    try {
+      const matches = await Matches.listScheduled(tid);
+      if (!matches.length) {
+        el.innerHTML = `<div class="empty-state" style="padding:2.5rem;"><div class="empty-icon">📅</div><p>Sin programa horario disponible aún.</p></div>`;
+        return;
+      }
+      // Agrupar por tatami
+      const byTatami = {};
+      matches.forEach(m => {
+        const k = m.tatami ? `Tatami ${m.tatami}` : 'Sin tatami';
+        if (!byTatami[k]) byTatami[k] = [];
+        byTatami[k].push(m);
+      });
+      el.innerHTML = Object.entries(byTatami).map(([tatamiLabel, ms]) => `
+        <div class="mb-3">
+          <h4 class="text-sm text-muted mb-1" style="text-transform:uppercase;">${tatamiLabel}</h4>
+          <div class="card p-0">
+            <div class="table-wrapper">
+              <table class="table table-sm">
+                <thead><tr><th>Hora</th><th>Categoría</th><th>Competidores</th><th>Estado</th></tr></thead>
+                <tbody>
+                  ${ms.map(m => `<tr>
+                    <td class="text-sm">${m.scheduled_time ? m.scheduled_time.slice(11,16) : '—'}</td>
+                    <td class="text-sm">${m.category?.name || '—'}</td>
+                    <td class="text-sm">
+                      ${m.competitor_a?.competitors?.full_name || '?'}
+                      <span class="text-muted">vs</span>
+                      ${m.competitor_b?.competitors?.full_name || '?'}
+                    </td>
+                    <td><span class="badge ${MATCH_STATUS_BADGE[m.status] || 'badge-muted'}">${MATCH_STATUS_LABELS[m.status] || m.status}</span></td>
+                  </tr>`).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    } catch (e) {
+      el.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
+  }
+
+  /* ---- Realtime ---- */
+  function _subscribeRealtime(tid) {
+    if (!supabase) return;
+    state.realtimeSub = Matches.subscribeToTournament(tid, () => {
+      if (state.activeCategoryId) openBracket(state.activeCategoryId);
+    });
+    // Polling de respaldo para modo dev / offline
+    if (Auth.isDevMode()) {
+      setInterval(() => {
+        if (state.activeCategoryId) openBracket(state.activeCategoryId);
+      }, 10000);
+    }
+  }
+
+  /* ---- Tab Dojos ---- */
+  async function _loadDojos(tid) {
+    try {
+      const competitors = await Competitors.listByTournament(tid);
+      // Extraer clubs únicos
+      const clubs = [...new Set(competitors.map(c => c.club).filter(Boolean))].sort();
+      const sel = document.getElementById('dojo-select');
+      sel.innerHTML = '<option value="">Selecciona un dojo...</option>';
+      clubs.forEach(club => {
+        const opt = document.createElement('option');
+        opt.value = club;
+        opt.textContent = club;
+        sel.appendChild(opt);
+      });
+      // Guardar competidores en state para filtrado
+      state.dojoCompetitors = competitors;
+    } catch (_) {}
+  }
+
+  window.onDojoSelect = function(club) {
+    const el = document.getElementById('dojo-content');
+    if (!club) {
+      el.innerHTML = `<div class="empty-state" style="padding:2rem;"><div class="empty-icon">\ud83c\udfd8</div><p class="text-muted">Selecciona un dojo para ver sus competidores y categorías.</p></div>`;
+      return;
+    }
+    const comps = (state.dojoCompetitors || []).filter(c => c.club === club);
+    if (!comps.length) {
+      el.innerHTML = `<div class="alert alert-info">Sin competidores para este dojo.</div>`;
+      return;
+    }
+    // Para cada competidor, mostrar su categoría y posición en el bracket
+    const cats = state.categories || [];
+    const rows = comps.map(c => {
+      const cat = cats.find(cat => cat.id === c.category_id);
+      const catLabel = cat ? (cat.name || Categories.buildLabel(cat)) : '—';
+      const discipline = cat?.discipline || '—';
+      const discBadge = discipline === 'kata' ? 'badge-gold' : 'badge-blue';
+      return `<tr>
+        <td class="text-sm font-semibold">${c.full_name || '—'}</td>
+        <td class="text-sm">${c.gender === 'M' ? '\u2642 Masc.' : '\u2640 Fem.'}</td>
+        <td class="text-sm">${c.belt_id || '—'}</td>
+        <td class="text-sm"><span class="badge ${discBadge}">${discipline.toUpperCase()}</span></td>
+        <td class="text-sm" style="cursor:pointer;" onclick="openBracket('${c.category_id}')">${catLabel} <span style="opacity:.5;font-size:.7rem;">🔗</span></td>
+      </tr>`;
+    }).join('');
+    el.innerHTML = `
+      <div class="card p-0">
+        <div class="card-header"><h4 class="card-title">${club} — ${comps.length} competidor(es)</h4></div>
+        <div class="table-wrapper">
+          <table class="table">
+            <thead><tr><th>Nombre</th><th>Gén.</th><th>Cinturón</th><th>Disciplina</th><th>Categoría / Llave</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>`;
+  };
+
+  /* ---- Constantes de UI ---- */
+  const STATUS_LABELS = { draft: 'Borrador', registration: 'Inscripciones', active: 'En Curso', finished: 'Finalizado' };
+  const STATUS_BADGE  = { draft: 'badge-muted', registration: 'badge-blue', active: 'badge-green', finished: 'badge-gold' };
+  const DISC_BADGE    = { kumite: 'badge-blue', kata: 'badge-purple' };
+  const BRACKET_BADGE = { single_elimination: 'badge-muted', repechage: 'badge-muted', round_robin: 'badge-muted', double_elimination: 'badge-muted' };
+  const BRACKET_LABELS= { single_elimination: 'Elim. Simple', repechage: 'Repesca WKF', round_robin: 'Round-Robin', double_elimination: 'Elim. Doble', auto: 'Auto' };
+  const MATCH_STATUS_LABELS = { pending: 'Pendiente', in_progress: 'En curso', finished: 'Finalizado', bye: 'BYE' };
+  const MATCH_STATUS_BADGE  = { pending: 'badge-muted', in_progress: 'badge-blue', finished: 'badge-green', bye: 'badge-muted' };
+
+})();
+</script>
+</body>
+</html>

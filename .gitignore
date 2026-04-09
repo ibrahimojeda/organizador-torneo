@@ -1,0 +1,15 @@
+# Servidor local (no necesario en GitHub Pages)
+server.js
+
+# Archivos de sistema
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Editor
+.vscode/
+*.suo
+*.user
+
+# SQL (solo para referencia local, no exponer)
+*.csv
