@@ -550,20 +550,34 @@ const Bracket = (() => {
    * Distribuye los competidores en el bracket asegurando que:
    * - El seed 1 y 2 quedan en lados opuestos del bracket (no se pueden cruzar hasta la final)
    * - Los seeds 3 y 4 quedan en cuartos opuestos
-   * - Compañeros del mismo club se separan lo máximo posible
+   * - Los seeds de mayor ranking reciben los BYEs; los últimos pelean en R1
    */
   function _seedIntoBracket(competitors, size) {
-    const bracket = new Array(size).fill(null);
-
-    // Posiciones estándar de seeds para un bracket de tamaño `size`
+    const bracket      = new Array(size).fill(null);
     const seedPositions = _getSeedPositions(size);
+    const n    = competitors.length;
+    const byes = size - n; // cantidad de BYEs = slots vacíos en R1
 
-    competitors.forEach((comp, idx) => {
-      const pos = seedPositions[idx] ?? _findEmptySlot(bracket);
-      if (pos !== undefined && pos < size) bracket[pos] = comp;
-    });
+    // Top `byes` seeds reciben BYE — su par (rival) queda null
+    for (let i = 0; i < byes; i++) {
+      const pos = seedPositions[i];
+      if (pos !== undefined && pos < size) bracket[pos] = competitors[i];
+    }
 
-    // Rellena huecos vacíos con null (serán BYEs)
+    // Los competidores restantes pelean en R1.
+    // Emparejamiento: seed(byes+k) vs seed(n-1-k), ubicando al de mayor
+    // ranking en su posición estándar y al oponente en el par adyacente.
+    const fighters    = competitors.slice(byes); // siempre longitud par
+    const halfFighters = fighters.length / 2;
+    for (let k = 0; k < halfFighters; k++) {
+      const hi    = fighters[k];                         // mayor ranking
+      const lo    = fighters[fighters.length - 1 - k];  // menor ranking
+      const hiPos = seedPositions[byes + k];
+      const loPos = hiPos % 2 === 0 ? hiPos + 1 : hiPos - 1; // par adyacente
+      if (hiPos < size)                bracket[hiPos] = hi;
+      if (loPos >= 0 && loPos < size)  bracket[loPos] = lo;
+    }
+
     return bracket;
   }
 

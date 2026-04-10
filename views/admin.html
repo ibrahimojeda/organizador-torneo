@@ -945,8 +945,9 @@
     activeTournament: null,
     activeCategory:   null,
     selectedWinnerId: null,
-    pollingInterval:  null,  // for brackets panel
-    bracketSub:       null,  // real-time subscription
+    pollingInterval:        null,  // for brackets panel
+    bracketSub:            null,  // real-time subscription
+    bracketDebounceTimer:  null,  // debounce para evitar N recargas por bulk INSERT
   };
 
   /* ---- Init Supabase ---- */
@@ -2490,11 +2491,15 @@
     if (state.bracketSub) { try { state.bracketSub.unsubscribe(); } catch (_) {} }
     const tid = state.activeTournament?.id;
     if (tid) {
-      state.bracketSub = Matches.subscribeToTournament(tid, async () => {
-        if (state.activeCategory) await _loadBracket(state.activeCategory);
-        // Actualizar medallero si está visible
-        const medalPanel = document.getElementById('panel-medals');
-        if (medalPanel && medalPanel.style.display !== 'none') await _loadMedals();
+      state.bracketSub = Matches.subscribeToTournament(tid, () => {
+        // Debounce 500ms: un bulk INSERT/UPDATE de 16 matches dispara N callbacks;
+        // esperamos el silencio final para hacer UNA sola recarga.
+        clearTimeout(state.bracketDebounceTimer);
+        state.bracketDebounceTimer = setTimeout(async () => {
+          if (state.activeCategory) await _loadBracket(state.activeCategory);
+          const medalPanel = document.getElementById('panel-medals');
+          if (medalPanel && medalPanel.style.display !== 'none') await _loadMedals();
+        }, 500);
       });
     }
   }
