@@ -362,7 +362,13 @@ const Display = (() => {
      TABS
   -------------------------------------------------------- */
   function initTabs(containerSelector) {
-    const containers = document.querySelectorAll(containerSelector || '[data-tabs]');
+    // Accept a DOM element directly or a CSS selector string
+    let containers;
+    if (containerSelector instanceof Element) {
+      containers = [containerSelector];
+    } else {
+      containers = document.querySelectorAll(containerSelector || '[data-tabs]');
+    }
     containers.forEach(container => {
       const buttons = container.querySelectorAll('.tab-btn');
       const panels  = container.querySelectorAll('.tab-panel');
@@ -373,7 +379,10 @@ const Display = (() => {
           buttons.forEach(b => b.classList.remove('active'));
           panels.forEach(p => p.classList.remove('active'));
           btn.classList.add('active');
-          container.querySelector(`[data-tab-panel="${target}"]`)?.classList.add('active');
+          // Try data-tab-panel attribute first, then fall back to id
+          const panel = container.querySelector(`[data-tab-panel="${target}"]`) ||
+                        container.querySelector(`#${target}`);
+          panel?.classList.add('active');
         });
       });
 
