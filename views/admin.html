@@ -1738,13 +1738,21 @@
       localStorage.setItem('ot_dev_registrations', JSON.stringify(regs));
       return;
     }
-    // Modo Supabase
+    // Modo Supabase — check first to avoid 409 on UNIQUE (category_id, competitor_id)
+    const { data: existing } = await supabase
+      .from('registrations')
+      .select('id')
+      .eq('competitor_id', competitor.id)
+      .eq('category_id', categoryId)
+      .maybeSingle();
+    if (existing) return;
+
     const { error } = await supabase.from('registrations').insert({
       competitor_id:  competitor.id,
       tournament_id:  tournamentId,
       category_id:    categoryId,
     });
-    if (error && !error.message.includes('duplicate')) throw error;
+    if (error && error.code !== '23505') throw error;
   }
 
   /* ---- Auto-generar categorías ---- */
