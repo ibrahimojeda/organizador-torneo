@@ -208,7 +208,13 @@ const Categories = (() => {
       let cat = await _findExisting(tournamentId, key);
       if (!cat) {
         const { _key, ...payload } = key;
-        cat = await create({ ...payload, tournament_id: tournamentId });
+        try {
+          cat = await create({ ...payload, tournament_id: tournamentId });
+        } catch (e) {
+          // Race condition or duplicate — try to fetch the existing one
+          cat = await _findExisting(tournamentId, key);
+          if (!cat) throw e;
+        }
       }
       categoryIds.push(cat.id);
     }

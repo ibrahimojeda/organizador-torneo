@@ -178,3 +178,46 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_new_user();
+
+
+-- ============================================================
+--  9. CATEGORÍAS DUPLICADAS — limpieza y constraint
+-- ============================================================
+
+-- Primero reasignar registrations huérfanas al duplicado sobreviviente
+-- (la categoría con id más bajo es la que conservamos)
+UPDATE registrations r
+SET category_id = keeper.id
+FROM categories c1
+JOIN (
+  SELECT MIN(id) AS id, tournament_id, discipline, gender,
+         age_group_id, weight_class_id, belt_group_id
+  FROM categories
+  GROUP BY tournament_id, discipline, gender,
+           age_group_id, weight_class_id, belt_group_id
+) keeper
+  ON  keeper.tournament_id   = c1.tournament_id
+  AND keeper.discipline      = c1.discipline
+  AND keeper.gender          = c1.gender
+  AND (keeper.age_group_id    = c1.age_group_id    OR (keeper.age_group_id    IS NULL AND c1.age_group_id    IS NULL))
+  AND (keeper.weight_class_id = c1.weight_class_id OR (keeper.weight_class_id IS NULL AND c1.weight_class_id IS NULL))
+  AND (keeper.belt_group_id   = c1.belt_group_id   OR (keeper.belt_group_id   IS NULL AND c1.belt_group_id   IS NULL))
+WHERE c1.id = r.category_id
+  AND c1.id > keeper.id;
+
+-- Luego eliminar los duplicados (los de id mayor)
+DELETE FROM categories c1
+USING categories c2
+WHERE c1.id > c2.id
+  AND c1.tournament_id   = c2.tournament_id
+  AND c1.discipline      = c2.discipline
+  AND c1.gender          = c2.gender
+  AND (c1.age_group_id    = c2.age_group_id    OR (c1.age_group_id    IS NULL AND c2.age_group_id    IS NULL))
+  AND (c1.weight_class_id = c2.weight_class_id OR (c1.weight_class_id IS NULL AND c2.weight_class_id IS NULL))
+  AND (c1.belt_group_id   = c2.belt_group_id   OR (c1.belt_group_id   IS NULL AND c2.belt_group_id   IS NULL));
+
+-- Añadir constraint UNIQUE para que no puedan volver a crearse
+-- NULLS NOT DISTINCT requiere Postgres 15+ (disponible en Supabase)
+ALTER TABLE categories DROP CONSTRAINT IF EXISTS categories_unique_combo;
+ALTER TABLE categories ADD CONSTRAINT categories_unique_combo
+  UNIQUE NULLS NOT DISTINCT (tournament_id, discipline, gender, age_group_id, weight_class_id, belt_group_id);
