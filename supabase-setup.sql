@@ -239,3 +239,22 @@ WHERE id IN (SELECT id FROM ranked WHERE rn > 1);
 ALTER TABLE categories DROP CONSTRAINT IF EXISTS categories_unique_combo;
 ALTER TABLE categories ADD CONSTRAINT categories_unique_combo
   UNIQUE NULLS NOT DISTINCT (tournament_id, discipline, gender, age_group_id, weight_class_id, belt_group_id);
+
+
+-- ============================================================
+--  10. MATCHES bracket_type CHECK — ampliar valores permitidos
+--      El schema original solo tenía: winner/loser/grand_final/repechage_bronze/round_robin
+--      El código usa además: single_elimination/repechage_main/double_winner/double_loser/double_final/kata_round
+-- ============================================================
+ALTER TABLE matches DROP CONSTRAINT IF EXISTS matches_bracket_type_check;
+ALTER TABLE matches ADD CONSTRAINT matches_bracket_type_check
+  CHECK (bracket_type IN (
+    'single_elimination',
+    'repechage_main',
+    'repechage_bronze',
+    'double_winner',
+    'double_loser',
+    'double_final',
+    'round_robin',
+    'kata_round'
+  ));
