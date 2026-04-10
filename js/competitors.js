@@ -140,7 +140,7 @@ const Competitors = (() => {
         seed,
         competitors (
           id, full_name, document_id, gender, dob, weight,
-          belt_id, club, country, photo_url
+          belt_id, club, country, photo_url, discipline
         )
       `)
       .eq('tournament_id', tournamentId)

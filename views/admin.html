@@ -1594,14 +1594,18 @@
 
       let assigned = 0, alreadyHad = 0;
       for (const comp of competitors) {
-        const categoryIds = await Categories.assignCompetitor(comp, state.activeTournament.id);
-        for (const catId of categoryIds) {
-          try {
-            await _assignOneToCategory(comp, catId, state.activeTournament.id);
-            assigned++;
-          } catch {
-            alreadyHad++;
+        try {
+          const categoryIds = await Categories.assignCompetitor(comp, state.activeTournament.id);
+          for (const catId of categoryIds) {
+            try {
+              await _assignOneToCategory(comp, catId, state.activeTournament.id);
+              assigned++;
+            } catch {
+              alreadyHad++;
+            }
           }
+        } catch {
+          alreadyHad++;
         }
       }
       const msg = assigned > 0
