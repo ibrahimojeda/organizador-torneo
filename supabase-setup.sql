@@ -254,6 +254,9 @@ ALTER TABLE categories ADD CONSTRAINT categories_unique_combo
 ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS category_mode text NOT NULL DEFAULT 'age_belt'
   CHECK (category_mode IN ('age_belt', 'age_weight'));
 
+-- Recargar schema cache para que PostgREST reconozca la nueva columna
+NOTIFY pgrst, 'reload schema';
+
 
 -- ============================================================
 --  10. MATCHES bracket_type CHECK — ampliar valores permitidos (ya aplicado arriba, idempotente)
