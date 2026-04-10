@@ -296,16 +296,23 @@ const Categories = (() => {
 
   async function _findExisting(tournamentId, key) {
     if (Auth.isDevMode()) return _devFindKey(tournamentId, key);
-    const { data } = await supabase
+    let q = supabase
       .from(TABLE)
       .select('*')
       .eq('tournament_id', tournamentId)
       .eq('discipline', key.discipline)
-      .eq('gender', key.gender)
-      .eq('age_group_id', key.age_group_id)
-      .eq('weight_class_id', key.weight_class_id)
-      .eq('belt_group_id', key.belt_group_id)
-      .maybeSingle();
+      .eq('gender', key.gender);
+
+    if (key.age_group_id    != null) q = q.eq('age_group_id',    key.age_group_id);
+    else                             q = q.is('age_group_id',    null);
+
+    if (key.weight_class_id != null) q = q.eq('weight_class_id', key.weight_class_id);
+    else                             q = q.is('weight_class_id', null);
+
+    if (key.belt_group_id   != null) q = q.eq('belt_group_id',   key.belt_group_id);
+    else                             q = q.is('belt_group_id',   null);
+
+    const { data } = await q.maybeSingle();
     return data || null;
   }
 
