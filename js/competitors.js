@@ -144,7 +144,7 @@ const Competitors = (() => {
         )
       `)
       .eq('tournament_id', tournamentId)
-      .order('created_at');
+      .order('registered_at');
     if (error) throw error;
     return (data || []).map(r => ({ ...r.competitors, registration_id: r.id, category_id: r.category_id, seed: r.seed }));
   }
