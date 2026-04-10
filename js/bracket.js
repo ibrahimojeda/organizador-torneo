@@ -762,8 +762,23 @@ const Bracket = (() => {
         return podio[categoryId];
       }
 
-      // Supabase: retornar pero no persiste (tabla opcional)
-      return { positions, category_id: categoryId };
+      // Supabase: enrich positions with competitor names before returning
+      const regIds = positions.map(p => p.registration_id).filter(Boolean);
+      let enriched = positions;
+      if (regIds.length) {
+        const { data: regs } = await supabase
+          .from('registrations')
+          .select('id, competitors(id, full_name, club)')
+          .in('id', regIds);
+        if (regs?.length) {
+          enriched = positions.map(p => {
+            const reg  = regs.find(r => r.id === p.registration_id);
+            const comp = reg?.competitors;
+            return { ...p, full_name: comp?.full_name || '—', club: comp?.club || '—' };
+          });
+        }
+      }
+      return { positions: enriched, category_id: categoryId };
     } catch (e) {
       console.warn('[Bracket] checkAndSavePodio error:', e.message);
       return null;
