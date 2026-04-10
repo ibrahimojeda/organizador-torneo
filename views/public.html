@@ -225,6 +225,7 @@
       await _loadCategories(id);
       await _loadSchedule(id);
       await _loadDojos(id);
+      _loadResults();
       _subscribeRealtime(id);
     } catch (e) {
       document.getElementById('view-not-found').style.display = 'block';
@@ -302,21 +303,27 @@
       return;
     }
     el.innerHTML = cats.map(c => {
-      const total = c.registrations?.length || 0;
+      const total  = c.registrations?.[0]?.count ?? c.registrations?.length ?? 0;
+      const totalM = c.matches?.length || 0;
+      const doneM  = c.matches?.filter(m => m.status === 'finished' || m.status === 'bye').length || 0;
+      const pct    = totalM ? Math.min(100, Math.round(doneM / totalM * 100)) : 0;
+      const finished = totalM > 0 && doneM === totalM;
       return `
       <div class="card card-hover category-card" style="cursor:pointer;" onclick="openBracket('${c.id}')">
         <div class="category-card-header">
           <span class="badge ${DISC_BADGE[c.discipline] || 'badge-muted'}">${c.discipline?.toUpperCase() || '—'}</span>
           <span class="badge ${c.gender === 'M' ? 'badge-blue' : 'badge-pink'}">${c.gender === 'M' ? '♂ Masc.' : '♀ Fem.'}</span>
+          ${finished ? '<span class="badge badge-green" style="margin-left:auto;">✓ Final</span>' : ''}
         </div>
         <div class="category-card-name mt-1">${c.name || Categories.buildLabel(c)}</div>
         <div class="flex items-center justify-between mt-2">
-          <span class="text-sm text-muted">${total} competidores</span>
+          <span class="text-sm text-muted">${total} inscritos</span>
           <span class="badge ${BRACKET_BADGE[c.bracket_system] || 'badge-muted'} text-xs">${BRACKET_LABELS[c.bracket_system] || c.bracket_system || '—'}</span>
         </div>
         <div class="progress-bar mt-2">
-          <div class="progress-fill" style="width:${Math.min(100, (c.matches_done || 0) / Math.max(1, c.matches_total || 1) * 100)}%"></div>
+          <div class="progress-fill" style="width:${pct}%"></div>
         </div>
+        ${totalM > 0 ? `<div class="text-xs text-muted mt-1">${doneM}/${totalM} combates</div>` : ''}
       </div>`;
     }).join('');
   }
@@ -340,11 +347,38 @@
     document.getElementById('tournament-hero').style.display = 'none';
     document.getElementById('view-bracket').style.display = 'block';
     document.getElementById('bracket-category-name').textContent = cat?.name || '—';
-    document.getElementById('bracket-category-meta').textContent = Categories.buildLabel(cat) || '';
+    document.getElementById('bracket-category-meta').textContent = cat ? (Categories.buildLabel(cat) || '') : '';
     const area = document.getElementById('bracket-display-area');
     area.innerHTML = '<div class="card text-center p-4"><span class="spinner"></span></div>';
     try {
       const matches = await Matches.listByCategory(categoryId);
+      if (!matches.length) {
+        // No brackets yet — show registered competitors
+        let regs = [];
+        try { regs = await Competitors.listByCategory(categoryId); } catch (_) {}
+        if (regs.length) {
+          const rows = regs.map((r, i) => `<tr>
+            <td class="text-sm text-muted">${i + 1}</td>
+            <td class="text-sm font-semibold">${r.full_name || '—'}</td>
+            <td class="text-sm">${r.club || '—'}</td>
+            <td class="text-sm">${r.belt_id || '—'}</td>
+          </tr>`).join('');
+          area.innerHTML = `
+            <div class="alert alert-info mb-2">⏳ Las llaves serán generadas cuando el organizador lo indique.</div>
+            <div class="card p-0">
+              <div class="card-header"><h4 class="card-title">Inscritos (${regs.length})</h4></div>
+              <div class="table-wrapper">
+                <table class="table">
+                  <thead><tr><th>#</th><th>Nombre</th><th>Club</th><th>Cinturón</th></tr></thead>
+                  <tbody>${rows}</tbody>
+                </table>
+              </div>
+            </div>`;
+        } else {
+          area.innerHTML = `<div class="empty-state" style="padding:2rem;"><div class="empty-icon">📋</div><h3>Sin datos</h3><p>No hay competidores inscritos ni llaves generadas aún.</p></div>`;
+        }
+        return;
+      }
       Display.renderBracket(area, matches, cat, { readonly: true });
       if (cat?.bracket_system === 'round_robin') {
         const standings = Matches.getRoundRobinStandings(matches);
@@ -389,7 +423,39 @@
     try {
       const matches = await Matches.listScheduled(tid);
       if (!matches.length) {
-        el.innerHTML = `<div class="empty-state" style="padding:2.5rem;"><div class="empty-icon">📅</div><p>Sin programa horario disponible aún.</p></div>`;
+        // Fallback: show category overview with tatami assignment
+        const cats = state.categories;
+        if (!cats.length) {
+          el.innerHTML = `<div class="empty-state" style="padding:2.5rem;"><div class="empty-icon">📅</div><p>Sin programa disponible aún.</p></div>`;
+          return;
+        }
+        const byTatami = {};
+        cats.forEach(c => {
+          const k = c.tatami ? `Tatami ${c.tatami}` : 'Sin tatami asignado';
+          if (!byTatami[k]) byTatami[k] = [];
+          byTatami[k].push(c);
+        });
+        el.innerHTML = `<p class="text-muted text-sm mb-3">Horarios de combates aún no asignados. Categorías por tatami:</p>` +
+          Object.entries(byTatami).map(([label, cs]) => `
+          <div class="mb-3">
+            <h4 class="text-sm text-muted mb-1" style="text-transform:uppercase;">${label}</h4>
+            <div class="card p-0">
+              <table class="table table-sm">
+                <thead><tr><th>Categoría</th><th>Disciplina</th><th>Inscritos</th><th>Estado llaves</th></tr></thead>
+                <tbody>${cs.map(c => {
+                  const totalM = c.matches?.length || 0;
+                  const doneM  = c.matches?.filter(m => m.status === 'finished' || m.status === 'bye').length || 0;
+                  const total  = c.registrations?.[0]?.count ?? c.registrations?.length ?? 0;
+                  return `<tr>
+                    <td class="text-sm">${c.name || Categories.buildLabel(c)}</td>
+                    <td><span class="badge ${DISC_BADGE[c.discipline] || 'badge-muted'}">${c.discipline?.toUpperCase() || '—'}</span></td>
+                    <td class="text-sm">${total}</td>
+                    <td><span class="badge ${totalM > 0 ? 'badge-blue' : 'badge-muted'}">${totalM > 0 ? `${doneM}/${totalM} combates` : 'Pendiente'}</span></td>
+                  </tr>`;
+                }).join('')}</tbody>
+              </table>
+            </div>
+          </div>`).join('');
         return;
       }
       // Agrupar por tatami
@@ -428,6 +494,40 @@
     }
   }
 
+  /* ---- Resultados ---- */
+  function _loadResults() {
+    const el = document.getElementById('results-content');
+    const cats = state.categories;
+    if (!cats.length) {
+      el.innerHTML = `<div class="empty-state" style="padding:2.5rem;"><div class="empty-icon">🏆</div><p class="text-muted">No hay categorías disponibles.</p></div>`;
+      return;
+    }
+    const hasAny = cats.some(c => (c.matches?.length || 0) > 0);
+    if (!hasAny) {
+      el.innerHTML = `<div class="empty-state" style="padding:2.5rem;"><div class="empty-icon">🏆</div><p class="text-muted">Las llaves aún no han sido generadas. Los resultados estarán disponibles una vez que inicien los combates.</p></div>`;
+      return;
+    }
+    el.innerHTML = cats.map(c => {
+      const totalM    = c.matches?.length || 0;
+      const doneM     = c.matches?.filter(m => m.status === 'finished' || m.status === 'bye').length || 0;
+      const pct       = totalM ? Math.round(doneM / totalM * 100) : 0;
+      const finished  = totalM > 0 && doneM === totalM;
+      const inProgress = doneM > 0 && !finished;
+      const badgeClass = finished ? 'badge-green' : inProgress ? 'badge-orange' : 'badge-muted';
+      const badgeText  = finished ? '✓ Finalizado' : inProgress ? `${pct}% completado` : totalM > 0 ? 'Pendiente' : 'Sin llaves';
+      return `
+      <div class="card mb-2" style="cursor:pointer;" onclick="openBracket('${c.id}')">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="badge ${DISC_BADGE[c.discipline] || 'badge-muted'}">${c.discipline?.toUpperCase() || '—'}</span>
+          <span class="badge ${c.gender === 'M' ? 'badge-blue' : 'badge-pink'}">${c.gender === 'M' ? '♂' : '♀'}</span>
+          <strong class="flex-1">${c.name || Categories.buildLabel(c)}</strong>
+          <span class="badge ${badgeClass}">${badgeText}</span>
+        </div>
+        ${totalM > 0 ? `<div class="progress-bar mt-2"><div class="progress-fill" style="width:${pct}%"></div></div>` : ''}
+      </div>`;
+    }).join('');
+  }
+
   /* ---- Realtime ---- */
   function _subscribeRealtime(tid) {
     if (!supabase) return;
@@ -446,6 +546,8 @@
   async function _loadDojos(tid) {
     try {
       const competitors = await Competitors.listByTournament(tid);
+      // Guardar competidores en state para filtrado
+      state.dojoCompetitors = competitors;
       // Extraer clubs únicos
       const clubs = [...new Set(competitors.map(c => c.club).filter(Boolean))].sort();
       const sel = document.getElementById('dojo-select');
@@ -453,12 +555,37 @@
       clubs.forEach(club => {
         const opt = document.createElement('option');
         opt.value = club;
-        opt.textContent = club;
+        opt.textContent = `${club} (${competitors.filter(c => c.club === club).length})`;
         sel.appendChild(opt);
       });
-      // Guardar competidores en state para filtrado
-      state.dojoCompetitors = competitors;
-    } catch (_) {}
+      // If no clubs, show all competitors summary directly
+      const content = document.getElementById('dojo-content');
+      if (!clubs.length && competitors.length) {
+        const rows = competitors.map((c, i) => {
+          const cat = state.categories.find(cat => cat.id === c.category_id);
+          return `<tr>
+            <td class="text-sm">${i + 1}</td>
+            <td class="text-sm font-semibold">${c.full_name || '—'}</td>
+            <td class="text-sm">${c.gender === 'M' ? '♂' : '♀'}</td>
+            <td class="text-sm">${c.belt_id || '—'}</td>
+            <td class="text-sm">${cat ? (cat.name || Categories.buildLabel(cat)) : '—'}</td>
+          </tr>`;
+        }).join('');
+        content.innerHTML = `
+          <div class="alert alert-info mb-2">Los competidores no tienen club/dojo asignado.</div>
+          <div class="card p-0">
+            <div class="card-header"><h4 class="card-title">Todos los competidores (${competitors.length})</h4></div>
+            <div class="table-wrapper">
+              <table class="table">
+                <thead><tr><th>#</th><th>Nombre</th><th>Gén.</th><th>Cinturón</th><th>Categoría</th></tr></thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+          </div>`;
+      }
+    } catch (e) {
+      document.getElementById('dojo-content').innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
   }
 
   window.onDojoSelect = function(club) {
