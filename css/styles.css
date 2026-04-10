@@ -769,6 +769,7 @@ table.table {
   .sidebar-close:hover { background: var(--bg-card-hover); color: var(--text-primary); }
 }
 
+/* ----- Tablet (≤ 640px) ----- */
 @media (max-width: 640px) {
   .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
   .form-row { grid-template-columns: 1fr; }
@@ -809,12 +810,66 @@ table.table {
   .mobile-bottom-nav .nav-tab .tab-icon { font-size: 1.25rem; line-height: 1; }
   .mobile-bottom-nav .nav-tab.active { color: var(--accent); }
   .mobile-bottom-nav .nav-tab:hover  { color: var(--text-primary); }
+
+  /* Vista pública — ajustes tablet */
+  .tournament-hero { padding: 1.5rem 1rem; }
+  .tournament-hero-title { font-size: 1.5rem; }
+  .container { padding: 0 1rem; }
+
+  /* Filtros: apilar verticalmente en columna */
+  #filter-bar { flex-direction: column; gap: 0.5rem; }
+  #filter-bar .form-control,
+  #filter-bar input[type="text"] { max-width: 100% !important; width: 100%; }
+
+  /* Bracket: scroll horizontal con indicador */
+  .bracket-container {
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.5rem;
+  }
+  .bracket-round { scroll-snap-align: start; }
 }
 
-/* Ocultar barra inferior en desktop */
-@media (min-width: 641px) {
-  .mobile-bottom-nav { display: none; }
-  .sidebar-close { display: none; }
+/* ----- Móvil pequeño (≤ 480px) ----- */
+@media (max-width: 480px) {
+  .container { padding: 0 0.75rem; }
+
+  .tournament-hero { padding: 1.25rem 0.75rem; }
+  .tournament-hero-title { font-size: 1.3rem; }
+  .tournament-hero-place { font-size: 0.85rem; }
+
+  /* Tabs: texto más pequeño para que quepan 4 en pantalla */
+  .tabs-list .tab-btn { padding: 0.65rem 0.75rem; font-size: 0.8rem; }
+
+  /* Cards de categoría más compactas */
+  .card { padding: 0.85rem; }
+  .category-card-name { font-size: 0.88rem; }
+
+  /* Bracket más compacto */
+  .bracket-round { min-width: 160px; }
+  .bracket-competitor { padding: 0.4rem 0.5rem; font-size: 0.78rem; min-height: 30px; }
+
+  /* Header de página: botones apilados */
+  .page-header .flex { flex-wrap: wrap; gap: 0.4rem; }
+  .page-header .btn { font-size: 0.8rem; padding: 0.45rem 0.75rem; }
+
+  /* Modales: pantalla completa en móvil muy pequeño */
+  .modal-overlay { padding: 0; align-items: flex-end; }
+  .modal {
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    max-height: 92vh;
+    max-width: 100%;
+  }
+}
+
+/* ----- Móvil muy pequeño (≤ 360px) ----- */
+@media (max-width: 360px) {
+  html { font-size: 14px; }
+  .container { padding: 0 0.5rem; }
+  .navbar { padding: 0.6rem 0.75rem; }
+  .navbar-brand { font-size: 0.95rem; gap: 0.5rem; }
+  .navbar-brand .logo-icon { width: 30px; height: 30px; font-size: 1rem; }
+  .tabs-list .tab-btn { padding: 0.6rem 0.6rem; font-size: 0.75rem; }
 }
 
 /* Ocultar barra inferior en desktop */
@@ -900,6 +955,109 @@ table.table {
   font-size: .8rem;
   color: var(--accent);
   font-weight: 500;
+}
+
+/* ============================================================
+   VISTA PÚBLICA — Estilos específicos
+   ============================================================ */
+
+/* ----- Hero del torneo ----- */
+.tournament-hero {
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, #1e1e3a 100%);
+  border-bottom: 1px solid var(--border);
+  padding: 2rem 1.5rem;
+  text-align: center;
+}
+.tournament-hero-inner {
+  max-width: 700px;
+  margin: 0 auto;
+}
+.tournament-hero-date {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent-gold);
+  margin-bottom: 0.5rem;
+}
+.tournament-hero-title {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 0.35rem;
+  line-height: 1.2;
+  word-break: break-word;
+}
+.tournament-hero-place {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+/* ----- Tabs de navegación (vista pública) ----- */
+.tabs {
+  display: flex;
+  flex-direction: column;
+  border-bottom: none;
+  margin-bottom: 1.5rem;
+  gap: 0;
+}
+.tabs-list {
+  display: flex;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--border);
+  gap: 0;
+  flex-shrink: 0;
+}
+.tabs-list::-webkit-scrollbar { display: none; }
+.tabs-list .tab-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 0.75rem 1.1rem;
+  font-size: 0.88rem;
+}
+
+/* ----- Tarjetas de categoría ----- */
+.category-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.category-card-header {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.category-card-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+/* ----- Barra de progreso ----- */
+.progress-bar {
+  height: 5px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--success);
+  border-radius: 99px;
+  transition: width 0.4s ease;
+  min-width: 0;
+}
+
+/* ----- Navbar: truncar nombre largo ----- */
+.navbar-brand span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: min(260px, 50vw);
 }
 
 /* ----- Divider ----- */

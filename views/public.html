@@ -52,7 +52,7 @@
       <h1 class="page-title">Torneos</h1>
       <p class="page-subtitle">Sigue las llaves en tiempo real.</p>
     </div>
-    <input type="text" class="form-control" style="max-width:260px;" id="search-tournaments" placeholder="🔍 Buscar torneo..." oninput="filterTournaments(this.value)" />
+    <input type="text" class="form-control" id="search-tournaments" placeholder="🔍 Buscar torneo..." oninput="filterTournaments(this.value)" />
   </div>
 
   <div id="tournaments-grid" class="grid-3 gap-3">
@@ -84,7 +84,7 @@
           <option value="F">Femenino</option>
         </select>
         <input type="text" class="form-control form-control-sm" id="filter-cat-search"
-               placeholder="🔍 Buscar categoría..." oninput="filterCategories()" style="max-width:220px;" />
+               placeholder="🔍 Buscar categoría..." oninput="filterCategories()" />
       </div>
 
       <div id="categories-list" class="grid-2 gap-2">
