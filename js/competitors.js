@@ -98,11 +98,11 @@ const Competitors = (() => {
     // 3. Determina categorías y crea la inscripción
     const categoryIds = await Categories.assignCompetitor(competitor, tournamentId);
 
-    const registrations = await Promise.all(
-      categoryIds.map(categoryId =>
-        _createRegistration(competitor.id, tournamentId, categoryId)
-      )
-    );
+    // Sequential (not parallel) to avoid race-condition 409 on UNIQUE (category_id, competitor_id)
+    const registrations = [];
+    for (const categoryId of categoryIds) {
+      registrations.push(await _createRegistration(competitor.id, tournamentId, categoryId));
+    }
 
     return { competitor, registrations };
   }
@@ -332,7 +332,17 @@ const Competitors = (() => {
       .insert({ competitor_id: competitorId, tournament_id: tournamentId, category_id: categoryId })
       .select()
       .single();
-    if (error) throw error;
+    if (error) {
+      // 23505 = unique_violation: already inserted by a concurrent call — fetch and return it
+      if (error.code === '23505') {
+        const { data: fetched } = await supabase
+          .from(TABLE_REG).select('*')
+          .eq('competitor_id', competitorId).eq('category_id', categoryId)
+          .single();
+        return fetched;
+      }
+      throw error;
+    }
     return data;
   }
 
