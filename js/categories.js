@@ -115,7 +115,7 @@ const Categories = (() => {
     if (Auth.isDevMode()) return _devListByTournament(tournamentId);
     const { data, error } = await supabase
       .from(TABLE)
-      .select('*, registrations(count)')
+      .select('*, registrations(count), matches(status)')
       .eq('tournament_id', tournamentId)
       .order('discipline')
       .order('gender')

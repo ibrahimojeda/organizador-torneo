@@ -1282,17 +1282,29 @@
     }
   };
 
-  /* ---- Helper: inyecta registrations_count en categorías (modo dev) ---- */
+  /* ---- Helper: normaliza counts de categorías (dev y Supabase) ---- */
   function _enrichCatsWithCounts(cats) {
-    if (!Auth.isDevMode()) return cats;  // Supabase ya trae el campo
-    const regs    = JSON.parse(localStorage.getItem('ot_dev_registrations') || '[]');
-    const matches = JSON.parse(localStorage.getItem('ot_dev_matches')       || '[]');
+    if (Auth.isDevMode()) {
+      const regs    = JSON.parse(localStorage.getItem('ot_dev_registrations') || '[]');
+      const matches = JSON.parse(localStorage.getItem('ot_dev_matches')       || '[]');
+      return cats.map(c => {
+        const catMatches  = matches.filter(m => m.category_id === c.id && m.status !== 'bye');
+        const finishedCnt = catMatches.filter(m => m.status === 'finished').length;
+        return {
+          ...c,
+          registrations_count: regs.filter(r => r.category_id === c.id).length,
+          matches_count:        catMatches.length,
+          finished_count:       finishedCnt,
+        };
+      });
+    }
+    // Supabase: normalizar counts embebidos (registrations[0].count y matches[])
     return cats.map(c => {
-      const catMatches  = matches.filter(m => m.category_id === c.id && m.status !== 'bye');
+      const catMatches  = (c.matches || []).filter(m => m.status !== 'bye');
       const finishedCnt = catMatches.filter(m => m.status === 'finished').length;
       return {
         ...c,
-        registrations_count: regs.filter(r => r.category_id === c.id).length,
+        registrations_count: c.registrations?.[0]?.count ?? 0,
         matches_count:        catMatches.length,
         finished_count:       finishedCnt,
       };
