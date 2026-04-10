@@ -311,17 +311,20 @@ const Competitors = (() => {
     if (Auth.isDevMode()) return _devIsRegistered(competitorId, tournamentId);
     const { count } = await supabase
       .from(TABLE_REG)
-      .select('id', { count: 'exact' })
+      .select('id', { count: 'exact', head: true })
       .eq('competitor_id', competitorId)
       .eq('tournament_id', tournamentId);
-    return count > 0;
+    return (count ?? 0) > 0;
   }
 
   async function _createRegistration(competitorId, tournamentId, categoryId) {
     if (Auth.isDevMode()) return _devCreateReg(competitorId, tournamentId, categoryId);
     const { data, error } = await supabase
       .from(TABLE_REG)
-      .insert({ competitor_id: competitorId, tournament_id: tournamentId, category_id: categoryId })
+      .upsert(
+        { competitor_id: competitorId, tournament_id: tournamentId, category_id: categoryId },
+        { onConflict: 'competitor_id,category_id', ignoreDuplicates: true }
+      )
       .select()
       .single();
     if (error) throw error;

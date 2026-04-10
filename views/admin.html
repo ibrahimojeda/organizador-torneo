@@ -1966,7 +1966,7 @@
       return {
         full_name:   row['nombre']           || '',
         document_id: row['documento']        || '',
-        gender:      (row['genero'] || row['género'] || '').toUpperCase(),
+        gender:      ((v => v.startsWith('M') ? 'M' : v.startsWith('F') ? 'F' : v)((row['genero'] || row['género'] || '').toUpperCase())),
         dob:         row['fecha_nacimiento'] || row['fecha'] || '',
         weight:      row['peso']             || '',
         belt_id:     BELT_ALIAS[(row['cinturon'] || row['cinturón'] || '').toLowerCase()] || row['cinturon'] || '',
