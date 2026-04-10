@@ -817,6 +817,91 @@ table.table {
   .sidebar-close { display: none; }
 }
 
+/* Ocultar barra inferior en desktop */
+@media (min-width: 641px) {
+  .mobile-bottom-nav { display: none; }
+  .sidebar-close { display: none; }
+}
+
+/* ----- Bulk action toolbar ----- */
+.bulk-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: var(--surface-2);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: .6rem 1rem;
+  margin-bottom: .75rem;
+  flex-wrap: wrap;
+}
+
+/* ----- Schedule panel ----- */
+.schedule-tatamis-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.schedule-tatami-col {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.schedule-tatami-header {
+  background: var(--surface-2);
+  padding: .6rem 1rem;
+  font-weight: 700;
+  font-size: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.schedule-tatami-meta {
+  padding: .25rem 1rem .5rem;
+  font-size: .75rem;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.schedule-cat-card {
+  padding: .75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  transition: background .15s;
+}
+.schedule-cat-card:last-child { border-bottom: none; }
+.schedule-cat-card.kata   { border-left: 3px solid #f59e0b; }
+.schedule-cat-card.kumite { border-left: 3px solid #ef4444; }
+
+.schedule-cat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: .875rem;
+  font-weight: 600;
+  margin-bottom: .2rem;
+}
+
+.schedule-cat-duration {
+  font-size: .75rem;
+  background: var(--surface-2);
+  padding: .1rem .4rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.schedule-cat-detail {
+  margin-bottom: .2rem;
+}
+
+.schedule-cat-times {
+  font-size: .8rem;
+  color: var(--accent);
+  font-weight: 500;
+}
+
 /* ----- Divider ----- */
 .divider { height: 1px; background: var(--border); margin: 1.5rem 0; }
 .divider-text {

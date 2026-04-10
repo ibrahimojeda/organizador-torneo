@@ -13,6 +13,9 @@ ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS num_tatamis smallint NOT NULL D
 -- discipline en competitors (preferencia del competidor: kata / kumite / both)
 ALTER TABLE competitors ADD COLUMN IF NOT EXISTS discipline text NOT NULL DEFAULT 'kumite';
 
+-- time_start en tournaments (hora de inicio del evento, ej: '09:00:00')
+ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS time_start time DEFAULT '09:00:00';
+
 -- Corregir CHECK constraint de status (open/closed/ongoing/cancelled son valores válidos)
 ALTER TABLE tournaments DROP CONSTRAINT IF EXISTS tournaments_status_check;
 ALTER TABLE tournaments ADD CONSTRAINT tournaments_status_check

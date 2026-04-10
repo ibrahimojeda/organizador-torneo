@@ -172,7 +172,7 @@ const Matches = (() => {
     const { data, error } = await supabase
       .from(TABLE)
       .select(`
-        id, round, round_label, position, status, score_a, score_b, tatami, scheduled_time,
+        id, category_id, round, round_label, position, status, score_a, score_b, tatami, scheduled_time,
         competitor_a:registrations!matches_competitor_a_id_fkey(
           competitors(full_name, club)
         ),

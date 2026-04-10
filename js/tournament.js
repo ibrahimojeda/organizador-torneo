@@ -42,6 +42,7 @@ const Tournament = (() => {
       bracket_system: data.bracket_system || 'auto',
       disciplines:    data.disciplines || ['kumite'],
       num_tatamis:    parseInt(data.num_tatamis, 10) || 1,
+      time_start:     data.time_start || '09:00:00',
       status:         TOURNAMENT_STATUS.DRAFT.id,
       organizer_id:   Auth.getUserId(),
     };
@@ -114,6 +115,7 @@ const Tournament = (() => {
     if (data.bracket_system) payload.bracket_system = data.bracket_system;
     if (data.disciplines)    payload.disciplines    = data.disciplines;
     if (data.status)         payload.status         = data.status;
+    if (data.time_start != null) payload.time_start = data.time_start;
     if (Auth.isDevMode()) return _devUpdate(id, payload);
     const { data: updated, error } = await supabase
       .from(TABLE)

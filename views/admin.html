@@ -155,7 +155,8 @@
           <h1 class="page-title">Competidores</h1>
           <p class="page-subtitle" id="competitors-count-label">—</p>
         </div>
-        <div class="flex gap-2">
+        <div class="flex gap-2 flex-wrap">
+          <button class="btn btn-outline" id="btn-detect-duplicates">🔍 Duplicados</button>
           <button class="btn btn-outline" id="btn-import-competitors">⬆ Importar CSV</button>
           <button class="btn btn-primary" id="btn-new-competitor">+ Registrar Competidor</button>
         </div>
@@ -163,7 +164,7 @@
 
       <!-- Buscador -->
       <div class="card mb-3">
-        <div class="flex gap-2">
+        <div class="flex gap-2 flex-wrap">
           <input type="text" class="form-control" id="competitor-search" placeholder="Buscar por nombre, documento o club..." />
           <select class="form-control" id="competitor-filter-gender" style="max-width:160px;">
             <option value="">Todos los géneros</option>
@@ -176,11 +177,21 @@
         </div>
       </div>
 
+      <!-- Toolbar de selección masiva -->
+      <div id="bulk-toolbar" class="bulk-toolbar" style="display:none;">
+        <span id="bulk-count-label" class="text-sm font-semibold">0 seleccionados</span>
+        <div class="flex gap-2">
+          <button class="btn btn-outline btn-sm" onclick="_deleteSelectedCompetitors()">🗑 Eliminar seleccionados</button>
+          <button class="btn btn-outline btn-sm text-danger" onclick="_deleteAllCompetitors()">⚠️ Eliminar todos</button>
+        </div>
+      </div>
+
       <div class="card p-0">
         <div class="table-wrapper">
           <table class="table">
             <thead>
               <tr>
+                <th style="width:2.5rem;"><input type="checkbox" id="chk-select-all" title="Seleccionar todos" /></th>
                 <th>Nombre</th>
                 <th>Género</th>
                 <th>Edad</th>
@@ -192,7 +203,7 @@
               </tr>
             </thead>
             <tbody id="competitors-table-body">
-              <tr><td colspan="8" class="text-center text-muted p-4">Cargando...</td></tr>
+              <tr><td colspan="9" class="text-center text-muted p-4">Cargando...</td></tr>
             </tbody>
           </table>
         </div>
@@ -312,14 +323,25 @@
     ========================================================== -->
     <section id="panel-schedule" class="panel" style="display:none;">
       <div class="page-header">
-        <h1 class="page-title">Programación de Tatamis</h1>
+        <div>
+          <h1 class="page-title">Programación de Tatamis</h1>
+          <p class="page-subtitle" id="schedule-summary-label">—</p>
+        </div>
+        <button class="btn btn-outline" id="btn-recalculate-schedule">🔄 Recalcular</button>
       </div>
-      <div class="card">
+
+      <div class="card mb-3 flex items-center gap-3 flex-wrap" style="padding:.75rem 1rem;">
+        <label class="form-label mb-0">Hora de inicio del torneo:</label>
+        <input type="time" class="form-control" id="schedule-time-start" value="09:00" style="max-width:140px;" />
+        <span class="text-xs text-muted">Kata: 3 min/competidor · Kumite: 5 min/combate (estimado)</span>
+      </div>
+
+      <div id="schedule-tatamis-container">
         <div class="empty-state">
           <div class="empty-icon">📅</div>
-          <h3>Programación</h3>
-          <p>Asigna combates a tatamis y horarios. Disponible una vez generadas las llaves.</p>
-          <button class="btn btn-primary" onclick="switchPanel('brackets')">Ver Llaves</button>
+          <h3>Sin datos</h3>
+          <p>Primero crea categorías y asígnalas a tatamis.</p>
+          <button class="btn btn-primary" onclick="switchPanel('categories')">Ver Categorías</button>
         </div>
       </div>
     </section>
@@ -500,6 +522,14 @@
             <input type="date" class="form-control" id="t-date-end" />
           </div>
         </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Hora de inicio del evento</label>
+            <input type="time" class="form-control" id="t-time-start" value="09:00" />
+            <p class="text-xs text-muted mt-1">Se usará para calcular la programación de tatamis.</p>
+          </div>
+          <div class="form-group"></div>
+        </div>
         <div class="form-group">
           <label class="form-label">Lugar</label>
           <input type="text" class="form-control" id="t-location" placeholder="Ciudad, Recinto" />
@@ -631,6 +661,25 @@
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="Display.closeModal('modal-competitor')">Cancelar</button>
       <button class="btn btn-primary" id="btn-save-competitor">Registrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Detectar Duplicados -->
+<div class="modal-overlay" id="modal-duplicates">
+  <div class="modal" style="max-width:700px;">
+    <div class="modal-header">
+      <h3 class="modal-title">🔍 Competidores duplicados</h3>
+      <button class="btn btn-ghost btn-icon" onclick="Display.closeModal('modal-duplicates')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="text-sm text-muted mb-3">Se detectan duplicados por <strong>documento idéntico</strong> o <strong>nombre muy similar</strong>. Eliminá el registro que no corresponde.</p>
+      <div id="duplicates-list">
+        <div class="text-center p-4"><span class="spinner"></span></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="Display.closeModal('modal-duplicates')">Cerrar</button>
     </div>
   </div>
 </div>
@@ -1007,6 +1056,7 @@
     if (panelId === 'competitors')  await _loadCompetitors();
     if (panelId === 'categories')   await _loadCategories();
     if (panelId === 'brackets')     { await _loadBracketPanel(); _startBracketPolling(); }
+    if (panelId === 'schedule')     await _loadSchedule();
     if (panelId === 'medals')       await _loadMedals();
     if (panelId === 'codes')        await _loadCodes();
     if (panelId === 'settings')     _loadUsersList();
@@ -1056,21 +1106,43 @@
   };
 
   /* ---- COMPETIDORES ---- */
+  // Lista en memoria para operaciones masivas y duplicados
+  let _competitorsList = [];
+
+  function _updateBulkToolbar() {
+    const checked = document.querySelectorAll('.chk-competitor:checked');
+    const toolbar  = document.getElementById('bulk-toolbar');
+    const lbl      = document.getElementById('bulk-count-label');
+    if (checked.length > 0) {
+      toolbar.style.display = 'flex';
+      lbl.textContent = `${checked.length} seleccionado(s)`;
+    } else {
+      toolbar.style.display = 'none';
+    }
+  }
+
   async function _loadCompetitors() {
     if (!state.activeTournament) return;
     document.getElementById('competitors-count-label').textContent = 'Cargando...';
     const tbody = document.getElementById('competitors-table-body');
+    // Limpiar selección al recargar
+    document.getElementById('chk-select-all').checked = false;
+    document.getElementById('bulk-toolbar').style.display = 'none';
     try {
-      const list = await Competitors.listByTournament(state.activeTournament.id);
-      document.getElementById('competitors-count-label').textContent = `${list.length} competidor(es) inscrito(s)`;
-      if (!list.length) {
-        tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">👤</div><h3>Sin competidores</h3><p>Registra el primer competidor del torneo.</p></div></td></tr>`;
+      _competitorsList = await Competitors.listByTournament(state.activeTournament.id);
+      document.getElementById('competitors-count-label').textContent = `${_competitorsList.length} competidor(es) inscrito(s)`;
+      if (!_competitorsList.length) {
+        tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">👤</div><h3>Sin competidores</h3><p>Registra el primer competidor del torneo.</p></div></td></tr>`;
         return;
       }
-      tbody.innerHTML = list.map(c => {
+      tbody.innerHTML = _competitorsList.map(c => {
         const belt = BELTS.find(b => b.id === c.belt_id);
         const age  = c.dob ? _calcAge(c.dob, state.activeTournament.date_start) : '—';
+        const safeId   = (c.id || '').replace(/'/g, '');
+        const safeRegId = (c.registration_id || '').replace(/'/g, '');
+        const safeName  = (c.full_name || '').replace(/'/g, '\\x27');
         return `<tr>
+          <td><input type="checkbox" class="chk-competitor" data-reg-id="${safeRegId}" data-comp-id="${safeId}" data-name="${safeName}" onchange="_updateBulkToolbar()" /></td>
           <td><strong>${c.full_name}</strong></td>
           <td>${c.gender === 'M' ? '♂ Masc.' : '♀ Fem.'}</td>
           <td>${age} años</td>
@@ -1082,11 +1154,19 @@
           </td>
           <td class="text-muted">${c.club || '—'}</td>
           <td class="text-muted text-xs">${c.category_id ? '1 categoría' : '—'}</td>
-          <td><button class="btn btn-ghost btn-sm btn-icon" title="Eliminar" onclick="removeCompetitor('${c.registration_id}')">🗑</button></td>
+          <td class="flex gap-1">
+            <button class="btn btn-ghost btn-sm btn-icon" title="Editar" onclick="openEditCompetitor('${safeId}','${safeRegId}')">✏️</button>
+            <button class="btn btn-ghost btn-sm btn-icon" title="Eliminar" onclick="removeCompetitor('${safeRegId}')">🗑</button>
+          </td>
         </tr>`;
       }).join('');
+      // Select-all checkbox
+      document.getElementById('chk-select-all').onchange = function() {
+        document.querySelectorAll('.chk-competitor').forEach(c => c.checked = this.checked);
+        _updateBulkToolbar();
+      };
     } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="8"><div class="alert alert-danger">${e.message}</div></td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9"><div class="alert alert-danger">${e.message}</div></td></tr>`;
     }
   }
 
@@ -1095,6 +1175,107 @@
     try {
       await Competitors.unregister(regId);
       Display.toast('Competidor eliminado.', 'success');
+      await _loadCompetitors();
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  };
+
+  window._deleteSelectedCompetitors = async function() {
+    const checked = [...document.querySelectorAll('.chk-competitor:checked')];
+    if (!checked.length) return;
+    if (!confirm(`¿Eliminar ${checked.length} competidor(es) seleccionado(s) del torneo?`)) return;
+    let errors = 0;
+    for (const chk of checked) {
+      try { await Competitors.unregister(chk.dataset.regId); }
+      catch (_) { errors++; }
+    }
+    if (errors) Display.toast(`${errors} eliminacion(es) fallaron (posiblemente tienen combates).`, 'warning');
+    else Display.toast(`${checked.length} competidor(es) eliminado(s).`, 'success');
+    await _loadCompetitors();
+  };
+
+  window._deleteAllCompetitors = async function() {
+    if (!_competitorsList.length) return;
+    if (!confirm(`¿Eliminar TODOS los ${_competitorsList.length} competidores del torneo? Esta acción no se puede deshacer.`)) return;
+    let errors = 0;
+    for (const c of _competitorsList) {
+      try { await Competitors.unregister(c.registration_id); }
+      catch (_) { errors++; }
+    }
+    if (errors) Display.toast(`${errors} no se pudieron eliminar (tienen combates generados).`, 'warning');
+    else Display.toast('Todos los competidores eliminados.', 'success');
+    await _loadCompetitors();
+  };
+
+  /* ---- Detectar Duplicados ---- */
+  function _normalizeName(name) {
+    return (name || '')
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')  // quitar tildes
+      .replace(/[^a-z0-9\s]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function _nameSimilarity(a, b) {
+    // Similaridad simple: proporción de palabras en común
+    const wa = new Set(_normalizeName(a).split(' '));
+    const wb = new Set(_normalizeName(b).split(' '));
+    const common = [...wa].filter(w => w.length > 2 && wb.has(w)).length;
+    return common / Math.max(wa.size, wb.size, 1);
+  }
+
+  document.getElementById('btn-detect-duplicates').addEventListener('click', async () => {
+    if (!state.activeTournament) { Display.toast('Primero selecciona un torneo.', 'warning'); return; }
+    if (!_competitorsList.length) { Display.toast('No hay competidores cargados.', 'warning'); return; }
+    Display.openModal('modal-duplicates');
+    const pairs = [];
+    const list  = _competitorsList;
+    for (let i = 0; i < list.length; i++) {
+      for (let j = i + 1; j < list.length; j++) {
+        const a = list[i], b = list[j];
+        let reason = null;
+        if (a.document_id && b.document_id && a.document_id.trim() === b.document_id.trim()) {
+          reason = `Mismo documento: <strong>${a.document_id}</strong>`;
+        } else if (_nameSimilarity(a.full_name, b.full_name) >= 0.8) {
+          reason = 'Nombre muy similar';
+        }
+        if (reason) pairs.push({ a, b, reason });
+      }
+    }
+    const container = document.getElementById('duplicates-list');
+    if (!pairs.length) {
+      container.innerHTML = `<div class="alert alert-success">✅ No se encontraron duplicados.</div>`;
+      return;
+    }
+    container.innerHTML = pairs.map((p, idx) => `
+      <div class="card mb-3" id="dup-pair-${idx}">
+        <p class="text-xs text-muted mb-2">⚠️ ${p.reason}</p>
+        <div class="flex gap-3 flex-wrap">
+          <div class="flex-1" style="min-width:220px;">
+            <div class="font-semibold">${p.a.full_name}</div>
+            <div class="text-xs text-muted">${p.a.document_id || '—'} · ${p.a.club || '—'} · ${p.a.gender === 'M' ? 'Masc.' : 'Fem.'} · ${p.a.weight} kg</div>
+            <button class="btn btn-outline btn-sm mt-2 text-danger" onclick="_removeDuplicateEntry('${p.a.registration_id}','${p.a.full_name.replace(/'/g,'\\x27')}',${idx})">🗑 Eliminar éste</button>
+          </div>
+          <div class="flex-1" style="min-width:220px;">
+            <div class="font-semibold">${p.b.full_name}</div>
+            <div class="text-xs text-muted">${p.b.document_id || '—'} · ${p.b.club || '—'} · ${p.b.gender === 'M' ? 'Masc.' : 'Fem.'} · ${p.b.weight} kg</div>
+            <button class="btn btn-outline btn-sm mt-2 text-danger" onclick="_removeDuplicateEntry('${p.b.registration_id}','${p.b.full_name.replace(/'/g,'\\x27')}',${idx})">🗑 Eliminar éste</button>
+          </div>
+        </div>
+      </div>`).join('');
+  });
+
+  window._removeDuplicateEntry = async function(registrationId, name, pairIdx) {
+    if (!confirm(`¿Eliminar a "${name}" del torneo?`)) return;
+    try {
+      await Competitors.unregister(registrationId);
+      Display.toast(`${name} eliminado.`, 'success');
+      document.getElementById(`dup-pair-${pairIdx}`)?.remove();
+      if (!document.querySelectorAll('#duplicates-list .card').length) {
+        document.getElementById('duplicates-list').innerHTML = `<div class="alert alert-success">✅ No quedan duplicados.</div>`;
+      }
       await _loadCompetitors();
     } catch (e) {
       Display.toast(e.message, 'error');
@@ -1684,6 +1865,7 @@
       description:    document.getElementById('t-description').value,
       bracket_system: document.getElementById('t-bracket-system').value,
       num_tatamis:    document.getElementById('t-num-tatamis').value,
+      time_start:     document.getElementById('t-time-start').value || '09:00',
       disciplines,
     };
     try {
@@ -1698,7 +1880,7 @@
     }
   });
 
-  /* ---- Modal: Registrar Competidor ---- */
+  /* ---- Modal: Registrar / Editar Competidor ---- */
   // Poblar select de cinturones
   const beltSelect = document.getElementById('c-belt');
   BELTS.forEach(b => {
@@ -1707,10 +1889,39 @@
     beltSelect.appendChild(opt);
   });
 
+  // Estado de edición
+  let _editingCompetitorId = null;
+
   document.getElementById('btn-new-competitor').addEventListener('click', () => {
+    _editingCompetitorId = null;
+    document.getElementById('modal-competitor').querySelector('.modal-title').textContent = 'Registrar Competidor';
+    document.getElementById('btn-save-competitor').textContent = 'Registrar';
     document.getElementById('form-competitor').reset();
+    document.getElementById('c-discipline-kumite').checked = true;
     Display.openModal('modal-competitor');
   });
+
+  window.openEditCompetitor = function(competitorId, registrationId) {
+    const comp = _competitorsList.find(c => c.id === competitorId || c.registration_id === registrationId);
+    if (!comp) { Display.toast('Competidor no encontrado.', 'error'); return; }
+    _editingCompetitorId = competitorId;
+    document.getElementById('modal-competitor').querySelector('.modal-title').textContent = 'Editar Competidor';
+    document.getElementById('btn-save-competitor').textContent = 'Guardar cambios';
+    // Prefill
+    document.getElementById('c-name').value    = comp.full_name || '';
+    document.getElementById('c-doc').value     = comp.document_id || '';
+    document.getElementById('c-gender').value  = comp.gender || '';
+    document.getElementById('c-dob').value     = comp.dob || '';
+    document.getElementById('c-weight').value  = comp.weight || '';
+    document.getElementById('c-belt').value    = comp.belt_id || '';
+    document.getElementById('c-club').value    = comp.club || '';
+    document.getElementById('c-country').value = comp.country || '';
+    const disc = comp.discipline || 'kumite';
+    document.querySelectorAll('input[name="c-discipline"]').forEach(r => r.checked = r.value === disc);
+    // Ocultar preview de categoría (no aplica al editar)
+    document.getElementById('competitor-category-preview').style.display = 'none';
+    Display.openModal('modal-competitor');
+  };
 
   /* ---- Importar CSV ---- */
   const DISCIPLINE_ALIAS = {
@@ -1833,9 +2044,15 @@
       discipline:  document.querySelector('input[name="c-discipline"]:checked')?.value || 'kumite',
     };
     try {
-      await Competitors.register(data, state.activeTournament.id);
-      Display.closeModal('modal-competitor');
-      Display.toast('Competidor registrado.', 'success');
+      if (_editingCompetitorId) {
+        await Competitors.update(_editingCompetitorId, data);
+        Display.closeModal('modal-competitor');
+        Display.toast('Competidor actualizado.', 'success');
+      } else {
+        await Competitors.register(data, state.activeTournament.id);
+        Display.closeModal('modal-competitor');
+        Display.toast('Competidor registrado.', 'success');
+      }
       await _loadCompetitors();
     } catch (e) {
       Display.toast(e.message, 'error');
@@ -1972,6 +2189,118 @@
       Display.toast(e.message, 'error');
     }
   };
+
+  /* ---- PROGRAMACIÓN ---- */
+  function _addMinutes(timeStr, minutes) {
+    const [h, m] = timeStr.split(':').map(Number);
+    const total = h * 60 + m + minutes;
+    const hh = String(Math.floor(total / 60) % 24).padStart(2, '0');
+    const mm = String(total % 60).padStart(2, '0');
+    return `${hh}:${mm}`;
+  }
+
+  async function _loadSchedule() {
+    if (!state.activeTournament) return;
+    const container = document.getElementById('schedule-tatamis-container');
+    const summaryEl = document.getElementById('schedule-summary-label');
+    container.innerHTML = '<div class="text-center p-4"><span class="spinner"></span></div>';
+    try {
+      // Sincronizar hora de inicio con la del torneo
+      const saved = state.activeTournament.time_start;
+      if (saved) {
+        document.getElementById('schedule-time-start').value = saved.slice(0, 5);
+      }
+      const startTime = document.getElementById('schedule-time-start').value || '09:00';
+
+      const cats = await Categories.listByTournament(state.activeTournament.id);
+      if (!cats.length) {
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon">📅</div><h3>Sin categorías</h3><p>Primero crea categorías y asígnalas a tatamis.</p><button class="btn btn-primary" onclick="switchPanel('categories')">Ver Categorías</button></div>`;
+        summaryEl.textContent = '—';
+        return;
+      }
+
+      // Agrupar por tatami
+      const byTatami = {};
+      cats.forEach(cat => {
+        const t = cat.tatami || 1;
+        if (!byTatami[t]) byTatami[t] = [];
+        byTatami[t].push(cat);
+      });
+
+      // Obtener combates reales para el torneo
+      let matchesByCategory = {};
+      try {
+        const allMatches = await Matches.listByTournament(state.activeTournament.id);
+        allMatches.forEach(m => {
+          if (m.status === 'bye' || !m.category?.discipline) return;
+          if (!matchesByCategory[m.category_id]) matchesByCategory[m.category_id] = 0;
+          matchesByCategory[m.category_id]++;
+        });
+      } catch (_) { /* si falla, usamos estimación */ }
+
+      const tatamisNumbers = Object.keys(byTatami).map(Number).sort((a, b) => a - b);
+      let totalDuration = 0;
+
+      const cols = tatamisNumbers.map(tNum => {
+        const categories = byTatami[tNum];
+        let cursor = startTime;
+        let colDuration = 0;
+
+        const cards = categories.map(cat => {
+          const regCount = cat.registrations?.[0]?.count ?? cat.registrations_count ?? 0;
+          const realMatches = matchesByCategory[cat.id];
+          let minutes = 0;
+          let detail = '';
+          if (cat.discipline === 'kata') {
+            minutes = regCount * 3;
+            detail = `${regCount} comp. × 3 min`;
+          } else {
+            if (realMatches != null) {
+              minutes = realMatches * 5;
+              detail = `${realMatches} combates × 5 min`;
+            } else {
+              // Estimación: eliminación simple → n-1 combates
+              const estimated = Math.max(0, regCount - 1);
+              minutes = estimated * 5;
+              detail = `≈${estimated} combates × 5 min (est.)`;
+            }
+          }
+          const catStart = cursor;
+          const catEnd   = _addMinutes(cursor, minutes);
+          cursor = catEnd;
+          colDuration += minutes;
+          const disciplineEmoji = cat.discipline === 'kata' ? '🥋' : '🥊';
+          const catName = cat.name || Categories?.buildLabel?.(cat) || '—';
+          return `
+            <div class="schedule-cat-card ${cat.discipline}">
+              <div class="schedule-cat-header">
+                <span>${disciplineEmoji} ${catName}</span>
+                <span class="schedule-cat-duration">${minutes} min</span>
+              </div>
+              <div class="schedule-cat-detail text-xs text-muted">${detail}</div>
+              <div class="schedule-cat-times">🕐 ${catStart} → ${catEnd}</div>
+            </div>`;
+        }).join('');
+
+        if (colDuration > totalDuration) totalDuration = colDuration;
+        const colEnd = _addMinutes(startTime, colDuration);
+        return `
+          <div class="schedule-tatami-col">
+            <div class="schedule-tatami-header">Tatami ${tNum}</div>
+            <div class="schedule-tatami-meta">${startTime} → ${colEnd} · ${colDuration} min total</div>
+            ${cards}
+          </div>`;
+      }).join('');
+
+      container.innerHTML = `<div class="schedule-tatamis-grid">${cols}</div>`;
+      const totalEnd = _addMinutes(startTime, totalDuration);
+      summaryEl.textContent = `Duración total: ${totalDuration} min · Fin estimado: ${totalEnd} (${tatamisNumbers.length} tatami(s) en paralelo)`;
+    } catch (e) {
+      container.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
+  }
+
+  document.getElementById('btn-recalculate-schedule').addEventListener('click', () => _loadSchedule());
 
   async function _loadCodes() {
     if (!state.activeTournament) return;
