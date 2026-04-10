@@ -184,37 +184,55 @@ CREATE TRIGGER on_auth_user_created
 --  9. CATEGORÍAS DUPLICADAS — limpieza y constraint
 -- ============================================================
 
--- Primero reasignar registrations huérfanas al duplicado sobreviviente
--- (la categoría con id más bajo es la que conservamos)
-UPDATE registrations r
-SET category_id = keeper.id
-FROM categories c1
-JOIN (
-  SELECT MIN(id) AS id, tournament_id, discipline, gender,
-         age_group_id, weight_class_id, belt_group_id
+-- Identificar duplicados con ROW_NUMBER (id es UUID, MIN no aplica)
+-- Conservar la fila con created_at más antiguo; eliminar el resto.
+WITH ranked AS (
+  SELECT id,
+         ROW_NUMBER() OVER (
+           PARTITION BY tournament_id, discipline, gender,
+                        COALESCE(age_group_id::text,    '__null__'),
+                        COALESCE(weight_class_id::text, '__null__'),
+                        COALESCE(belt_group_id::text,   '__null__')
+           ORDER BY created_at ASC
+         ) AS rn
   FROM categories
-  GROUP BY tournament_id, discipline, gender,
-           age_group_id, weight_class_id, belt_group_id
-) keeper
-  ON  keeper.tournament_id   = c1.tournament_id
-  AND keeper.discipline      = c1.discipline
-  AND keeper.gender          = c1.gender
-  AND (keeper.age_group_id    = c1.age_group_id    OR (keeper.age_group_id    IS NULL AND c1.age_group_id    IS NULL))
-  AND (keeper.weight_class_id = c1.weight_class_id OR (keeper.weight_class_id IS NULL AND c1.weight_class_id IS NULL))
-  AND (keeper.belt_group_id   = c1.belt_group_id   OR (keeper.belt_group_id   IS NULL AND c1.belt_group_id   IS NULL))
-WHERE c1.id = r.category_id
-  AND c1.id > keeper.id;
+),
+keepers AS (
+  -- Para cada grupo, la fila rn=1 se conserva; el resto son duplicados
+  SELECT d.id AS dup_id, k.id AS keep_id
+  FROM ranked d
+  JOIN ranked k
+    ON  k.rn = 1
+  JOIN categories dc ON dc.id = d.id
+  JOIN categories kc ON kc.id = k.id
+  WHERE d.rn > 1
+    AND dc.tournament_id   = kc.tournament_id
+    AND dc.discipline      = kc.discipline
+    AND dc.gender          = kc.gender
+    AND (dc.age_group_id    IS NOT DISTINCT FROM kc.age_group_id)
+    AND (dc.weight_class_id IS NOT DISTINCT FROM kc.weight_class_id)
+    AND (dc.belt_group_id   IS NOT DISTINCT FROM kc.belt_group_id)
+)
+-- Reasignar registrations al keeper antes de borrar
+UPDATE registrations
+SET category_id = keepers.keep_id
+FROM keepers
+WHERE registrations.category_id = keepers.dup_id;
 
--- Luego eliminar los duplicados (los de id mayor)
-DELETE FROM categories c1
-USING categories c2
-WHERE c1.id > c2.id
-  AND c1.tournament_id   = c2.tournament_id
-  AND c1.discipline      = c2.discipline
-  AND c1.gender          = c2.gender
-  AND (c1.age_group_id    = c2.age_group_id    OR (c1.age_group_id    IS NULL AND c2.age_group_id    IS NULL))
-  AND (c1.weight_class_id = c2.weight_class_id OR (c1.weight_class_id IS NULL AND c2.weight_class_id IS NULL))
-  AND (c1.belt_group_id   = c2.belt_group_id   OR (c1.belt_group_id   IS NULL AND c2.belt_group_id   IS NULL));
+-- Ahora eliminar los duplicados
+WITH ranked AS (
+  SELECT id,
+         ROW_NUMBER() OVER (
+           PARTITION BY tournament_id, discipline, gender,
+                        COALESCE(age_group_id::text,    '__null__'),
+                        COALESCE(weight_class_id::text, '__null__'),
+                        COALESCE(belt_group_id::text,   '__null__')
+           ORDER BY created_at ASC
+         ) AS rn
+  FROM categories
+)
+DELETE FROM categories
+WHERE id IN (SELECT id FROM ranked WHERE rn > 1);
 
 -- Añadir constraint UNIQUE para que no puedan volver a crearse
 -- NULLS NOT DISTINCT requiere Postgres 15+ (disponible en Supabase)
