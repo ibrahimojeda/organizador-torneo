@@ -60,17 +60,12 @@ const Categories = (() => {
     const toInsert = generated.filter(c => c._isNew).map(({ _key, _isNew, ...rest }) => rest);
     if (!toInsert.length) return _devListByTournament(tournamentId);
 
-    // Intercalar kata y kumite, luego distribuir en tatamis en round-robin
-    const kumiteCats  = toInsert.filter(c => c.discipline === 'kumite');
+    // Orden de programa: Kata primero, luego Kumite, luego otros.
+    // Dentro de cada disciplina mantener el orden generado.
     const kataCats    = toInsert.filter(c => c.discipline === 'kata');
+    const kumiteCats  = toInsert.filter(c => c.discipline === 'kumite');
     const otherCats   = toInsert.filter(c => c.discipline !== 'kumite' && c.discipline !== 'kata');
-    const interleaved = [];
-    const maxLen = Math.max(kumiteCats.length, kataCats.length);
-    for (let i = 0; i < maxLen; i++) {
-      if (i < kumiteCats.length) interleaved.push(kumiteCats[i]);
-      if (i < kataCats.length)   interleaved.push(kataCats[i]);
-    }
-    interleaved.push(...otherCats);
+    const interleaved = [...kataCats, ...kumiteCats, ...otherCats];
 
     const numTatamis = parseInt(tournament.num_tatamis, 10) || 1;
     const withTatami = interleaved.map((cat, i) => ({
@@ -150,6 +145,7 @@ const Categories = (() => {
     if (data.bracket_system) payload.bracket_system = data.bracket_system;
     if (data.name)           payload.name           = data.name;
     if (data.tatami != null) payload.tatami         = data.tatami;
+    if (data.ruleset)        payload.ruleset        = data.ruleset;
 
     if (Auth.isDevMode()) {
       const list = _devList();

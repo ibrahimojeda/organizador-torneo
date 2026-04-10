@@ -268,6 +268,8 @@
         </div>
         <div class="flex gap-2" id="bracket-actions" style="display:none!important;">
           <a href="referee.html" target="_blank" class="btn btn-ghost btn-sm">⚖️ Ver Panel Árbitro</a>
+          <button class="btn btn-outline btn-sm" id="btn-print-bracket-blank" title="Imprimir llaves en blanco (sin resultados)">🖨 Sin resultados</button>
+          <button class="btn btn-outline btn-sm" id="btn-print-bracket-results" title="Imprimir llaves con resultados">🖨 Con resultados</button>
           <button class="btn btn-outline" id="btn-regenerate">🔄 Regenerar</button>
           <button class="btn btn-primary" id="btn-generate">⚡ Generar Llaves</button>
         </div>
@@ -276,7 +278,13 @@
       <div class="flex gap-3">
         <!-- Lista de categorías -->
         <div style="min-width:360px;max-width:360px;">
-          <div class="card p-0" style="max-height:calc(100vh - 200px);overflow-y:auto;">
+          <!-- Filtro por tatami -->
+          <div class="mb-2">
+            <select class="form-control form-control-sm" id="bracket-filter-tatami" style="width:100%;">
+              <option value="">Todos los tatamis</option>
+            </select>
+          </div>
+          <div class="card p-0" style="max-height:calc(100vh - 240px);overflow-y:auto;">
             <div id="brackets-category-list" style="padding:.5rem;">
               <div class="text-center p-4"><span class="spinner"></span></div>
             </div>
@@ -394,7 +402,10 @@
           <h1 class="page-title">Medallero</h1>
           <p class="page-subtitle">Posiciones por club al finalizar categorías</p>
         </div>
-        <button class="btn btn-outline" id="btn-refresh-medals">🔄 Actualizar</button>
+        <div class="flex gap-2">
+          <button class="btn btn-outline" id="btn-print-medals">🖨 Imprimir Medallero</button>
+          <button class="btn btn-outline" id="btn-refresh-medals">🔄 Actualizar</button>
+        </div>
       </div>
       <div id="medals-content">
         <div class="text-center p-4"><span class="spinner"></span></div>
@@ -688,6 +699,39 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="Display.closeModal('modal-duplicates')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Editar Categoría -->
+<div class="modal-overlay" id="modal-edit-category">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <h3 class="modal-title">✏️ Editar Categoría</h3>
+      <button class="btn btn-ghost btn-icon" onclick="Display.closeModal('modal-edit-category')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-cat-id" />
+      <div class="form-group">
+        <label class="form-label">Nombre (dejar en blanco para auto-generado)</label>
+        <input type="text" class="form-control" id="edit-cat-name" placeholder="Ej: Kumite Masculino Sub-21 -75kg" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tatami</label>
+        <input type="number" class="form-control" id="edit-cat-tatami" min="1" max="10" placeholder="Ej: 1" style="max-width:120px;" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Reglamento</label>
+        <select class="form-control" id="edit-cat-ruleset">
+          <option value="local">🏠 Reglamento local</option>
+          <option value="wkf">🌍 WKF estándar</option>
+          <option value="wkf_youth">🌍 WKF Youth</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="Display.closeModal('modal-edit-category')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-edit-category">Guardar</button>
     </div>
   </div>
 </div>
@@ -1139,45 +1183,91 @@
     document.getElementById('bulk-toolbar').style.display = 'none';
     try {
       _competitorsList = await Competitors.listByTournament(state.activeTournament.id);
-      document.getElementById('competitors-count-label').textContent = `${_competitorsList.length} competidor(es) inscrito(s)`;
       if (!_competitorsList.length) {
         tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">👤</div><h3>Sin competidores</h3><p>Registra el primer competidor del torneo.</p></div></td></tr>`;
+        document.getElementById('competitors-count-label').textContent = '0 competidor(es) inscrito(s)';
         return;
       }
-      tbody.innerHTML = _competitorsList.map(c => {
-        const belt = BELTS.find(b => b.id === c.belt_id);
-        const age  = c.dob ? _calcAge(c.dob, state.activeTournament.date_start) : '—';
-        const safeId   = (c.id || '').replace(/'/g, '');
-        const safeRegId = (c.registration_id || '').replace(/'/g, '');
-        const safeName  = (c.full_name || '').replace(/'/g, '\\x27');
-        return `<tr>
-          <td><input type="checkbox" class="chk-competitor" data-reg-id="${safeRegId}" data-comp-id="${safeId}" data-name="${safeName}" onchange="_updateBulkToolbar()" /></td>
-          <td><strong>${c.full_name}</strong></td>
-          <td>${c.gender === 'M' ? '♂ Masc.' : '♀ Fem.'}</td>
-          <td>${age} años</td>
-          <td>${c.weight} kg</td>
-          <td>
-            <span class="badge" style="background:${belt?.color || '#444'};color:${belt?.textColor || '#fff'};">
-              ${belt?.label || c.belt_id}
-            </span>
-          </td>
-          <td class="text-muted">${c.club || '—'}</td>
-          <td class="text-muted text-xs">${c.category_id ? '1 categoría' : '—'}</td>
-          <td class="flex gap-1">
-            <button class="btn btn-ghost btn-sm btn-icon" title="Editar" onclick="openEditCompetitor('${safeId}','${safeRegId}')">✏️</button>
-            <button class="btn btn-ghost btn-sm btn-icon" title="Eliminar" onclick="removeCompetitor('${safeRegId}')">🗑</button>
-          </td>
-        </tr>`;
-      }).join('');
       // Select-all checkbox
       document.getElementById('chk-select-all').onchange = function() {
         document.querySelectorAll('.chk-competitor').forEach(c => c.checked = this.checked);
         _updateBulkToolbar();
       };
+      // Poblar select de cinturones del filtro (una vez)
+      const filterBeltSel = document.getElementById('competitor-filter-belt');
+      if (filterBeltSel && filterBeltSel.options.length === 1) {
+        BELTS.forEach(b => {
+          const opt = document.createElement('option');
+          opt.value = b.id; opt.textContent = b.label;
+          filterBeltSel.appendChild(opt);
+        });
+      }
+      _filterAndRenderCompetitors();
     } catch (e) {
       tbody.innerHTML = `<tr><td colspan="9"><div class="alert alert-danger">${e.message}</div></td></tr>`;
     }
   }
+
+  /* Filtra _competitorsList en memoria y re-renderiza la tabla */
+  function _filterAndRenderCompetitors() {
+    const q      = (document.getElementById('competitor-search')?.value || '').toLowerCase();
+    const gender = document.getElementById('competitor-filter-gender')?.value || '';
+    const belt   = document.getElementById('competitor-filter-belt')?.value   || '';
+    const tbody  = document.getElementById('competitors-table-body');
+    if (!tbody) return;
+
+    const list = (_competitorsList || []).filter(c => {
+      if (gender && c.gender !== gender) return false;
+      if (belt   && c.belt_id !== belt)  return false;
+      if (q) {
+        const haystack = [c.full_name, c.document_id, c.club].filter(Boolean).join(' ').toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
+
+    document.getElementById('competitors-count-label').textContent =
+      list.length === _competitorsList.length
+        ? `${list.length} competidor(es) inscrito(s)`
+        : `${list.length} de ${_competitorsList.length} competidor(es)`;
+
+    if (!list.length) {
+      tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted p-3">Sin resultados para los filtros aplicados.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = list.map(c => {
+      const belt = BELTS.find(b => b.id === c.belt_id);
+      const age  = c.dob ? _calcAge(c.dob, state.activeTournament.date_start) : '—';
+      const safeId    = (c.id || '').replace(/'/g, '');
+      const safeRegId = (c.registration_id || '').replace(/'/g, '');
+      const safeName  = (c.full_name || '').replace(/'/g, '\\x27');
+      return `<tr>
+        <td><input type="checkbox" class="chk-competitor" data-reg-id="${safeRegId}" data-comp-id="${safeId}" data-name="${safeName}" onchange="_updateBulkToolbar()" /></td>
+        <td><strong>${c.full_name}</strong></td>
+        <td>${c.gender === 'M' ? '♂ Masc.' : '♀ Fem.'}</td>
+        <td>${age} años</td>
+        <td>${c.weight} kg</td>
+        <td>
+          <span class="badge" style="background:${belt?.color || '#444'};color:${belt?.textColor || '#fff'};">
+            ${belt?.label || c.belt_id}
+          </span>
+        </td>
+        <td class="text-muted">${c.club || '—'}</td>
+        <td class="text-muted text-xs">${c.category_id ? '1 categoría' : '—'}</td>
+        <td class="flex gap-1">
+          <button class="btn btn-ghost btn-sm btn-icon" title="Editar" onclick="openEditCompetitor('${safeId}','${safeRegId}')">✏️</button>
+          <button class="btn btn-ghost btn-sm btn-icon" title="Eliminar" onclick="removeCompetitor('${safeRegId}')">🗑</button>
+        </td>
+      </tr>`;
+    }).join('');
+    document.getElementById('chk-select-all').checked = false;
+    document.querySelectorAll('.chk-competitor').forEach(c => c.checked = false);
+  }
+
+  // Conectar eventos de filtro
+  document.getElementById('competitor-search')?.addEventListener('input', _filterAndRenderCompetitors);
+  document.getElementById('competitor-filter-gender')?.addEventListener('change', _filterAndRenderCompetitors);
+  document.getElementById('competitor-filter-belt')?.addEventListener('change', _filterAndRenderCompetitors);
 
   window.removeCompetitor = async function(regId) {
     if (!confirm('¿Eliminar este competidor del torneo?')) return;
@@ -1340,10 +1430,60 @@
         state.activeCategory = cat;
         switchPanel('brackets');
       });
+      // Añadir botón de edición a cada tarjeta de categoría
+      el.querySelectorAll('.card').forEach((card, idx) => {
+        const cat = cats[idx];
+        if (!cat) return;
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn btn-ghost btn-sm btn-icon';
+        editBtn.title = 'Editar categoría';
+        editBtn.style.cssText = 'position:absolute;top:6px;right:6px;font-size:.85rem;';
+        editBtn.textContent = '✏️';
+        editBtn.onclick = e => { e.stopPropagation(); _openEditCategoryModal(cat); };
+        card.style.position = 'relative';
+        card.appendChild(editBtn);
+        // Mostrar badge de reglamento si no es local
+        if (cat.ruleset && cat.ruleset !== 'local') {
+          const badge = document.createElement('span');
+          const ruleLabels = { wkf: '🌍 WKF', wkf_youth: '🌍 WKF Youth' };
+          badge.className = 'badge badge-muted';
+          badge.style.cssText = 'font-size:.72rem;background:#0f172a;color:#94a3b8;';
+          badge.textContent = ruleLabels[cat.ruleset] || cat.ruleset;
+          const firstRow = card.querySelector('.flex.items-center.gap-1');
+          if (firstRow) firstRow.appendChild(badge);
+        }
+      });
     } catch (e) {
       el.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
     }
   }
+
+  function _openEditCategoryModal(cat) {
+    document.getElementById('edit-cat-id').value      = cat.id;
+    document.getElementById('edit-cat-name').value    = cat.name || '';
+    document.getElementById('edit-cat-tatami').value  = cat.tatami || '';
+    document.getElementById('edit-cat-ruleset').value = cat.ruleset || 'local';
+    Display.openModal('modal-edit-category');
+  }
+
+  document.getElementById('btn-save-edit-category').addEventListener('click', async () => {
+    const id      = document.getElementById('edit-cat-id').value;
+    const name    = document.getElementById('edit-cat-name').value.trim();
+    const tatami  = document.getElementById('edit-cat-tatami').value;
+    const ruleset = document.getElementById('edit-cat-ruleset').value;
+    if (!id) return;
+    try {
+      const payload = { ruleset };
+      if (name)   payload.name   = name;
+      if (tatami) payload.tatami = parseInt(tatami, 10);
+      await Categories.update(id, payload);
+      Display.toast('Categoría actualizada.', 'success');
+      Display.closeModal('modal-edit-category');
+      await _loadCategories();
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  });
 
   /* ---- LLAVES ---- */
   async function _loadBracketPanel() {
@@ -1351,17 +1491,34 @@
     const listEl = document.getElementById('brackets-category-list');
     listEl.innerHTML = '<div class="text-center p-4"><span class="spinner"></span></div>';
     try {
-      const cats = _enrichCatsWithCounts(
+      const allCats = _enrichCatsWithCounts(
         await Categories.listByTournament(state.activeTournament.id)
       );
-      Display.renderCategoryList(listEl, cats, async cat => {
-        state.activeCategory = cat;
-        await _loadBracket(cat);
-      });
+
+      // Poblar filtro de tatamis
+      const tatamiFil = document.getElementById('bracket-filter-tatami');
+      if (tatamiFil) {
+        const tatamis = [...new Set(allCats.map(c => c.tatami).filter(t => t != null))].sort((a,b) => a-b);
+        tatamiFil.innerHTML = '<option value="">Todos los tatamis</option>' +
+          tatamis.map(t => `<option value="${t}">Tatami ${t}</option>`).join('');
+        tatamiFil.onchange = () => _renderBracketCategoryList(allCats);
+      }
+
+      _renderBracketCategoryList(allCats);
       if (state.activeCategory) await _loadBracket(state.activeCategory);
     } catch (e) {
       listEl.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
     }
+  }
+
+  function _renderBracketCategoryList(allCats) {
+    const listEl   = document.getElementById('brackets-category-list');
+    const tatamiF  = document.getElementById('bracket-filter-tatami')?.value || '';
+    const filtered = tatamiF ? allCats.filter(c => String(c.tatami) === tatamiF) : allCats;
+    Display.renderCategoryList(listEl, filtered, async cat => {
+      state.activeCategory = cat;
+      await _loadBracket(cat);
+    });
   }
 
   async function _loadBracket(category) {
@@ -1800,16 +1957,11 @@
     try {
       const cats = await Categories.listByTournament(state.activeTournament.id);
       if (!cats.length) { Display.toast('No hay categorías para redistribuir.', 'warning'); return; }
-      const kumiteCats = cats.filter(c => c.discipline === 'kumite');
+      // Orden de programa: Kata primero, luego Kumite, luego otros.
       const kataCats   = cats.filter(c => c.discipline === 'kata');
+      const kumiteCats = cats.filter(c => c.discipline === 'kumite');
       const otherCats  = cats.filter(c => c.discipline !== 'kumite' && c.discipline !== 'kata');
-      const interleaved = [];
-      const maxLen = Math.max(kumiteCats.length, kataCats.length);
-      for (let i = 0; i < maxLen; i++) {
-        if (i < kumiteCats.length) interleaved.push(kumiteCats[i]);
-        if (i < kataCats.length)   interleaved.push(kataCats[i]);
-      }
-      interleaved.push(...otherCats);
+      const interleaved = [...kataCats, ...kumiteCats, ...otherCats];
       let updated = 0;
       for (let i = 0; i < interleaved.length; i++) {
         const newTatami = numTatamis > 1 ? (i % numTatamis) + 1 : 1;
@@ -2480,12 +2632,90 @@
 
   document.getElementById('btn-refresh-medals')?.addEventListener('click', () => _loadMedals());
 
-  /* ---- Polling de llaves ---- */
+  /* ---- Impresión ---- */
+  function _openPrintWindow(html, title) {
+    const w = window.open('', '_blank', 'width=900,height=700');
+    w.document.write(`<!DOCTYPE html><html lang="es"><head>
+      <meta charset="UTF-8">
+      <title>${title}</title>
+      <style>
+        *{box-sizing:border-box;margin:0;padding:0;}
+        body{font-family:Arial,sans-serif;font-size:12px;color:#000;background:#fff;padding:16px;}
+        h1{font-size:18px;font-weight:700;margin-bottom:4px;}
+        h2{font-size:14px;font-weight:700;margin:12px 0 6px;}
+        p.subtitle{font-size:11px;color:#555;margin-bottom:12px;}
+        table{width:100%;border-collapse:collapse;margin-bottom:12px;}
+        th,td{border:1px solid #999;padding:5px 8px;text-align:left;font-size:11px;}
+        th{background:#eee;font-weight:700;}
+        .badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;margin-right:4px;}
+        .badge-red{background:#fee2e2;color:#b91c1c;}
+        .badge-gold{background:#fef9c3;color:#854d0e;}
+        .badge-blue{background:#dbeafe;color:#1e40af;}
+        .bracket-container{display:flex;gap:16px;overflow-x:auto;}
+        .bracket-round{min-width:150px;}
+        .bracket-round-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#555;margin-bottom:6px;text-align:center;}
+        .bracket-match{border:1px solid #ccc;border-radius:4px;margin-bottom:8px;overflow:hidden;}
+        .bracket-competitor{padding:4px 8px;font-size:11px;border-bottom:1px solid #eee;}
+        .bracket-competitor:last-child{border-bottom:none;}
+        .winner{background:#f0fdf4;font-weight:700;}
+        .bye{color:#999;font-style:italic;}
+        .podio-card{border:1px solid #ccc;border-radius:4px;padding:8px;margin-bottom:8px;}
+        .podio-title{font-weight:700;font-size:12px;margin-bottom:4px;}
+        .podio-row{display:flex;gap:8px;flex-wrap:wrap;}
+        .podio-pos{font-size:11px;}
+        .print-footer{margin-top:20px;font-size:10px;color:#888;text-align:center;border-top:1px solid #ddd;padding-top:8px;}
+        @media print{body{padding:0;}}
+      </style>
+    </head><body>${html}<div class="print-footer">Generado por Organizador de Torneo · ${new Date().toLocaleDateString('es')}</div><script>window.onload=()=>{window.print();window.onafterprint=()=>window.close();}<\/script></body></html>`);
+    w.document.close();
+  }
+
+  function _printBracket(withResults) {
+    if (!state.activeCategory || !state.activeTournament) { Display.toast('Selecciona una categoría primero.', 'warning'); return; }
+    const catLabel = state.activeCategory.name || Categories.buildLabel(state.activeCategory);
+    const bracket  = document.getElementById('bracket-display');
+    if (!bracket || bracket.querySelector('.empty-state')) { Display.toast('No hay llaves generadas para imprimir.', 'warning'); return; }
+
+    // Clonar el árbol visual del bracket
+    const clone = bracket.cloneNode(true);
+    // Si es sin resultados: borrar scores y quitar clases winner/loser
+    if (!withResults) {
+      clone.querySelectorAll('.bracket-competitor-score').forEach(el => el.remove());
+      clone.querySelectorAll('.winner').forEach(el => { el.classList.remove('winner'); });
+      clone.querySelectorAll('.loser').forEach(el => { el.classList.remove('loser'); });
+      // Ocultar nombres de ganadores (dejar solo "Por definir" en rondas 2+)
+      // Slots "Por definir" ya están vacíos — los que sí tienen nombre los dejamos visibles
+    }
+    // Quitar botones de acción dentro del bracket clonado
+    clone.querySelectorAll('button').forEach(b => b.remove());
+
+    const title = `Llaves — ${catLabel} — ${state.activeTournament.name}${withResults ? '' : ' (en blanco)'}`;
+    const html  = `<h1>${title}</h1><p class="subtitle">${state.activeTournament.name} · ${catLabel}</p>${clone.innerHTML || clone.outerHTML}`;
+    _openPrintWindow(html, title);
+  }
+
+  function _printMedals() {
+    const content = document.getElementById('medals-content');
+    const podio   = document.getElementById('medals-podio-list');
+    if (!content) return;
+    const title = `Medallero — ${state.activeTournament?.name || 'Torneo'}`;
+    const html  = `<h1>${title}</h1><p class="subtitle">${new Date().toLocaleDateString('es')}</p>
+      <div>${content.innerHTML}</div>
+      <div>${podio?.innerHTML || ''}</div>`;
+    _openPrintWindow(html, title);
+  }
+
+  document.getElementById('btn-print-bracket-blank')?.addEventListener('click', () => _printBracket(false));
+  document.getElementById('btn-print-bracket-results')?.addEventListener('click', () => _printBracket(true));
+  document.getElementById('btn-print-medals')?.addEventListener('click', () => _printMedals());
+
+  /* ---- Suscripción en tiempo real de llaves ----
+     Sin setInterval: el bracket solo se recarga cuando el árbitro registra
+     un resultado desde otra pestaña (Realtime / BroadcastChannel).
+     Las acciones del organizador (Generar, Regenerar, cambiar sistema)
+     llaman a _loadBracket() directamente. */
   function _startBracketPolling() {
-    if (state.pollingInterval) clearInterval(state.pollingInterval);
-    state.pollingInterval = setInterval(async () => {
-      if (state.activeCategory) await _loadBracket(state.activeCategory);
-    }, 8000);
+    if (state.pollingInterval) { clearInterval(state.pollingInterval); state.pollingInterval = null; }
 
     // Suscripción en tiempo real (BroadcastChannel en dev, Supabase Realtime en prod)
     if (state.bracketSub) { try { state.bracketSub.unsubscribe(); } catch (_) {} }

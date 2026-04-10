@@ -28,6 +28,12 @@ ALTER TABLE tournaments ADD CONSTRAINT tournaments_status_check
 -- Recargar schema cache de PostgREST (necesario después de ALTER TABLE)
 NOTIFY pgrst, 'reload schema';
 
+-- ruleset en categories (reglamento de la categoría: local / wkf / wkf_youth)
+ALTER TABLE categories ADD COLUMN IF NOT EXISTS ruleset text NOT NULL DEFAULT 'local'
+  CHECK (ruleset IN ('local', 'wkf', 'wkf_youth'));
+
+NOTIFY pgrst, 'reload schema';
+
 -- ============================================================
 --  1. TABLA tournaments
 --     SELECT público · INSERT/UPDATE/DELETE solo autenticados
