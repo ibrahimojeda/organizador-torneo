@@ -275,7 +275,7 @@
 
       <div class="flex gap-3">
         <!-- Lista de categorías -->
-        <div style="min-width:280px;max-width:280px;">
+        <div style="min-width:360px;max-width:360px;">
           <div class="card p-0" style="max-height:calc(100vh - 200px);overflow-y:auto;">
             <div id="brackets-category-list" style="padding:.5rem;">
               <div class="text-center p-4"><span class="spinner"></span></div>
@@ -2227,14 +2227,19 @@
         byTatami[t].push(cat);
       });
 
-      // Obtener combates reales para el torneo
-      let matchesByCategory = {};
+      // Obtener combates reales de las llaves, separados por categoría y disciplina
+      // kata: cada ejecución = 1 match tipo kata_round → 3 min
+      // kumite: cada combate no-bye → 5 min
+      let matchesByCategory = {}; // { catId: { total, kata, kumite } }
       try {
         const allMatches = await Matches.listByTournament(state.activeTournament.id);
         allMatches.forEach(m => {
-          if (m.status === 'bye' || !m.category?.discipline) return;
-          if (!matchesByCategory[m.category_id]) matchesByCategory[m.category_id] = 0;
-          matchesByCategory[m.category_id]++;
+          if (m.status === 'bye') return;
+          if (!m.category_id) return;
+          if (!matchesByCategory[m.category_id]) matchesByCategory[m.category_id] = { total: 0, kata: 0, kumite: 0 };
+          matchesByCategory[m.category_id].total++;
+          if (m.bracket_type === 'kata_round') matchesByCategory[m.category_id].kata++;
+          else matchesByCategory[m.category_id].kumite++;
         });
       } catch (_) { /* si falla, usamos estimación */ }
 
@@ -2247,22 +2252,34 @@
         let colDuration = 0;
 
         const cards = categories.map(cat => {
-          const regCount = cat.registrations?.[0]?.count ?? cat.registrations_count ?? 0;
-          const realMatches = matchesByCategory[cat.id];
+          const regCount  = cat.registrations?.[0]?.count ?? cat.registrations_count ?? 0;
+          const catData   = matchesByCategory[cat.id];
+          const hasMatches = catData && catData.total > 0;
           let minutes = 0;
-          let detail = '';
+          let detail  = '';
+          let source  = '';
           if (cat.discipline === 'kata') {
-            minutes = regCount * 3;
-            detail = `${regCount} comp. × 3 min`;
+            if (hasMatches) {
+              // Suma de todas las ejecuciones de kata en las rondas del bracket
+              minutes = catData.total * 3;
+              detail  = `${catData.total} ejecuciones × 3 min`;
+              source  = '(de llaves)';
+            } else {
+              minutes = regCount * 3;
+              detail  = `${regCount} comp. × 3 min`;
+              source  = '(estimado)';
+            }
           } else {
-            if (realMatches != null) {
-              minutes = realMatches * 5;
-              detail = `${realMatches} combates × 5 min`;
+            if (hasMatches) {
+              minutes = catData.kumite * 5;
+              detail  = `${catData.kumite} combates × 5 min`;
+              source  = '(de llaves)';
             } else {
               // Estimación: eliminación simple → n-1 combates
               const estimated = Math.max(0, regCount - 1);
               minutes = estimated * 5;
-              detail = `≈${estimated} combates × 5 min (est.)`;
+              detail  = `≈${estimated} combates × 5 min`;
+              source  = '(estimado)';
             }
           }
           const catStart = cursor;
@@ -2277,7 +2294,7 @@
                 <span>${disciplineEmoji} ${catName}</span>
                 <span class="schedule-cat-duration">${minutes} min</span>
               </div>
-              <div class="schedule-cat-detail text-xs text-muted">${detail}</div>
+              <div class="schedule-cat-detail text-xs text-muted">${detail} <em>${source}</em></div>
               <div class="schedule-cat-times">🕐 ${catStart} → ${catEnd}</div>
             </div>`;
         }).join('');

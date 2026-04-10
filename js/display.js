@@ -290,6 +290,11 @@ const Display = (() => {
       const tatamiStr   = cat.tatami ? String(cat.tatami) : null;
       const tatamiBadge = tatamiStr ? `<span class="badge badge-muted" style="background:#334155;color:#94a3b8;">T${tatamiStr}</span>` : '';
 
+      const ageGroup = AGE_GROUPS.find(a => a.id === cat.age_group_id);
+      const ageRange = ageGroup
+        ? `<span class="text-xs text-muted">${ageGroup.minAge}–${ageGroup.maxAge} años</span>`
+        : '';
+
       card.innerHTML = `
         <div class="flex items-center justify-between">
           <div>
@@ -297,6 +302,7 @@ const Display = (() => {
               ${discBadge} ${tatamiBadge} ${countBadge}
             </div>
             <strong>${cat.name || Categories.buildLabel(cat)}</strong>
+            ${ageRange ? `<div class="mt-1">${ageRange}</div>` : ''}
           </div>
           <div class="text-right">
             <div class="text-sm text-muted">${finished}/${total} combates</div>
