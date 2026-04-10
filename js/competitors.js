@@ -319,12 +319,17 @@ const Competitors = (() => {
 
   async function _createRegistration(competitorId, tournamentId, categoryId) {
     if (Auth.isDevMode()) return _devCreateReg(competitorId, tournamentId, categoryId);
+    // Check first to avoid 409 on UNIQUE (category_id, competitor_id)
+    const { data: existing } = await supabase
+      .from(TABLE_REG)
+      .select('*')
+      .eq('competitor_id', competitorId)
+      .eq('category_id', categoryId)
+      .maybeSingle();
+    if (existing) return existing;
     const { data, error } = await supabase
       .from(TABLE_REG)
-      .upsert(
-        { competitor_id: competitorId, tournament_id: tournamentId, category_id: categoryId },
-        { onConflict: 'competitor_id,category_id', ignoreDuplicates: true }
-      )
+      .insert({ competitor_id: competitorId, tournament_id: tournamentId, category_id: categoryId })
       .select()
       .single();
     if (error) throw error;
