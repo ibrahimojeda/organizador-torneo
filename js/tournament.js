@@ -43,6 +43,7 @@ const Tournament = (() => {
       disciplines:    data.disciplines || ['kumite'],
       num_tatamis:    parseInt(data.num_tatamis, 10) || 1,
       time_start:     data.time_start || '09:00:00',
+      category_mode:  data.category_mode || 'age_belt',
       status:         TOURNAMENT_STATUS.DRAFT.id,
       organizer_id:   Auth.getUserId(),
     };
@@ -113,9 +114,10 @@ const Tournament = (() => {
     if (data.date_end)       payload.date_end       = data.date_end;
     if (data.description)    payload.description    = data.description.trim();
     if (data.bracket_system) payload.bracket_system = data.bracket_system;
-    if (data.disciplines)    payload.disciplines    = data.disciplines;
-    if (data.status)         payload.status         = data.status;
-    if (data.time_start != null) payload.time_start = data.time_start;
+    if (data.disciplines)      payload.disciplines    = data.disciplines;
+    if (data.status)           payload.status         = data.status;
+    if (data.time_start != null) payload.time_start   = data.time_start;
+    if (data.category_mode)    payload.category_mode  = data.category_mode;
     if (Auth.isDevMode()) return _devUpdate(id, payload);
     const { data: updated, error } = await supabase
       .from(TABLE)

@@ -246,6 +246,18 @@ ALTER TABLE categories ADD CONSTRAINT categories_unique_combo
 --      El schema original solo tenía: winner/loser/grand_final/repechage_bronze/round_robin
 --      El código usa además: single_elimination/repechage_main/double_winner/double_loser/double_final/kata_round
 -- ============================================================
+-- ============================================================
+--  11. TOURNAMENTS category_mode — modo de categorización
+--      age_belt: Edad + Cinturón (default, para torneos locales)
+--      age_weight: Edad + Peso (WKF estándar)
+-- ============================================================
+ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS category_mode text NOT NULL DEFAULT 'age_belt'
+  CHECK (category_mode IN ('age_belt', 'age_weight'));
+
+
+-- ============================================================
+--  10. MATCHES bracket_type CHECK — ampliar valores permitidos (ya aplicado arriba, idempotente)
+-- ============================================================
 ALTER TABLE matches DROP CONSTRAINT IF EXISTS matches_bracket_type_check;
 ALTER TABLE matches ADD CONSTRAINT matches_bracket_type_check
   CHECK (bracket_type IN (

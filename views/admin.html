@@ -560,6 +560,14 @@
           </select>
         </div>
         <div class="form-group">
+          <label class="form-label">Modo de categorización *</label>
+          <select class="form-control" id="t-category-mode">
+            <option value="age_belt" selected>🥋 Edad + Cinturón (torneos locales)</option>
+            <option value="age_weight">⚖️ Edad + Peso (WKF estándar)</option>
+          </select>
+          <p class="text-xs text-muted mt-1">Define cómo se agrupan los competidores en categorías automáticamente.</p>
+        </div>
+        <div class="form-group">
           <label class="form-label">Número de tatamis *</label>
           <select class="form-control" id="t-num-tatamis">
             <option value="1">1 Tatami</option>
@@ -1890,6 +1898,7 @@
       bracket_system: document.getElementById('t-bracket-system').value,
       num_tatamis:    document.getElementById('t-num-tatamis').value,
       time_start:     document.getElementById('t-time-start').value || '09:00',
+      category_mode:  document.getElementById('t-category-mode').value,
       disciplines,
     };
     try {

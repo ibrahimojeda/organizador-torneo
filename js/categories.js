@@ -236,13 +236,17 @@ const Categories = (() => {
     if (ageGroup)  parts.push(ageGroup.label);
     else if (category.age_min != null) parts.push(`${category.age_min}-${category.age_max} años`);
 
-    if (category.discipline === 'kumite') {
+    // Show weight only if age_weight mode (weight_class_id populated)
+    if (category.weight_class_id) {
       const wClasses = WEIGHT_CLASSES[category.gender] || [];
       const wc = wClasses.find(w => w.id === category.weight_class_id);
-      if (wc)    parts.push(wc.label);
+      if (wc) parts.push(wc.label);
+    }
 
+    // Show belt group only if age_belt mode (belt_group_id populated)
+    if (category.belt_group_id) {
       const bg = BELT_GROUPS.find(b => b.id === category.belt_group_id);
-      if (bg)    parts.push(bg.label);
+      if (bg) parts.push(bg.label);
     }
 
     return parts.join(' · ');
@@ -269,23 +273,32 @@ const Categories = (() => {
     // Fallback: if none match, use tournament disciplines
     const effective = disciplines.length ? disciplines : tournamentDisciplines;
 
+    const mode = tournament.category_mode || 'age_belt';
+
     for (const discipline of effective) {
+      let weightClassId = null;
+      let beltGroupId   = null;
+
+      if (mode === 'age_weight') {
+        // WKF estándar: categoriza por peso (solo kumite), sin cinturón
+        if (discipline === 'kumite') {
+          const wc = getWeightClass(competitor.gender, competitor.weight);
+          weightClassId = wc?.id || null;
+        }
+      } else {
+        // age_belt (default): categoriza por cinturón, sin peso
+        beltGroupId = beltGroup?.id || null;
+      }
+
       const base = {
         discipline,
-        gender:       competitor.gender,
-        age_group_id: ageGroup?.id || null,
-        belt_group_id: beltGroup?.id || null,
+        gender:          competitor.gender,
+        age_group_id:    ageGroup?.id || null,
+        weight_class_id: weightClassId,
+        belt_group_id:   beltGroupId,
       };
-
-      if (discipline === 'kumite') {
-        const wc = getWeightClass(competitor.gender, competitor.weight);
-        const key = _buildKey({ ...base, weight_class_id: wc?.id || null });
-        keys.push({ ...base, weight_class_id: wc?.id || null, name: null, _key: key });
-      } else {
-        // Kata: no tiene peso
-        const key = _buildKey({ ...base, weight_class_id: null });
-        keys.push({ ...base, weight_class_id: null, name: null, _key: key });
-      }
+      const key = _buildKey(base);
+      keys.push({ ...base, name: null, _key: key });
     }
     return keys;
   }
@@ -294,9 +307,9 @@ const Categories = (() => {
     return [
       data.discipline,
       data.gender,
-      data.age_group_id || 'noage',
+      data.age_group_id    || 'noage',
       data.weight_class_id || 'noweight',
-      data.belt_group_id || 'nobelt',
+      data.belt_group_id   || 'nobelt',
     ].join('|');
   }
 
