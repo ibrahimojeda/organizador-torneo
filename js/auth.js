@@ -193,26 +193,38 @@ const Auth = (() => {
     return data?.role || USER_ROLES.PUBLIC;
   }
 
-  /* ---- Crear nuevo usuario organizador (signUp) ---- */
-  async function createUser(email, password) {
+  /* ---- Crear nuevo usuario con rol seleccionado (solo super_admin) ---- */
+  async function createUser(email, password, role) {
     if (!_initSupabase()) throw new Error('Supabase no está configurado.');
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) throw error;
-    // El trigger handle_new_user inserta automáticamente en profiles con role='organizer'
+    // El trigger crea el perfil con role='organizer'; si queremos otro rol, lo cambiamos
+    const targetRole = role === USER_ROLES.SUPER_ADMIN ? USER_ROLES.SUPER_ADMIN : USER_ROLES.ORGANIZER;
+    if (targetRole !== USER_ROLES.ORGANIZER && data.user?.id) {
+      await supabase.from('profiles').update({ role: targetRole }).eq('id', data.user.id);
+    }
     return data.user;
   }
 
   /* ---- Listar perfiles creados (tabla profiles) ---- */
   async function listProfiles() {
     if (!_initSupabase()) throw new Error('Supabase no está configurado.');
-    // Nota: la política RLS de profiles filtra por auth.uid() = id
-    // Para poder leer todos los perfiles siendo organizador necesitamos ampliar la política
-    // Por ahora devuelve solo el perfil propio
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, role, created_at');
+      .select('id, role, full_name, created_at');
     if (error) throw error;
     return data || [];
+  }
+
+  /* ---- Cambiar rol de un usuario (solo super_admin) ---- */
+  async function updateRole(userId, newRole) {
+    if (!_initSupabase()) throw new Error('Supabase no está configurado.');
+    if (!isSuperAdmin()) throw new Error('Solo el super administrador puede cambiar roles.');
+    const { error } = await supabase
+      .from('profiles')
+      .update({ role: newRole })
+      .eq('id', userId);
+    if (error) throw error;
   }
 
   /* ---- Cambiar contraseña del usuario autenticado ---- */
@@ -238,6 +250,8 @@ const Auth = (() => {
   function isOrganizer()   { return getRole() === USER_ROLES.ORGANIZER; }
   function isReferee()     { return getRole() === USER_ROLES.REFEREE; }
   function isCompetitor()  { return getRole() === USER_ROLES.COMPETITOR; }
+  function isSuperAdmin()  { return getRole() === USER_ROLES.SUPER_ADMIN; }
+  function canManage()     { return isOrganizer() || isSuperAdmin() || isDevMode(); }
   function isAuthenticated() { return !!getSession(); }
   function getTournamentId() { return getSession()?.tournamentId || null; }
   function isDevMode()       { return getSession()?.userId === '00000000-0000-0000-0000-000000000001'; }
@@ -269,6 +283,8 @@ const Auth = (() => {
     isOrganizer,
     isReferee,
     isCompetitor,
+    isSuperAdmin,
+    canManage,
     isAuthenticated,
     isDevMode,
     requireRole,
@@ -277,6 +293,7 @@ const Auth = (() => {
     deactivateCode,
     createUser,
     listProfiles,
+    updateRole,
     changePassword,
     _saveDevSession: _saveSession,
   };

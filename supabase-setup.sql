@@ -268,3 +268,54 @@ ALTER TABLE matches ADD CONSTRAINT matches_bracket_type_check
     'round_robin',
     'kata_round'
   ));
+
+-- ============================================================
+--  11. ROL super_admin
+-- ============================================================
+
+-- Ampliar CHECK de profiles para admitir el nuevo rol
+ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
+ALTER TABLE profiles ADD CONSTRAINT profiles_role_check
+  CHECK (role IN ('organizer', 'referee', 'super_admin'));
+
+-- RLS profiles: super_admin puede leer todos los perfiles
+DROP POLICY IF EXISTS "profiles_select" ON profiles;
+CREATE POLICY "profiles_select" ON profiles
+  FOR SELECT USING (
+    auth.uid() IS NOT NULL AND (
+      auth.uid() = id
+      OR EXISTS (
+        SELECT 1 FROM profiles p2
+        WHERE p2.id = auth.uid() AND p2.role = 'super_admin'
+      )
+    )
+  );
+
+-- RLS tournaments: super_admin puede actualizar cualquier torneo
+DROP POLICY IF EXISTS "tournaments_update" ON tournaments;
+CREATE POLICY "tournaments_update" ON tournaments
+  FOR UPDATE USING (
+    auth.uid() = organizer_id
+    OR EXISTS (
+      SELECT 1 FROM profiles p2
+      WHERE p2.id = auth.uid() AND p2.role = 'super_admin'
+    )
+  );
+
+-- RLS tournaments: super_admin puede eliminar cualquier torneo
+DROP POLICY IF EXISTS "tournaments_delete" ON tournaments;
+CREATE POLICY "tournaments_delete" ON tournaments
+  FOR DELETE USING (
+    auth.uid() = organizer_id
+    OR EXISTS (
+      SELECT 1 FROM profiles p2
+      WHERE p2.id = auth.uid() AND p2.role = 'super_admin'
+    )
+  );
+
+-- Asignar rol super_admin al usuario con ese email (ejecutar después de crear la cuenta)
+-- UPDATE profiles SET role = 'super_admin'
+--   WHERE id = (SELECT id FROM auth.users WHERE email = 'superadmin@torneo.app');
+
+-- NOTA: descomenta y ejecuta la línea anterior DESPUÉS de crear la cuenta desde
+-- la aplicación o desde la sección de registro.

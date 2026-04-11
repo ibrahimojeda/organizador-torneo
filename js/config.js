@@ -136,10 +136,11 @@ const MATCH_STATUS = {
 
 /* ----- Roles de usuario ----- */
 const USER_ROLES = {
-  ORGANIZER:  'organizer',
-  REFEREE:    'referee',
-  COMPETITOR: 'competitor',
-  PUBLIC:     'public',
+  ORGANIZER:   'organizer',
+  REFEREE:     'referee',
+  COMPETITOR:  'competitor',
+  PUBLIC:      'public',
+  SUPER_ADMIN: 'super_admin',
 };
 
 /* ----- Helpers ----- */

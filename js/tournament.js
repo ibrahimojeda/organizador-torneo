@@ -87,6 +87,28 @@ const Tournament = (() => {
   }
 
   /* --------------------------------------------------------
+     LISTAR TODOS LOS TORNEOS (solo super_admin)
+  -------------------------------------------------------- */
+  async function listAll() {
+    if (Auth.isDevMode()) return _devList();
+    if (!Auth.isSuperAdmin()) throw new Error('Acceso denegado.');
+    const { data, error } = await supabase
+      .from(TABLE)
+      .select('*, profiles!tournaments_organizer_id_fkey(id, full_name)')
+      .order('date_start', { ascending: false });
+    if (error) {
+      // Fallback sin join si la FK no está nombrada exactamente
+      const { data: d2, error: e2 } = await supabase
+        .from(TABLE)
+        .select('*')
+        .order('date_start', { ascending: false });
+      if (e2) throw e2;
+      return d2 || [];
+    }
+    return data || [];
+  }
+
+  /* --------------------------------------------------------
      LISTAR TORNEOS PÚBLICOS (acceso sin login)
   -------------------------------------------------------- */
   async function listPublic() {
@@ -216,6 +238,7 @@ const Tournament = (() => {
     create,
     getById,
     listMine,
+    listAll,
     listPublic,
     update,
     setStatus,

@@ -35,8 +35,8 @@
       <div class="sidebar-item active" data-panel="dashboard">
         <span class="icon">📊</span> Dashboard
       </div>
-      <div class="sidebar-item" data-panel="tournaments">
-        <span class="icon">🏆</span> Mis Torneos
+      <div class="sidebar-item" data-panel="tournaments" id="sidebar-tournaments-item">
+        <span class="icon">🏆</span> <span id="sidebar-tournaments-label">Mis Torneos</span>
       </div>
     </div>
     <div class="sidebar-section">
@@ -58,6 +58,13 @@
       <div class="sidebar-label">Resultados</div>
       <div class="sidebar-item" data-panel="medals">
         <span class="icon">🏅</span> Medallero
+      </div>
+    </div>
+    <!-- Sección sistema: solo visible para super_admin -->
+    <div class="sidebar-section" id="sidebar-section-system" style="display:none;">
+      <div class="sidebar-label">🌐 Sistema</div>
+      <div class="sidebar-item" data-panel="system">
+        <span class="icon">📊</span> Métricas globales
       </div>
     </div>
     <div class="sidebar-section">
@@ -136,8 +143,8 @@
     <section id="panel-tournaments" class="panel" style="display:none;">
       <div class="page-header">
         <div>
-          <h1 class="page-title">Mis Torneos</h1>
-          <p class="page-subtitle">Gestiona todos tus torneos</p>
+          <h1 class="page-title" id="tournaments-panel-title">Mis Torneos</h1>
+          <p class="page-subtitle" id="tournaments-panel-subtitle">Gestiona todos tus torneos</p>
         </div>
         <button class="btn btn-primary" id="btn-new-tournament-2">+ Nuevo Torneo</button>
       </div>
@@ -414,6 +421,31 @@
     </section>
 
     <!-- =========================================================
+         PANEL: SISTEMA (solo super_admin)
+    ========================================================== -->
+    <section id="panel-system" class="panel" style="display:none;">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">🌐 Métricas Globales</h1>
+          <p class="page-subtitle">Vista completa del sistema</p>
+        </div>
+        <button class="btn btn-outline btn-sm" id="btn-refresh-system">🔄 Actualizar</button>
+      </div>
+      <div class="grid-4 mb-4" id="system-stats">
+        <div class="stat-card"><div class="stat-icon blue">🏆</div><div><div class="stat-value" id="sys-stat-tournaments">—</div><div class="stat-label">Torneos totales</div></div></div>
+        <div class="stat-card"><div class="stat-icon green">▶️</div><div><div class="stat-value" id="sys-stat-active">—</div><div class="stat-label">Torneos activos</div></div></div>
+        <div class="stat-card"><div class="stat-icon gold">👤</div><div><div class="stat-value" id="sys-stat-competitors">—</div><div class="stat-label">Competidores</div></div></div>
+        <div class="stat-card"><div class="stat-icon red">👥</div><div><div class="stat-value" id="sys-stat-organizers">—</div><div class="stat-label">Organizadores</div></div></div>
+      </div>
+      <div class="card">
+        <h3 class="card-title mb-3">Todos los torneos</h3>
+        <div id="system-all-tournaments">
+          <div class="text-center p-4"><span class="spinner"></span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================
          PANEL: CONFIGURACIÓN
     ========================================================== -->
     <section id="panel-settings" class="panel" style="display:none;">
@@ -421,13 +453,13 @@
         <h1 class="page-title">Configuración</h1>
       </div>
 
-      <!-- Gestión de Usuarios -->
-      <div class="card container-md mb-3">
-        <h3 class="card-title mb-3">👤 Gestión de Usuarios</h3>
+      <!-- Gestión de Usuarios (solo super_admin) -->
+      <div class="card container-md mb-3" id="section-create-user" style="display:none;">
+        <h3 class="card-title mb-3">👑 Gestión de Usuarios</h3>
 
         <!-- Crear usuario -->
         <div class="mb-4">
-          <h4 class="mb-2" style="font-size:.95rem;font-weight:600;">Crear nuevo usuario organizador</h4>
+          <h4 class="mb-2" style="font-size:.95rem;font-weight:600;">Crear nuevo usuario</h4>
           <div class="form-group">
             <label class="form-label">Email</label>
             <input type="email" class="form-control" id="new-user-email" placeholder="usuario@ejemplo.com" autocomplete="off" />
@@ -442,27 +474,15 @@
               <input type="password" class="form-control" id="new-user-pass2" placeholder="Repite la contraseña" autocomplete="new-password" />
             </div>
           </div>
+          <div class="form-group">
+            <label class="form-label">Rol</label>
+            <select class="form-control" id="new-user-role">
+              <option value="organizer">Organizador</option>
+              <option value="super_admin">Super Admin 👑</option>
+            </select>
+          </div>
           <button class="btn btn-primary" id="btn-create-user">＋ Crear usuario</button>
           <div id="create-user-result" class="mt-2"></div>
-        </div>
-
-        <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0;" />
-
-        <!-- Cambiar contraseña propia -->
-        <div class="mb-4">
-          <h4 class="mb-2" style="font-size:.95rem;font-weight:600;">Cambiar mi contraseña</h4>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Nueva contraseña</label>
-              <input type="password" class="form-control" id="change-pass-new" placeholder="Mínimo 6 caracteres" autocomplete="new-password" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Confirmar nueva contraseña</label>
-              <input type="password" class="form-control" id="change-pass-new2" placeholder="Repite la contraseña" autocomplete="new-password" />
-            </div>
-          </div>
-          <button class="btn btn-outline" id="btn-change-pass">🔑 Cambiar contraseña</button>
-          <div id="change-pass-result" class="mt-2"></div>
         </div>
 
         <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0;" />
@@ -482,6 +502,23 @@
           <span>⚠️</span>
           <span>Para que el usuario quede activo sin confirmar email, desactiva <strong>Email Confirmation</strong> en el panel de Supabase → Authentication → Settings.</span>
         </div>
+      </div>
+
+      <!-- Cambiar contraseña propia (visible para todos) -->
+      <div class="card container-md mb-3">
+        <h3 class="card-title mb-3">🔑 Mi contraseña</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Nueva contraseña</label>
+            <input type="password" class="form-control" id="change-pass-new" placeholder="Mínimo 6 caracteres" autocomplete="new-password" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirmar nueva contraseña</label>
+            <input type="password" class="form-control" id="change-pass-new2" placeholder="Repite la contraseña" autocomplete="new-password" />
+          </div>
+        </div>
+        <button class="btn btn-outline" id="btn-change-pass">🔑 Cambiar contraseña</button>
+        <div id="change-pass-result" class="mt-2"></div>
       </div>
 
     </section>
@@ -1043,13 +1080,28 @@
         }
       });
     }
+    _applyRoleUI();
     await _loadLastTournament();
     switchPanel('dashboard');
   }
 
+  /* ---- Aplicar cambios visuales según rol ---- */
+  function _applyRoleUI() {
+    if (Auth.isSuperAdmin()) {
+      document.getElementById('nav-role-badge').textContent = 'Super Admin 👑';
+      document.getElementById('nav-role-badge').className   = 'badge badge-purple text-xs mr-2';
+      document.getElementById('sidebar-tournaments-label').textContent = 'Todos los Torneos';
+      document.getElementById('sidebar-section-system').style.display = '';
+      document.getElementById('section-create-user').style.display = '';
+    } else if (Auth.isDevMode()) {
+      document.getElementById('nav-role-badge').textContent = 'Dev Mode';
+      document.getElementById('nav-role-badge').className   = 'badge badge-muted text-xs mr-2';
+    }
+  }
+
   async function _loadLastTournament() {
     try {
-      const tournaments = await Tournament.listMine();
+      const tournaments = Auth.isSuperAdmin() ? await Tournament.listAll() : await Tournament.listMine();
       if (tournaments.length) {
         state.activeTournament = tournaments[0];
         _updateNavTournamentName(state.activeTournament.name);
@@ -1099,7 +1151,7 @@
 
   /* ---- Acciones por panel ---- */
   async function _onPanelLoad(panelId) {
-    if (!state.activeTournament && panelId !== 'tournaments' && panelId !== 'settings') {
+    if (!state.activeTournament && panelId !== 'tournaments' && panelId !== 'settings' && panelId !== 'system') {
       Display.toast('Primero crea o selecciona un torneo.', 'warning');
       switchPanel('tournaments');
       return;
@@ -1112,14 +1164,26 @@
     if (panelId === 'schedule')     await _loadSchedule();
     if (panelId === 'medals')       await _loadMedals();
     if (panelId === 'codes')        await _loadCodes();
-    if (panelId === 'settings')     _loadUsersList();
+    if (panelId === 'settings')     { if (Auth.isSuperAdmin()) _loadUsersList(); }
+    if (panelId === 'system')       await _loadSystemPanel();
   }
 
   /* ---- TORNEOS ---- */
   async function _loadTournamentList() {
     const el = document.getElementById('tournaments-list');
+    const titleEl    = document.getElementById('tournaments-panel-title');
+    const subtitleEl = document.getElementById('tournaments-panel-subtitle');
     try {
-      const list = await Tournament.listMine();
+      let list;
+      if (Auth.isSuperAdmin()) {
+        list = await Tournament.listAll();
+        titleEl.textContent    = 'Todos los Torneos';
+        subtitleEl.textContent = `${list.length} torneo(s) en el sistema`;
+      } else {
+        list = await Tournament.listMine();
+        titleEl.textContent    = 'Mis Torneos';
+        subtitleEl.textContent = 'Gestiona todos tus torneos';
+      }
       if (!list.length) {
         el.innerHTML = `<div class="empty-state"><div class="empty-icon">🏆</div><h3>Sin torneos</h3><p>Crea tu primer torneo para comenzar.</p></div>`;
         return;
@@ -1131,6 +1195,7 @@
               <div class="flex items-center gap-2 mb-1">
                 <span class="status-dot ${t.status}"></span>
                 <strong>${t.name}</strong>
+                ${Auth.isSuperAdmin() && t.organizer_id ? `<span class="badge badge-muted text-xs" title="ID organizador">👤 ${t.profiles?.full_name || t.organizer_id.slice(0,8) + '…'}</span>` : ''}
               </div>
               <div class="text-muted text-sm">📅 ${formatDate(t.date_start)} · 📍 ${t.location || 'Sin ubicación'} · <em>${STATUS_LABELS[t.status] || t.status}</em></div>
             </div>
@@ -2762,11 +2827,13 @@
      CONFIGURACIÓN — Gestión de Usuarios
   ================================================================ */
 
-  /* Crear nuevo usuario */
+  /* Crear nuevo usuario (solo super_admin) */
   document.getElementById('btn-create-user').addEventListener('click', async () => {
-    const email  = document.getElementById('new-user-email').value.trim();
-    const pass   = document.getElementById('new-user-pass').value;
-    const pass2  = document.getElementById('new-user-pass2').value;
+    if (!Auth.isSuperAdmin()) return;
+    const email    = document.getElementById('new-user-email').value.trim();
+    const pass     = document.getElementById('new-user-pass').value;
+    const pass2    = document.getElementById('new-user-pass2').value;
+    const role     = document.getElementById('new-user-role').value;
     const resultEl = document.getElementById('create-user-result');
     resultEl.innerHTML = '';
 
@@ -2787,11 +2854,13 @@
     btn.disabled = true;
     btn.textContent = 'Creando...';
     try {
-      await Auth.createUser(email, pass);
-      resultEl.innerHTML = `<div class="alert alert-success">✅ Usuario <strong>${email}</strong> creado correctamente.</div>`;
+      await Auth.createUser(email, pass, role);
+      const roleLabel = role === 'super_admin' ? 'Super Admin 👑' : 'Organizador';
+      resultEl.innerHTML = `<div class="alert alert-success">✅ Usuario <strong>${email}</strong> creado como <strong>${roleLabel}</strong>.</div>`;
       document.getElementById('new-user-email').value = '';
       document.getElementById('new-user-pass').value  = '';
       document.getElementById('new-user-pass2').value = '';
+      document.getElementById('new-user-role').value  = 'organizer';
       await _loadUsersList();
     } catch (e) {
       resultEl.innerHTML = `<div class="alert alert-danger">❌ ${e.message}</div>`;
@@ -2801,7 +2870,8 @@
     }
   });
 
-  /* Cambiar contraseña propia */
+  /* Actualizar lista de usuarios */
+  document.getElementById('btn-refresh-users').addEventListener('click', () => _loadUsersList());
   document.getElementById('btn-change-pass').addEventListener('click', async () => {
     const pass  = document.getElementById('change-pass-new').value;
     const pass2 = document.getElementById('change-pass-new2').value;
@@ -2840,7 +2910,6 @@
     const el = document.getElementById('users-list');
     el.innerHTML = `<div class="text-center p-3"><span class="spinner"></span></div>`;
 
-    // En dev mode mostrar aviso
     if (Auth.isDevMode()) {
       el.innerHTML = `<div class="alert alert-warning">Modo dev activo — la lista de usuarios requiere conexión real con Supabase.</div>`;
       return;
@@ -2852,13 +2921,20 @@
         el.innerHTML = `<div class="text-muted text-sm p-2">No hay usuarios registrados aún.</div>`;
         return;
       }
+      const ROLE_BADGE = { organizer: 'badge-gold', super_admin: 'badge-purple', referee: 'badge-blue' };
+      const ROLE_LABEL = { organizer: 'Organizador', super_admin: 'Super Admin 👑', referee: 'Árbitro' };
       el.innerHTML = profiles.map(p => `
         <div class="flex items-center justify-between p-2 mb-1" style="background:var(--bg-secondary);border-radius:6px;">
-          <div>
-            <span class="badge badge-${p.role === 'organizer' ? 'gold' : 'red'} mr-2">${p.role}</span>
-            <span class="text-sm">${p.id}</span>
+          <div style="flex:1;min-width:0;">
+            <span class="badge ${ROLE_BADGE[p.role] || 'badge-muted'} mr-2">${ROLE_LABEL[p.role] || p.role}</span>
+            <span class="text-sm">${p.full_name || p.id.slice(0,12) + '…'}</span>
           </div>
-          <span class="text-muted text-xs">${p.created_at ? new Date(p.created_at).toLocaleDateString('es-ES') : '—'}</span>
+          <div class="flex items-center gap-2">
+            ${Auth.isSuperAdmin() && p.role !== 'super_admin' ? `
+              <button class="btn btn-ghost btn-sm" onclick="_promoteUser('${p.id}')">Hacer Super Admin</button>
+            ` : ''}
+            <span class="text-muted text-xs">${p.created_at ? new Date(p.created_at).toLocaleDateString('es-ES') : '—'}</span>
+          </div>
         </div>
       `).join('');
     } catch (e) {
@@ -2866,8 +2942,63 @@
     }
   }
 
-  /* Cargar lista al abrir el panel de configuración */
-  /* (se llama desde _onPanelLoad cuando panelId === 'settings') */
+  window._promoteUser = async function(userId) {
+    if (!confirm('¿Otorgar rol Super Admin a este usuario? Tendrá acceso completo al sistema.')) return;
+    try {
+      await Auth.updateRole(userId, 'super_admin');
+      Display.toast('Rol actualizado a Super Admin.', 'success');
+      await _loadUsersList();
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  };
+
+  /* ---- PANEL SISTEMA (super_admin) ---- */
+  async function _loadSystemPanel() {
+    if (!Auth.isSuperAdmin()) return;
+    document.getElementById('btn-refresh-system').addEventListener('click', () => _loadSystemPanel(), { once: true });
+    try {
+      const [allTournaments, allProfiles] = await Promise.all([
+        Tournament.listAll(),
+        Auth.listProfiles(),
+      ]);
+      const active       = allTournaments.filter(t => t.status === 'ongoing').length;
+      const organizers   = allProfiles.filter(p => p.role === 'organizer' || p.role === 'super_admin').length;
+
+      // Contar competidores totales
+      let totalComps = 0;
+      try {
+        const { count } = await supabase.from('registrations').select('id', { count: 'exact', head: true });
+        totalComps = count || 0;
+      } catch (_) {}
+
+      document.getElementById('sys-stat-tournaments').textContent = allTournaments.length;
+      document.getElementById('sys-stat-active').textContent      = active;
+      document.getElementById('sys-stat-competitors').textContent = totalComps;
+      document.getElementById('sys-stat-organizers').textContent  = organizers;
+
+      const listEl = document.getElementById('system-all-tournaments');
+      const STATUS_LABELS_SYS = { draft: 'Borrador', open: 'Inscripciones', closed: 'Cerrado', ongoing: 'En Curso', finished: 'Finalizado', cancelled: 'Cancelado' };
+      if (!allTournaments.length) {
+        listEl.innerHTML = `<div class="empty-state"><div class="empty-icon">🏆</div><p>Sin torneos en el sistema.</p></div>`;
+        return;
+      }
+      listEl.innerHTML = allTournaments.map(t => `
+        <div class="flex items-center justify-between p-2 mb-1" style="background:var(--bg-secondary);border-radius:6px;cursor:pointer;" onclick="selectTournament('${t.id}')">
+          <div style="flex:1;">
+            <div class="flex items-center gap-2">
+              <strong>${t.name}</strong>
+              <span class="badge badge-muted text-xs">${STATUS_LABELS_SYS[t.status] || t.status}</span>
+            </div>
+            <div class="text-xs text-muted mt-1">📅 ${formatDate(t.date_start)} · 📍 ${t.location || 'Sin ubicación'}</div>
+          </div>
+          <span class="text-xs text-muted">👤 ${t.profiles?.full_name || t.organizer_id?.slice(0,8) + '…' || '—'}</span>
+        </div>
+      `).join('');
+    } catch (e) {
+      document.getElementById('system-all-tournaments').innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
+  }
 
   /* ---- Helpers ---- */
   function formatDate(iso) {
