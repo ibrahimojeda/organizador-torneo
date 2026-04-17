@@ -5,6 +5,7 @@
 const Auth = (() => {
 
   const SESSION_KEY = 'ot_session';
+  const ERR_NETWORK  = 'No se pudo conectar al servidor. Verifica tu conexión a internet o que el proyecto Supabase esté activo.';
 
   /* ---- Estado interno ---- */
   let _session = null;
@@ -48,7 +49,12 @@ const Auth = (() => {
     if (!_initSupabase()) {
       throw new Error('Supabase no está configurado. Agrega las credenciales en config.js');
     }
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    let data, error;
+    try {
+      ({ data, error } = await supabase.auth.signInWithPassword({ email, password }));
+    } catch (fetchErr) {
+      throw new Error(ERR_NETWORK);
+    }
     if (error) throw error;
 
     const role = await _fetchRole(data.user.id);
@@ -89,12 +95,17 @@ const Auth = (() => {
       throw new Error('Código inválido o Supabase no configurado.');
     }
     // El código se valida contra la tabla tournament_codes en Supabase
-    const { data, error } = await supabase
-      .from('tournament_codes')
-      .select('*, tournaments(id, name)')
-      .eq('code', normalizedCode)
-      .eq('active', true)
-      .single();
+    let data, error;
+    try {
+      ({ data, error } = await supabase
+        .from('tournament_codes')
+        .select('*, tournaments(id, name)')
+        .eq('code', normalizedCode)
+        .eq('active', true)
+        .single());
+    } catch (fetchErr) {
+      throw new Error(ERR_NETWORK);
+    }
 
     if (error || !data) throw new Error('Código inválido o expirado.');
 

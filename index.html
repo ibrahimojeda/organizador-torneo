@@ -152,7 +152,10 @@
         window.location.href = 'views/referee.html';
       }
     } catch (err) {
-      showAlert(err.message || 'Correo o contraseña incorrectos.');
+      const msg = (err instanceof TypeError && err.message === 'Failed to fetch')
+        ? 'No se pudo conectar al servidor. Verifica tu conexión a internet o que el proyecto Supabase esté activo.'
+        : (err.message || 'Correo o contraseña incorrectos.');
+      showAlert(msg);
     } finally {
       setLoading(btn, false);
     }
