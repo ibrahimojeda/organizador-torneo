@@ -18,6 +18,7 @@
     <span class="badge badge-blue mr-2">Vista Pública</span>
     <span class="status-dot green" id="live-indicator" title="En vivo"></span>
     <span class="text-xs text-muted ml-1" id="live-text">En vivo</span>
+    <button class="btn btn-ghost btn-sm ml-2" id="btn-logout">Cerrar sesión</button>
   </div>
 </nav>
 
@@ -162,6 +163,17 @@
   }
 
   /* ---- MODO SOLO-LECTURA: bloquear todos los métodos de escritura ---- */
+
+  // Botón de cerrar sesión
+  let isSigningOut = false;
+  document.getElementById('btn-logout').addEventListener('click', async () => {
+    if (isSigningOut) return;
+    isSigningOut = true;
+    try {
+      await Auth.logout();
+    } catch (_) {}
+    window.location.href = 'https://ibrahimojeda.github.io/index.html';
+  });
   const _ERR_READONLY = () => { throw new Error('Esta vista es de solo lectura.'); };
   try {
     // Matches

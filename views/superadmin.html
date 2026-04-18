@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Panel Super Admin — Torneo Karate</title>
+  <link rel="stylesheet" href="../css/styles.css" />
+</head>
+<body>
+  <div id="superadmin-app">
+    <header class="superadmin-header">
+      <h1>Panel Super Admin</h1>
+      <nav>
+        <button id="nav-users">Usuarios</button>
+        <button id="nav-tournaments">Torneos</button>
+        <button id="nav-payments">Pagos</button>
+        <button id="nav-stats">Estadísticas</button>
+        <button id="nav-logs">Logs</button>
+        <button id="nav-settings">Configuración</button>
+        <button id="btn-logout">Salir</button>
+      </nav>
+    </header>
+    <main id="superadmin-content">
+      <!-- Aquí se cargarán las vistas dinámicamente -->
+    </main>
+  </div>
+  <script src="../js/config.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/superadmin.js"></script>
+  <script src="../js/superadmin-users.js"></script>
+  <script src="../js/superadmin-tournaments.js"></script>
+  <script src="../js/superadmin-payments.js"></script>
+  <script src="../js/superadmin-stats.js"></script>
+  <script src="../js/superadmin-logs.js"></script>
+  <script src="../js/superadmin-settings.js"></script>
+</body>
+</html>

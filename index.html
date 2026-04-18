@@ -123,7 +123,8 @@
   const session = Auth.loadSession();
   if (session) {
     const role = session.role;
-    if (role === USER_ROLES.ORGANIZER) window.location.href = 'views/admin.html';
+    if (role === USER_ROLES.SUPER_ADMIN) window.location.href = 'views/superadmin.html';
+    else if (role === USER_ROLES.ORGANIZER) window.location.href = 'views/admin.html';
     else if (role === USER_ROLES.REFEREE) window.location.href = 'views/referee.html';
     else window.location.href = 'views/public.html';
   }
@@ -146,13 +147,18 @@
 
     try {
       const session = await Auth.login(email, pass);
-      if (session.role === USER_ROLES.ORGANIZER) {
+      if (session.role === USER_ROLES.SUPER_ADMIN) {
+        window.location.href = 'views/superadmin.html';
+      } else if (session.role === USER_ROLES.ORGANIZER) {
         window.location.href = 'views/admin.html';
       } else {
         window.location.href = 'views/referee.html';
       }
     } catch (err) {
-      showAlert(err.message || 'Correo o contraseña incorrectos.');
+      const msg = (err.message && err.message.includes('No se pudo conectar al servidor'))
+        ? 'No se pudo conectar al servidor. Verifica tu conexión a internet o que el proyecto Supabase esté activo.'
+        : (err.message || 'Correo o contraseña incorrectos.');
+      showAlert(msg);
     } finally {
       setLoading(btn, false);
     }

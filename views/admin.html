@@ -288,6 +288,12 @@
           <!-- Filtro por tatami -->
           <div class="mb-2">
             <select class="form-control form-control-sm" id="bracket-filter-tatami" style="width:100%;">
+            <div class="alert alert-info mb-2" id="password-policy-create">
+              <strong>Requisitos para la contraseña:</strong><br>
+              - Mínimo 12 caracteres<br>
+              - Debe incluir mayúsculas, minúsculas, números y símbolos<br>
+              - No uses contraseñas comunes o fáciles de adivinar
+            </div>
               <option value="">Todos los tatamis</option>
             </select>
           </div>
@@ -507,6 +513,12 @@
       <!-- Cambiar contraseña propia (visible para todos) -->
       <div class="card container-md mb-3">
         <h3 class="card-title mb-3">🔑 Mi contraseña</h3>
+        <div class="alert alert-info mb-2" id="password-policy-change">
+          <strong>Requisitos para la contraseña:</strong><br>
+          - Mínimo 12 caracteres<br>
+          - Debe incluir mayúsculas, minúsculas, números y símbolos<br>
+          - No uses contraseñas comunes o fáciles de adivinar
+        </div>
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Nueva contraseña</label>
@@ -1071,11 +1083,13 @@
     if (!Auth.isDevMode()) {
       try { await supabase.auth.getSession(); } catch (_) {}
       // Refrescar token automáticamente cuando Supabase lo renueve
+      let isHandlingSignOut = false;
       supabase.auth.onAuthStateChange((event, session) => {
         if (event === 'TOKEN_REFRESHED') {
           console.log('[Auth] Token renovado automáticamente.');
         }
-        if (event === 'SIGNED_OUT') {
+        if (event === 'SIGNED_OUT' && !isHandlingSignOut) {
+          isHandlingSignOut = true;
           Auth.logout();
         }
       });

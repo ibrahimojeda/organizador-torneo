@@ -996,7 +996,12 @@
   }
 
   /* ---- Logout ---- */
-  document.getElementById('btn-logout').addEventListener('click', () => Auth.logout());
+  let isSigningOut = false;
+  document.getElementById('btn-logout').addEventListener('click', () => {
+    if (isSigningOut) return;
+    isSigningOut = true;
+    Auth.logout();
+  });
 
   function _numOrNull(id) {
     const v = document.getElementById(id).value;

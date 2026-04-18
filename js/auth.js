@@ -1,3 +1,27 @@
+  /* ---- Activar/desactivar usuario (solo super_admin) ---- */
+  async function updateActive(userId, isActive) {
+    if (!_initSupabase()) throw new Error('Supabase no está configurado.');
+    if (!isSuperAdmin()) throw new Error('Solo el super administrador puede cambiar el estado.');
+    const { error } = await supabase
+      .from('profiles')
+      .update({ active: isActive })
+      .eq('id', userId);
+    if (error) throw error;
+  }
+
+  async function toggleActive(userId) {
+    if (!_initSupabase()) throw new Error('Supabase no está configurado.');
+    if (!isSuperAdmin()) throw new Error('Solo el super administrador puede cambiar el estado.');
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('active')
+      .eq('id', userId)
+      .single();
+    if (error) throw error;
+    const newActive = !data.active;
+    await updateActive(userId, newActive);
+    return newActive;
+  }
 /* ============================================================
    AUTH.JS — Autenticación y manejo de roles
    ============================================================ */
@@ -43,12 +67,19 @@ const Auth = (() => {
     }
   }
 
+  const ERR_NETWORK = 'No se pudo conectar al servidor. Verifica tu conexión a internet o que el proyecto Supabase esté activo.';
+
   /* ---- Login con email y contraseña (Supabase Auth) ---- */
   async function login(email, password) {
     if (!_initSupabase()) {
       throw new Error('Supabase no está configurado. Agrega las credenciales en config.js');
     }
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    let data, error;
+    try {
+      ({ data, error } = await supabase.auth.signInWithPassword({ email, password }));
+    } catch (fetchErr) {
+      throw new Error(ERR_NETWORK);
+    }
     if (error) throw error;
 
     const role = await _fetchRole(data.user.id);
@@ -88,13 +119,17 @@ const Auth = (() => {
     if (!_initSupabase()) {
       throw new Error('Código inválido o Supabase no configurado.');
     }
-    // El código se valida contra la tabla tournament_codes en Supabase
-    const { data, error } = await supabase
-      .from('tournament_codes')
-      .select('*, tournaments(id, name)')
-      .eq('code', normalizedCode)
-      .eq('active', true)
-      .single();
+    let data, error;
+    try {
+      ({ data, error } = await supabase
+        .from('tournament_codes')
+        .select('*, tournaments(id, name)')
+        .eq('code', normalizedCode)
+        .eq('active', true)
+        .single());
+    } catch (fetchErr) {
+      throw new Error(ERR_NETWORK);
+    }
 
     if (error || !data) throw new Error('Código inválido o expirado.');
 
@@ -235,12 +270,19 @@ const Auth = (() => {
   }
 
   /* ---- Cierre de sesión ---- */
+  let isSigningOut = false;
   async function logout() {
-    if (supabase) {
-      try { await supabase.auth.signOut(); } catch (_) {}
+    if (isSigningOut) return;
+    isSigningOut = true;
+    try {
+      if (supabase) {
+        try { await supabase.auth.signOut(); } catch (_) {}
+      }
+      _saveSession(null);
+      window.location.href = 'https://ibrahimojeda.github.io/index.html';
+    } finally {
+      isSigningOut = false;
     }
-    _saveSession(null);
-    window.location.href = '/index.html';
   }
 
   /* ---- Getters ---- */
@@ -260,11 +302,11 @@ const Auth = (() => {
   function requireRole(requiredRole) {
     const role = getRole();
     if (!role || role === USER_ROLES.PUBLIC) {
-      window.location.href = '/index.html';
+      window.location.href = '/organizador-torneo/';
       return false;
     }
     if (requiredRole && role !== requiredRole) {
-      window.location.href = '/index.html';
+      window.location.href = '/organizador-torneo/';
       return false;
     }
     return true;
@@ -295,6 +337,8 @@ const Auth = (() => {
     listProfiles,
     updateRole,
     changePassword,
+    updateActive,
+    toggleActive,
     _saveDevSession: _saveSession,
   };
 })();

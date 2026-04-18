@@ -1,4 +1,8 @@
 -- ============================================================
+--  EXTRA: Columna 'active' en profiles para activar/desactivar usuarios
+-- ============================================================
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS active boolean NOT NULL DEFAULT true;
+-- ============================================================
 --  ORGANIZADOR DE TORNEO — Configuración RLS de Supabase
 --  Ejecutar COMPLETO en: Supabase Dashboard → SQL Editor
 -- ============================================================
@@ -96,12 +100,6 @@ CREATE POLICY "registrations_write" ON registrations
   FOR ALL USING (auth.uid() IS NOT NULL);
 
 
--- ============================================================
---  5. TABLA matches
---     INSERT: solo autenticados (organizador genera llaves)
---     UPDATE: también anónimos (árbitros usan código, no Supabase Auth)
---     DELETE: solo autenticados
--- ============================================================
 DROP POLICY IF EXISTS "matches_select" ON matches;
 DROP POLICY IF EXISTS "matches_insert" ON matches;
 DROP POLICY IF EXISTS "matches_update" ON matches;
@@ -112,8 +110,21 @@ CREATE POLICY "matches_select" ON matches
 
 CREATE POLICY "matches_insert" ON matches
   FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
-
 CREATE POLICY "matches_update" ON matches
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM tournaments t
+      WHERE t.id = matches.tournament_id
+        AND (t.organizer_id = auth.uid() OR public.is_super_admin())
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM tournaments t
+      WHERE t.id = matches.tournament_id
+        AND (t.organizer_id = auth.uid() OR public.is_super_admin())
+    )
+  );
   FOR UPDATE USING (true);   -- árbitros actualizan sin Supabase Auth
 
 CREATE POLICY "matches_delete" ON matches
@@ -278,17 +289,35 @@ ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
 ALTER TABLE profiles ADD CONSTRAINT profiles_role_check
   CHECK (role IN ('organizer', 'referee', 'super_admin'));
 
--- RLS profiles: super_admin puede leer todos los perfiles
+-- Función SECURITY DEFINER para evitar recursión infinita en policies
+-- (La policy no puede hacer SELECT sobre la misma tabla que está protegiendo)
+CREATE OR REPLACE FUNCTION public.is_super_admin()
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid() AND role = 'super_admin'
+  );
+$$;
+
+-- RLS profiles: super_admin puede leer todos los perfiles (usando la función)
 DROP POLICY IF EXISTS "profiles_select" ON profiles;
 CREATE POLICY "profiles_select" ON profiles
   FOR SELECT USING (
-    auth.uid() IS NOT NULL AND (
-      auth.uid() = id
-      OR EXISTS (
-        SELECT 1 FROM profiles p2
-        WHERE p2.id = auth.uid() AND p2.role = 'super_admin'
-      )
-    )
+    auth.uid() = id
+    OR public.is_super_admin()
+  );
+
+-- RLS profiles: super_admin puede actualizar roles de cualquier perfil
+DROP POLICY IF EXISTS "profiles_update_role" ON profiles;
+CREATE POLICY "profiles_update_role" ON profiles
+  FOR UPDATE USING (
+    auth.uid() = id
+    OR public.is_super_admin()
   );
 
 -- RLS tournaments: super_admin puede actualizar cualquier torneo
@@ -296,10 +325,7 @@ DROP POLICY IF EXISTS "tournaments_update" ON tournaments;
 CREATE POLICY "tournaments_update" ON tournaments
   FOR UPDATE USING (
     auth.uid() = organizer_id
-    OR EXISTS (
-      SELECT 1 FROM profiles p2
-      WHERE p2.id = auth.uid() AND p2.role = 'super_admin'
-    )
+    OR public.is_super_admin()
   );
 
 -- RLS tournaments: super_admin puede eliminar cualquier torneo
@@ -307,15 +333,9 @@ DROP POLICY IF EXISTS "tournaments_delete" ON tournaments;
 CREATE POLICY "tournaments_delete" ON tournaments
   FOR DELETE USING (
     auth.uid() = organizer_id
-    OR EXISTS (
-      SELECT 1 FROM profiles p2
-      WHERE p2.id = auth.uid() AND p2.role = 'super_admin'
-    )
+    OR public.is_super_admin()
   );
 
--- Asignar rol super_admin al usuario con ese email (ejecutar después de crear la cuenta)
+-- Asignar el primer super_admin (reemplazar el UUID con el real)
 -- UPDATE profiles SET role = 'super_admin'
---   WHERE id = (SELECT id FROM auth.users WHERE email = 'superadmin@torneo.app');
-
--- NOTA: descomenta y ejecuta la línea anterior DESPUÉS de crear la cuenta desde
--- la aplicación o desde la sección de registro.
+--   WHERE id = '10774276-bafa-41a7-b8ae-5a2fdb2b0748';
