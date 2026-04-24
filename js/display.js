@@ -52,18 +52,34 @@ const Display = (() => {
             ${matches.map(m => {
               const name = _getCompetitorName(m, 'a') || '—';
               const club = m.competitor_a?.competitors?.club || m.competitor_a?.club || '—';
+              const kataSummary = (typeof Matches !== 'undefined' && Matches?.getKataSummary)
+                ? Matches.getKataSummary(m)
+                : null;
+              const liveTotal = kataSummary?.total;
+              const scoreValue = m.score_a != null
+                ? Number(m.score_a).toFixed(2)
+                : (liveTotal != null ? Number(liveTotal).toFixed(2) : null);
+              const isOfficial = m.status === MATCH_STATUS.FINISHED;
+              const statusCell = isOfficial
+                ? _statusBadge(m.status)
+                : (scoreValue != null
+                  ? '<span class="badge badge-blue">Puntaje capturado</span>'
+                  : _statusBadge(m.status));
+              const scoreCell = scoreValue != null
+                ? `<strong>${scoreValue}</strong>${m.score_a == null ? ' <span class="text-xs text-muted">(provisional)</span>' : ''}`
+                : '<span class="text-muted">—</span>';
               return `
               <tr>
                 <td class="text-muted">${m.position}</td>
                 <td><strong>${name}</strong></td>
                 <td class="text-muted">${club}</td>
-                <td>${_statusBadge(m.status)}</td>
-                <td>${m.score_a != null ? `<strong>${m.score_a}</strong>` : '<span class="text-muted">—</span>'}</td>
+                <td>${statusCell}</td>
+                <td>${scoreCell}</td>
                 ${options.editable ? `
                   <td>
                     ${m.status !== MATCH_STATUS.FINISHED
-                      ? `<button class="btn btn-sm btn-outline" onclick="Display._triggerMatchClick('${m.id}')">Puntuar</button>`
-                      : `<button class="btn btn-sm btn-ghost" style="opacity:.7;" onclick="Display._triggerMatchClick('${m.id}')">📋 Ver</button>`
+                      ? `<button class="btn btn-sm btn-outline" onclick="Display._triggerMatchClick('${m.id}')">Puntuar atleta</button>`
+                      : `<button class="btn btn-sm btn-ghost" style="opacity:.7;" onclick="Display._triggerMatchClick('${m.id}')">📋 Ver puntaje</button>`
                     }
                   </td>` : ''}
               </tr>`;
@@ -150,8 +166,10 @@ const Display = (() => {
     const nameB = _getCompetitorName(match, 'b');
     const clubA = match.competitor_a?.competitors?.club || match.competitor_a?.club || '';
     const clubB = match.competitor_b?.competitors?.club || match.competitor_b?.club || '';
-    const isWinnerA = match.winner_id && match.competitor_a?.id === match.winner_id;
-    const isWinnerB = match.winner_id && match.competitor_b?.id === match.winner_id;
+    const competitorAId = match.competitor_a?.id || match.competitor_a_id || null;
+    const competitorBId = match.competitor_b?.id || match.competitor_b_id || null;
+    const isWinnerA = match.winner_id && competitorAId === match.winner_id;
+    const isWinnerB = match.winner_id && competitorBId === match.winner_id;
     const isBye     = match.status === MATCH_STATUS.BYE;
 
     card.innerHTML = `

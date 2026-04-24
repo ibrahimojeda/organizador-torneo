@@ -129,7 +129,7 @@ const TOURNAMENT_STATUS = {
 /* ----- Estados de un Combate ----- */
 const MATCH_STATUS = {
   PENDING:    'pending',
-  ONGOING:    'ongoing',
+  ONGOING:    'in_progress',
   FINISHED:   'finished',
   BYE:        'bye',
 };
@@ -138,6 +138,7 @@ const MATCH_STATUS = {
 const USER_ROLES = {
   ORGANIZER:   'organizer',
   REFEREE:     'referee',
+  JUDGE:       'judge',
   COMPETITOR:  'competitor',
   PUBLIC:      'public',
   SUPER_ADMIN: 'super_admin',

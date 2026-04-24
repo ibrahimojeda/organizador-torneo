@@ -163,13 +163,13 @@ const Bracket = (() => {
       .select(`
         *,
         competitor_a:registrations!matches_competitor_a_id_fkey(
-          competitors(id, full_name, club)
+          id, competitors(id, full_name, club)
         ),
         competitor_b:registrations!matches_competitor_b_id_fkey(
-          competitors(id, full_name, club)
+          id, competitors(id, full_name, club)
         ),
         winner:registrations!matches_winner_id_fkey(
-          competitors(id, full_name)
+          id, competitors(id, full_name)
         )
       `)
       .eq('category_id', categoryId)
@@ -469,7 +469,7 @@ const Bracket = (() => {
       status:           data.status || MATCH_STATUS.PENDING,
       bracket_type:     data.bracket_type || 'single_elimination',
       notes:            data.notes || null,
-      tatami:           null,
+      tatami:           data.tatami ?? data.category?.tatami ?? null,
       scheduled_time:   null,
     };
   }

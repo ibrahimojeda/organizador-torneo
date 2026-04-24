@@ -69,6 +69,147 @@ const Auth = (() => {
 
   const ERR_NETWORK = 'No se pudo conectar al servidor. Verifica tu conexión a internet o que el proyecto Supabase esté activo.';
 
+  function _getJudgeTournamentToken(tournamentId) {
+    return String(tournamentId || '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .slice(-8) || 'TORNEO';
+  }
+
+  function _isJudgeCodeAllowedForStatus(status) {
+    return [
+      TOURNAMENT_STATUS.DRAFT.id,
+      TOURNAMENT_STATUS.OPEN.id,
+      TOURNAMENT_STATUS.ONGOING.id,
+    ].includes(status || '');
+  }
+
+  function buildJudgeAccessCode(tournamentId, tatami, discipline, seat) {
+    const tournamentToken = _getJudgeTournamentToken(tournamentId);
+    const judgeTag = discipline === 'kata' ? 'K' : 'U';
+    const normalizedSeat = String(seat || 'J1').toUpperCase();
+    return `JZ-${tournamentToken}-T${String(tatami || 1)}-${judgeTag}-${normalizedSeat}`;
+  }
+
+  function _parseJudgeAccessCode(code) {
+    const normalized = String(code || '').toUpperCase().trim();
+    const scoped = normalized.match(/^JZ-([A-Z0-9]{4,12})-T?(\d+)-([KU])-(J[1-5])$/);
+    if (scoped) {
+      return {
+        tournamentToken: scoped[1],
+        tatami: scoped[2],
+        discipline: scoped[3] === 'K' ? 'kata' : 'kumite',
+        seat: scoped[4],
+        access: normalized,
+      };
+    }
+
+    const legacy = normalized.match(/^JZ-(\d+)-([KU])-([A-Z0-9]+)$/)
+      || normalized.match(/^JZ-(\d+)([KU])-([A-Z0-9]+)$/);
+    if (!legacy) return null;
+    return {
+      tournamentToken: null,
+      tatami: legacy[1],
+      discipline: legacy[2] === 'K' ? 'kata' : 'kumite',
+      seat: /^J[1-5]$/.test(legacy[3]) ? legacy[3] : null,
+      access: normalized,
+    };
+  }
+
+  async function _getTournamentState(tournamentId) {
+    if (!tournamentId) return null;
+    if (isDevMode() || !_initSupabase()) {
+      const tournaments = JSON.parse(localStorage.getItem('ot_dev_tournaments') || '[]');
+      return tournaments.find(item => item.id === tournamentId) || null;
+    }
+    const { data, error } = await supabase
+      .from('tournaments')
+      .select('id, name, status')
+      .eq('id', tournamentId)
+      .maybeSingle();
+    if (error) throw error;
+    return data || null;
+  }
+
+  async function _findTournamentByJudgeToken(tournamentToken) {
+    if (!tournamentToken) return null;
+
+    if (isDevMode() || !_initSupabase()) {
+      const tournaments = JSON.parse(localStorage.getItem('ot_dev_tournaments') || '[]');
+      return tournaments.find(item => _getJudgeTournamentToken(item.id) === tournamentToken) || null;
+    }
+
+    const { data, error } = await supabase
+      .from('tournaments')
+      .select('id, name, status')
+      .in('status', [
+        TOURNAMENT_STATUS.DRAFT.id,
+        TOURNAMENT_STATUS.OPEN.id,
+        TOURNAMENT_STATUS.ONGOING.id,
+        TOURNAMENT_STATUS.CLOSED.id,
+        TOURNAMENT_STATUS.FINISHED.id,
+        TOURNAMENT_STATUS.CANCELLED.id,
+      ]);
+    if (error) throw error;
+    if (!Array.isArray(data)) return null;
+    const matches = data.filter(item => _getJudgeTournamentToken(item.id) === tournamentToken);
+    if (matches.length !== 1) return null;
+    return matches[0];
+  }
+
+  function _saveLocalCodeEntry(tournamentId, role, code, options = {}) {
+    const storageRole = role === USER_ROLES.JUDGE ? USER_ROLES.REFEREE : role;
+    const devCodes = JSON.parse(localStorage.getItem('ot_dev_codes') || '[]');
+    const existing = devCodes.find(entry => entry.code === code && entry.tournament_id === tournamentId);
+    if (existing) return existing;
+    const entry = {
+      id:            generateId(),
+      tournament_id: tournamentId,
+      role:          storageRole,
+      code,
+      tatami:        options.tatami || null,
+      discipline:    options.discipline || null,
+      active:        true,
+      created_at:    new Date().toISOString(),
+    };
+    devCodes.push(entry);
+    localStorage.setItem('ot_dev_codes', JSON.stringify(devCodes));
+    return entry;
+  }
+
+  function _findLocalJudgeAccess(code) {
+    const parsed = _parseJudgeAccessCode(code);
+    if (!parsed) return null;
+    try {
+      const tournaments = JSON.parse(localStorage.getItem('ot_dev_tournaments') || '[]');
+      for (let i = 0; i < (localStorage.length || 0); i++) {
+        const key = localStorage.key(i);
+        if (!key || !key.startsWith('ot_judge_access_')) continue;
+        const match = key.match(/^ot_judge_access_(.+)_(.+)$/);
+        if (!match) continue;
+        const tournamentId = match[1];
+        const tatami = match[2];
+        const data = JSON.parse(localStorage.getItem(key) || '{}');
+        const tournament = tournaments.find(t => t.id === tournamentId);
+        if (!_isJudgeCodeAllowedForStatus(tournament?.status)) continue;
+        if (parsed.tournamentToken && parsed.tournamentToken !== _getJudgeTournamentToken(tournamentId)) continue;
+        for (const discipline of ['kata', 'kumite']) {
+          const entries = Array.isArray(data?.[discipline]) ? data[discipline] : [];
+          const entry = entries.find(item => String(item?.code || '').toUpperCase() === code);
+          if (!entry) continue;
+          return {
+            tournamentId,
+            tournamentName: tournament?.name || 'Torneo',
+            judgeTatami: tatami,
+            judgeDiscipline: discipline,
+            judgeAccessCode: code,
+          };
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
   /* ---- Login con email y contraseña (Supabase Auth) ---- */
   async function login(email, password) {
     if (!_initSupabase()) {
@@ -96,6 +237,50 @@ const Auth = (() => {
   /* ---- Login con código de árbitro (acceso simplificado) ---- */
   async function loginWithCode(code) {
     const normalizedCode = (code || '').toUpperCase().trim();
+    const parsedJudgeCode = _parseJudgeAccessCode(normalizedCode);
+
+    const localJudge = _findLocalJudgeAccess(normalizedCode);
+    if (localJudge) {
+      const session = {
+        userId: null,
+        email: null,
+        role: USER_ROLES.JUDGE,
+        codeId: null,
+        tournamentId: localJudge.tournamentId,
+        tournamentName: localJudge.tournamentName,
+        token: null,
+        judgeTatami: localJudge.judgeTatami,
+        judgeDiscipline: localJudge.judgeDiscipline,
+        judgeAccessCode: localJudge.judgeAccessCode,
+      };
+      _saveSession(session);
+      return session;
+    }
+
+    if (parsedJudgeCode?.tournamentToken) {
+      const tournament = await _findTournamentByJudgeToken(parsedJudgeCode.tournamentToken).catch(() => null);
+      if (!tournament) {
+        throw new Error('Código de juez inválido o torneo no encontrado.');
+      }
+      if (!_isJudgeCodeAllowedForStatus(tournament.status)) {
+        await deleteJudgeCodesForTournament(tournament.id).catch(() => {});
+        throw new Error('El torneo ya no admite accesos de jueces. Genera nuevos códigos desde Mesa Técnica.');
+      }
+      const session = {
+        userId: null,
+        email: null,
+        role: USER_ROLES.JUDGE,
+        codeId: null,
+        tournamentId: tournament.id,
+        tournamentName: tournament.name || 'Torneo',
+        token: null,
+        judgeTatami: parsedJudgeCode.tatami,
+        judgeDiscipline: parsedJudgeCode.discipline || 'kumite',
+        judgeAccessCode: normalizedCode,
+      };
+      _saveSession(session);
+      return session;
+    }
 
     // Primero: buscar en códigos de desarrollo (localStorage)
     const devCodes = JSON.parse(localStorage.getItem('ot_dev_codes') || '[]');
@@ -103,14 +288,25 @@ const Auth = (() => {
     if (devFound) {
       const tournaments = JSON.parse(localStorage.getItem('ot_dev_tournaments') || '[]');
       const tournament  = tournaments.find(t => t.id === devFound.tournament_id);
+      if (parsedJudgeCode && !_isJudgeCodeAllowedForStatus(tournament?.status)) {
+        await deleteJudgeCodesForTournament(devFound.tournament_id).catch(() => {});
+        throw new Error('El torneo ya no admite accesos de jueces. Genera nuevos códigos desde Mesa Técnica.');
+      }
+      const effectiveRole = parsedJudgeCode ? USER_ROLES.JUDGE : devFound.role;
+      const judgeMeta = effectiveRole === USER_ROLES.JUDGE ? {
+        judgeTatami: devFound.tatami || parsedJudgeCode?.tatami || null,
+        judgeDiscipline: devFound.discipline || parsedJudgeCode?.discipline || 'kumite',
+        judgeAccessCode: normalizedCode,
+      } : {};
       const session = {
         userId:         null,
         email:          null,
-        role:           devFound.role,
+        role:           effectiveRole,
         codeId:         devFound.id,
         tournamentId:   devFound.tournament_id,
         tournamentName: tournament?.name || 'Torneo',
         token:          null,
+        ...judgeMeta,
       };
       _saveSession(session);
       return session;
@@ -121,63 +317,138 @@ const Auth = (() => {
     }
     let data, error;
     try {
-      ({ data, error } = await supabase
+      const response = await supabase
         .from('tournament_codes')
-        .select('*, tournaments(id, name)')
+        .select('*, tournaments(id, name, status)')
         .eq('code', normalizedCode)
         .eq('active', true)
-        .single());
+        .order('created_at', { ascending: false })
+        .limit(1);
+      data = Array.isArray(response.data) ? response.data[0] : null;
+      error = response.error;
     } catch (fetchErr) {
       throw new Error(ERR_NETWORK);
     }
 
     if (error || !data) throw new Error('Código inválido o expirado.');
 
+    if (parsedJudgeCode && !_isJudgeCodeAllowedForStatus(data.tournaments?.status)) {
+      await deleteJudgeCodesForTournament(data.tournament_id).catch(() => {});
+      throw new Error('El torneo ya no admite accesos de jueces. Los códigos fueron desactivados.');
+    }
+
+    const effectiveRole = parsedJudgeCode ? USER_ROLES.JUDGE : data.role;
+    const judgeMeta = effectiveRole === USER_ROLES.JUDGE ? {
+      judgeTatami: parsedJudgeCode?.tatami || null,
+      judgeDiscipline: parsedJudgeCode?.discipline || 'kumite',
+      judgeAccessCode: normalizedCode,
+    } : {};
+
     const session = {
       userId:         null,
       email:          null,
-      role:           data.role,   // 'referee' o 'public'
+      role:           effectiveRole,
       codeId:         data.id,
       tournamentId:   data.tournament_id,
       tournamentName: data.tournaments?.name,
       token:          null,
+      ...judgeMeta,
     };
     _saveSession(session);
     return session;
   }
 
   /* ---- Generar código de acceso para un torneo ---- */
-  async function generateCode(tournamentId, role) {
-    const prefix = role === 'referee' ? 'ARB' : 'PUB';
+  async function generateCode(tournamentId, role, options = {}) {
+    const normalizedRole = role === USER_ROLES.JUDGE ? USER_ROLES.JUDGE : role;
+    const storageRole = normalizedRole === USER_ROLES.JUDGE ? USER_ROLES.REFEREE : normalizedRole;
     const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
-    const code   = prefix + '-' + suffix;
+    const judgeTag = (options.discipline === 'kata' ? 'K' : 'U');
+    const prefix = normalizedRole === USER_ROLES.REFEREE ? 'MES'
+      : normalizedRole === USER_ROLES.JUDGE ? 'JZ'
+      : 'PUB';
+    const code = String(options.customCode || (
+      normalizedRole === USER_ROLES.JUDGE
+        ? buildJudgeAccessCode(tournamentId, options.tatami || 1, options.discipline || 'kumite', options.seat || 'J1')
+        : `${prefix}-${suffix}`
+    )).toUpperCase();
+
+    if (normalizedRole === USER_ROLES.JUDGE) {
+      const tournament = await _getTournamentState(tournamentId).catch(() => null);
+      if (!_isJudgeCodeAllowedForStatus(tournament?.status)) {
+        await deleteJudgeCodesForTournament(tournamentId).catch(() => {});
+        throw new Error('Los códigos de jueces solo están disponibles mientras el torneo está operativo.');
+      }
+      return _saveLocalCodeEntry(tournamentId, normalizedRole, code, options);
+    }
 
     if (isDevMode() || !_initSupabase()) {
-      const devCodes = JSON.parse(localStorage.getItem('ot_dev_codes') || '[]');
-      const entry = {
-        id:            generateId(),
-        tournament_id: tournamentId,
-        role,
-        code,
-        active:        true,
-        created_at:    new Date().toISOString(),
-      };
-      devCodes.push(entry);
-      localStorage.setItem('ot_dev_codes', JSON.stringify(devCodes));
-      return entry;
+      return _saveLocalCodeEntry(tournamentId, normalizedRole, code, options);
     }
+
+    try {
+      const { data: existing } = await supabase
+        .from('tournament_codes')
+        .select('*')
+        .eq('tournament_id', tournamentId)
+        .eq('code', code)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (Array.isArray(existing) && existing[0]) return existing[0];
+    } catch (_) {}
+
+    const payload = {
+      tournament_id: tournamentId,
+      role: storageRole,
+      code,
+      active: true,
+    };
 
     const { data, error } = await supabase
       .from('tournament_codes')
-      .insert({ tournament_id: tournamentId, role, code, active: true })
+      .insert(payload)
       .select()
       .single();
-    if (error) throw error;
+    if (error) {
+      console.warn('[Auth] Código guardado en respaldo local por error de Supabase:', error.message || error);
+      return _saveLocalCodeEntry(tournamentId, normalizedRole, code, options);
+    }
     return data;
+  }
+
+  async function deleteJudgeCodesForTournament(tournamentId) {
+    if (!tournamentId) return;
+    try {
+      const staleKeys = [];
+      for (let i = 0; i < (localStorage.length || 0); i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('ot_judge_access_' + tournamentId + '_')) staleKeys.push(key);
+      }
+      staleKeys.forEach(key => localStorage.removeItem(key));
+    } catch (_) {}
+
+    const canUseSupabase = _initSupabase() && supabase && typeof supabase.from === 'function';
+    if (isDevMode() || !canUseSupabase) {
+      const codes = JSON.parse(localStorage.getItem('ot_dev_codes') || '[]');
+      const filtered = codes.filter(entry => !(entry.tournament_id === tournamentId && String(entry.code || '').toUpperCase().startsWith('JZ-')));
+      localStorage.setItem('ot_dev_codes', JSON.stringify(filtered));
+      return;
+    }
+    const { error } = await supabase
+      .from('tournament_codes')
+      .delete()
+      .eq('tournament_id', tournamentId)
+      .ilike('code', 'JZ-%');
+    if (error) throw error;
   }
 
   /* ---- Obtener códigos de un torneo ---- */
   async function getCodesForTournament(tournamentId) {
+    const tournament = await _getTournamentState(tournamentId).catch(() => null);
+    if (tournament && !_isJudgeCodeAllowedForStatus(tournament.status)) {
+      await deleteJudgeCodesForTournament(tournamentId).catch(() => {});
+    }
+
     if (isDevMode() || !_initSupabase()) {
       const codes = JSON.parse(localStorage.getItem('ot_dev_codes') || '[]');
       return codes.filter(c => c.tournament_id === tournamentId)
@@ -229,14 +500,31 @@ const Auth = (() => {
   }
 
   /* ---- Crear nuevo usuario con rol seleccionado (solo super_admin) ---- */
-  async function createUser(email, password, role) {
+  async function createUser(email, password, role, fullName = '') {
     if (!_initSupabase()) throw new Error('Supabase no está configurado.');
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (!isSuperAdmin()) throw new Error('Solo el super administrador puede crear usuarios.');
+
+    const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+    });
+
+    const targetRole = [USER_ROLES.ORGANIZER, USER_ROLES.REFEREE, USER_ROLES.SUPER_ADMIN].includes(role)
+      ? role
+      : USER_ROLES.ORGANIZER;
+
+    const { data, error } = await client.auth.signUp({ email, password });
     if (error) throw error;
-    // El trigger crea el perfil con role='organizer'; si queremos otro rol, lo cambiamos
-    const targetRole = role === USER_ROLES.SUPER_ADMIN ? USER_ROLES.SUPER_ADMIN : USER_ROLES.ORGANIZER;
-    if (targetRole !== USER_ROLES.ORGANIZER && data.user?.id) {
-      await supabase.from('profiles').update({ role: targetRole }).eq('id', data.user.id);
+
+    if (data.user?.id) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          role: targetRole,
+          full_name: (fullName || email).trim(),
+          active: true,
+        })
+        .eq('id', data.user.id);
+      if (profileError) throw profileError;
     }
     return data.user;
   }
@@ -246,20 +534,44 @@ const Auth = (() => {
     if (!_initSupabase()) throw new Error('Supabase no está configurado.');
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, role, full_name, created_at');
+      .select('id, role, full_name, created_at, active')
+      .order('created_at', { ascending: false });
     if (error) throw error;
     return data || [];
   }
 
+  /* ---- Editar perfil de usuario (solo super_admin) ---- */
+  async function updateProfile(userId, payload) {
+    if (!_initSupabase()) throw new Error('Supabase no está configurado.');
+    if (!isSuperAdmin()) throw new Error('Solo el super administrador puede editar usuarios.');
+    const safePayload = {};
+    if (typeof payload.full_name === 'string') safePayload.full_name = payload.full_name.trim();
+    if (payload.role) safePayload.role = payload.role;
+    if (typeof payload.active === 'boolean') safePayload.active = payload.active;
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(safePayload)
+      .eq('id', userId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  /* ---- Eliminar usuario del panel (solo super_admin) ---- */
+  async function deleteUser(userId) {
+    if (!_initSupabase()) throw new Error('Supabase no está configurado.');
+    if (!isSuperAdmin()) throw new Error('Solo el super administrador puede eliminar usuarios.');
+    if (userId === getUserId()) throw new Error('No puedes eliminar tu propio usuario desde este panel.');
+    const { error } = await supabase.from('profiles').delete().eq('id', userId);
+    if (error) throw error;
+    return true;
+  }
+
   /* ---- Cambiar rol de un usuario (solo super_admin) ---- */
   async function updateRole(userId, newRole) {
-    if (!_initSupabase()) throw new Error('Supabase no está configurado.');
-    if (!isSuperAdmin()) throw new Error('Solo el super administrador puede cambiar roles.');
-    const { error } = await supabase
-      .from('profiles')
-      .update({ role: newRole })
-      .eq('id', userId);
-    if (error) throw error;
+    await updateProfile(userId, { role: newRole });
   }
 
   /* ---- Cambiar contraseña del usuario autenticado ---- */
@@ -279,7 +591,8 @@ const Auth = (() => {
         try { await supabase.auth.signOut(); } catch (_) {}
       }
       _saveSession(null);
-      window.location.href = 'https://ibrahimojeda.github.io/index.html';
+      const isLocalHost = /localhost|127\.0\.0\.1/.test(window.location.hostname);
+      window.location.href = isLocalHost ? '/index.html' : '/organizador-torneo/index.html';
     } finally {
       isSigningOut = false;
     }
@@ -291,6 +604,7 @@ const Auth = (() => {
   function getUserId()     { return getSession()?.userId || null; }
   function isOrganizer()   { return getRole() === USER_ROLES.ORGANIZER; }
   function isReferee()     { return getRole() === USER_ROLES.REFEREE; }
+  function isJudge()       { return getRole() === USER_ROLES.JUDGE; }
   function isCompetitor()  { return getRole() === USER_ROLES.COMPETITOR; }
   function isSuperAdmin()  { return getRole() === USER_ROLES.SUPER_ADMIN; }
   function canManage()     { return isOrganizer() || isSuperAdmin() || isDevMode(); }
@@ -324,18 +638,23 @@ const Auth = (() => {
     getTournamentId,
     isOrganizer,
     isReferee,
+    isJudge,
     isCompetitor,
     isSuperAdmin,
     canManage,
     isAuthenticated,
     isDevMode,
     requireRole,
+    buildJudgeAccessCode,
     generateCode,
     getCodesForTournament,
     deactivateCode,
+    deleteJudgeCodesForTournament,
     createUser,
     listProfiles,
+    updateProfile,
     updateRole,
+    deleteUser,
     changePassword,
     updateActive,
     toggleActive,

@@ -135,6 +135,19 @@
         <div class="stat-card"><div class="stat-icon green">✅</div><div><div class="stat-value" id="stat-progress">—%</div><div class="stat-label">Completado</div></div></div>
       </div>
 
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div style="padding:.9rem 1rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-wrap:wrap;">
+          <div>
+            <h3 class="card-title" style="margin:0;">📝 Bitácora resumida</h3>
+            <div class="text-xs text-muted">Eventos de jueces, mesa técnica y resultados oficiales.</div>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="window.switchPanel('dashboard')">Actualizar</button>
+        </div>
+        <div id="dashboard-bitacora-list">
+          <div class="text-center p-3"><span class="spinner"></span></div>
+        </div>
+      </div>
+
     </section>
 
     <!-- =========================================================
@@ -274,7 +287,7 @@
           <p class="page-subtitle" id="brackets-category-label">Selecciona una categoría</p>
         </div>
         <div class="flex gap-2" id="bracket-actions" style="display:none!important;">
-          <a href="referee.html" target="_blank" class="btn btn-ghost btn-sm">⚖️ Ver Panel Árbitro</a>
+          <a href="referee.html" target="_blank" class="btn btn-ghost btn-sm">⚖️ Ver Mesa Técnica</a>
           <button class="btn btn-outline btn-sm" id="btn-print-bracket-blank" title="Imprimir llaves en blanco (sin resultados)">🖨 Sin resultados</button>
           <button class="btn btn-outline btn-sm" id="btn-print-bracket-results" title="Imprimir llaves con resultados">🖨 Con resultados</button>
           <button class="btn btn-outline" id="btn-regenerate">🔄 Regenerar</button>
@@ -374,7 +387,7 @@
       <div class="page-header">
         <div>
           <h1 class="page-title">Códigos de Acceso</h1>
-          <p class="page-subtitle">Genera códigos para árbitros y espectadores</p>
+          <p class="page-subtitle">Genera códigos para mesa técnica y espectadores</p>
         </div>
         <button class="btn btn-primary" id="btn-new-code">+ Generar Código</button>
       </div>
@@ -382,7 +395,7 @@
       <div class="grid-2">
         <div class="card">
           <div class="flex items-center justify-between mb-2">
-            <h3 class="card-title">⚖️ Códigos de Árbitros</h3>
+            <h3 class="card-title">⚖️ Códigos de Mesa Técnica</h3>
             <button class="btn btn-outline btn-sm" onclick="generateCode('referee')">＋ Nuevo</button>
           </div>
           <div id="codes-referee-list">
@@ -402,7 +415,7 @@
 
       <div class="alert alert-info mt-3">
         <span>ℹ️</span>
-        <span>Los árbitros ingresan su código en la pantalla de acceso → son redirigidos automáticamente al panel de árbitro.</span>
+        <span>La mesa técnica ingresa su código en la pantalla de acceso y desde allí genera los accesos a los jueces.</span>
       </div>
     </section>
 
@@ -1010,8 +1023,8 @@
 
 <!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
-<script src="../js/config.js"></script>
-<script src="../js/auth.js"></script>
+<script src="../js/config.js?v=20260424a"></script>
+<script src="../js/auth.js?v=20260421b"></script>
 <script src="../js/tournament.js"></script>
 <script src="../js/categories.js"></script>
 <script src="../js/competitors.js"></script>
@@ -1161,6 +1174,32 @@
       document.getElementById('stat-matches').textContent     = stats.totalMatches;
       document.getElementById('stat-progress').textContent    = stats.progress + '%';
     } catch (_) {}
+
+    await _loadTournamentBitacora();
+  }
+
+  async function _loadTournamentBitacora() {
+    const listEl = document.getElementById('dashboard-bitacora-list');
+    if (!listEl || !state.activeTournament?.id) return;
+    try {
+      const matches = await Matches.listByTournament(state.activeTournament.id);
+      const entries = Matches.buildTournamentBitacora(matches).slice(0, 20);
+      if (!entries.length) {
+        listEl.innerHTML = '<div class="text-center text-muted p-3">Sin eventos registrados todavía.</div>';
+        return;
+      }
+      listEl.innerHTML = entries.map(entry => {
+        const time = entry.at ? new Date(entry.at).toLocaleString('es-ES', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—';
+        return `
+          <div style="padding:.75rem 1rem;border-bottom:1px solid var(--border);">
+            <div style="font-size:.9rem;font-weight:700;">${entry.label || 'Evento'}</div>
+            <div style="font-size:.88rem;margin-top:.15rem;">${entry.message || 'Actualización registrada.'}</div>
+            <div class="text-xs text-muted" style="margin-top:.2rem;">${time} · ${entry.category_name || 'Categoría'}${entry.match_label ? ' · ' + entry.match_label : ''}</div>
+          </div>`;
+      }).join('');
+    } catch (e) {
+      listEl.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
   }
 
   /* ---- Acciones por panel ---- */
@@ -1176,7 +1215,7 @@
     if (panelId === 'categories')   await _loadCategories();
     if (panelId === 'brackets')     { await _loadBracketPanel(); _startBracketPolling(); }
     if (panelId === 'schedule')     await _loadSchedule();
-    if (panelId === 'medals')       await _loadMedals();
+    if (panelId === 'medals')       { await _loadMedals(); _startBracketPolling(); }
     if (panelId === 'codes')        await _loadCodes();
     if (panelId === 'settings')     { if (Auth.isSuperAdmin()) _loadUsersList(); }
     if (panelId === 'system')       await _loadSystemPanel();
@@ -1600,6 +1639,76 @@
     });
   }
 
+  function _enrichDevMatchesWithCompetitors(matches = []) {
+    if (!Auth.isDevMode() || !matches.length) return matches;
+    const regs  = JSON.parse(localStorage.getItem('ot_dev_registrations') || '[]');
+    const comps = JSON.parse(localStorage.getItem('ot_dev_competitors')    || '[]');
+    const byRegId = (id) => {
+      const reg  = regs.find(r => r.id === id);
+      const comp = reg ? comps.find(c => c.id === reg.competitor_id) : null;
+      return comp ? { full_name: comp.full_name, club: comp.club } : null;
+    };
+    return matches.map(m => ({
+      ...m,
+      competitor_a: m.competitor_a_id ? { full_name: byRegId(m.competitor_a_id)?.full_name, competitors: byRegId(m.competitor_a_id) } : m.competitor_a,
+      competitor_b: m.competitor_b_id ? { full_name: byRegId(m.competitor_b_id)?.full_name, competitors: byRegId(m.competitor_b_id) } : m.competitor_b,
+      winner:       m.winner_id       ? { full_name: byRegId(m.winner_id)?.full_name,       competitors: byRegId(m.winner_id) }       : m.winner,
+    }));
+  }
+
+  function _kataEffectiveScore(match) {
+    if (!match) return null;
+    if (match.score_a != null && Number.isFinite(Number(match.score_a))) return Number(match.score_a);
+    try {
+      const summary = Matches.getKataSummary(match);
+      return summary?.total != null && Number.isFinite(Number(summary.total)) ? Number(summary.total) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  async function _autoCloseKataRoundUnique(category, matches = []) {
+    if (!category || category.discipline !== 'kata') return { closed: false, changed: 0 };
+    const kataMatches = (matches || []).filter(m => m.bracket_type === 'kata_round');
+    if (!kataMatches.length) return { closed: false, changed: 0 };
+
+    const maxRound = Math.max(...kataMatches.map(m => Number(m.round) || 1));
+    const currentRound = kataMatches.filter(m => (Number(m.round) || 1) === maxRound);
+    // Cierre automático sólo para ronda única/final (<= 4 atletas en ronda actual)
+    if (currentRound.length > 4) return { closed: false, changed: 0 };
+
+    const allScored = currentRound.every(m => _kataEffectiveScore(m) != null);
+    if (!allScored) return { closed: false, changed: 0 };
+
+    const pendingToClose = currentRound.filter(m => m.status !== MATCH_STATUS.FINISHED && m.status !== MATCH_STATUS.BYE);
+    if (!pendingToClose.length) return { closed: true, changed: 0 };
+
+    let changed = 0;
+    for (const m of pendingToClose) {
+      const total = _kataEffectiveScore(m);
+      if (total == null) continue;
+      const summary = (() => {
+        try { return Matches.getKataSummary(m); } catch (_) { return null; }
+      })();
+      await Matches.recordResult(m.id, {
+        winner_id: m.competitor_a_id,
+        score_a: total,
+        score_b: null,
+        notes: {
+          text: 'Cierre automático de kata (ronda única/final) desde panel Admin.',
+          live: Matches.getLiveState(m),
+          judge_summary: {
+            type: 'kata',
+            total,
+            judges: summary?.judges || [],
+          },
+        },
+      });
+      changed++;
+    }
+    return { closed: true, changed };
+  }
+
   async function _loadBracket(category) {
     const catLabel = category.name || Categories.buildLabel(category);
     const tatamiLabel = category.tatami ? ` — Tatami ${category.tatami}` : '';
@@ -1621,22 +1730,13 @@
       }
 
       let matches = await Bracket.getByCategoryId(category.id);
+      matches = _enrichDevMatchesWithCompetitors(matches);
 
-      // En modo dev los matches solo tienen IDs — enriquecer con nombres
-      if (Auth.isDevMode() && matches.length) {
-        const regs  = JSON.parse(localStorage.getItem('ot_dev_registrations') || '[]');
-        const comps = JSON.parse(localStorage.getItem('ot_dev_competitors')    || '[]');
-        const _byRegId = id => {
-          const reg  = regs.find(r => r.id === id);
-          const comp = reg ? comps.find(c => c.id === reg.competitor_id) : null;
-          return comp ? { full_name: comp.full_name, club: comp.club } : null;
-        };
-        matches = matches.map(m => ({
-          ...m,
-          competitor_a: m.competitor_a_id ? { full_name: _byRegId(m.competitor_a_id)?.full_name, competitors: _byRegId(m.competitor_a_id) } : null,
-          competitor_b: m.competitor_b_id ? { full_name: _byRegId(m.competitor_b_id)?.full_name, competitors: _byRegId(m.competitor_b_id) } : null,
-          winner:       m.winner_id       ? { full_name: _byRegId(m.winner_id)?.full_name,       competitors: _byRegId(m.winner_id) }       : null,
-        }));
+      const autoClose = await _autoCloseKataRoundUnique(category, matches);
+      if (autoClose.changed > 0) {
+        matches = await Bracket.getByCategoryId(category.id);
+        matches = _enrichDevMatchesWithCompetitors(matches);
+        Display.toast(`Kata cerrada automáticamente: ${autoClose.changed} atleta(s) finalizado(s).`, 'success');
       }
 
       Display.renderBracket(displayEl, matches, category, {
@@ -2357,11 +2457,17 @@
 
     let content = '';
     if (isKata) {
+      const kataSummary = (typeof Matches !== 'undefined' && Matches?.getKataSummary)
+        ? Matches.getKataSummary(match)
+        : null;
+      const kataScore = match.score_a != null
+        ? Number(match.score_a).toFixed(2)
+        : (kataSummary?.total != null ? Number(kataSummary.total).toFixed(2) : '—');
       content = `
         <div class="text-center p-3">
           <div class="font-semibold" style="font-size:1.1rem;">${nameA}</div>
           <div class="text-muted text-sm">${clubA}</div>
-          <div class="mt-2" style="font-size:2.5rem;font-weight:700;color:var(--primary);">${match.score_a ?? '—'}</div>
+          <div class="mt-2" style="font-size:2.5rem;font-weight:700;color:var(--primary);">${kataScore}</div>
           <div class="text-muted text-sm">Puntaje Kata</div>
         </div>`;
     } else {
@@ -2622,7 +2728,7 @@
   }
 
   window.deactivateCode = async function(codeId) {
-    if (!confirm('¿Desactivar este código? Los árbitros con este código deberán reiniciar sesión.')) return;
+    if (!confirm('¿Desactivar este código? La mesa técnica o los jueces con este código deberán reiniciar sesión.')) return;
     try {
       await Auth.deactivateCode(codeId);
       Display.toast('Código desactivado.', 'info');
@@ -2641,14 +2747,12 @@
     podioEl.innerHTML = '';
 
     try {
-      const cats      = await Categories.listByTournament(state.activeTournament.id);
-      const allPodio  = JSON.parse(localStorage.getItem('ot_dev_podio') || '{}');
+      const cats = await Categories.listByTournament(state.activeTournament.id);
       const clubMedals = {};
-
-      // Categorías con podio
       const finishedCats = [];
+
       for (const cat of cats) {
-        const catPodio = allPodio[cat.id];
+        const catPodio = await Bracket.getPodio(cat.id).catch(() => null);
         if (!catPodio?.positions?.length) continue;
         finishedCats.push({ cat, podio: catPodio });
 
@@ -2679,7 +2783,7 @@
                   <tr>
                     <td>${i + 1}</td>
                     <td><strong>${r.club}</strong></td>
-                    <td class="text-center">${r.gold   || ''}</td>
+                    <td class="text-center">${r.gold || ''}</td>
                     <td class="text-center">${r.silver || ''}</td>
                     <td class="text-center">${r.bronze || ''}</td>
                     <td class="text-center"><strong>${r.total}</strong></td>
@@ -2689,7 +2793,6 @@
           </div>`;
       }
 
-      // Podios por categoría
       if (finishedCats.length) {
         podioEl.innerHTML = `
           <h3 class="text-sm text-muted mb-2" style="text-transform:uppercase;">Podios por Categoría</h3>
@@ -2800,14 +2903,35 @@
     if (state.bracketSub) { try { state.bracketSub.unsubscribe(); } catch (_) {} }
     const tid = state.activeTournament?.id;
     if (tid) {
-      state.bracketSub = Matches.subscribeToTournament(tid, () => {
+      state.bracketSub = Matches.subscribeToTournament(tid, async (payload) => {
         // Debounce 500ms: un bulk INSERT/UPDATE de 16 matches dispara N callbacks;
         // esperamos el silencio final para hacer UNA sola recarga.
         clearTimeout(state.bracketDebounceTimer);
         state.bracketDebounceTimer = setTimeout(async () => {
-          if (state.activeCategory) await _loadBracket(state.activeCategory);
+          let changedCategoryId =
+            payload?.new?.category_id ||
+            payload?.record?.category_id ||
+            payload?.old?.category_id ||
+            null;
+
+          if (!changedCategoryId && payload?.matchId) {
+            try {
+              const changedMatch = await Matches.getById(payload.matchId);
+              if (changedMatch?.category_id) changedCategoryId = changedMatch.category_id;
+            } catch (_) {}
+          }
+
+          if (state.activeCategory) {
+            const activeCategoryId = state.activeCategory.id;
+            const mustRefreshActiveBracket = !changedCategoryId || String(changedCategoryId) === String(activeCategoryId);
+            if (mustRefreshActiveBracket) {
+              await _loadBracket(state.activeCategory);
+            }
+          }
           const medalPanel = document.getElementById('panel-medals');
           if (medalPanel && medalPanel.style.display !== 'none') await _loadMedals();
+          const dashboardPanel = document.getElementById('panel-dashboard');
+          if (dashboardPanel && dashboardPanel.style.display !== 'none') await _loadTournamentBitacora();
         }, 500);
       });
     }
@@ -2936,7 +3060,7 @@
         return;
       }
       const ROLE_BADGE = { organizer: 'badge-gold', super_admin: 'badge-purple', referee: 'badge-blue' };
-      const ROLE_LABEL = { organizer: 'Organizador', super_admin: 'Super Admin 👑', referee: 'Árbitro' };
+      const ROLE_LABEL = { organizer: 'Organizador', super_admin: 'Super Admin 👑', referee: 'Mesa Técnica' };
       el.innerHTML = profiles.map(p => `
         <div class="flex items-center justify-between p-2 mb-1" style="background:var(--bg-secondary);border-radius:6px;">
           <div style="flex:1;min-width:0;">

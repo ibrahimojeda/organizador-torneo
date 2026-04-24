@@ -5,6 +5,300 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Torneo Karate — Vista Pública</title>
   <link rel="stylesheet" href="../css/styles.css" />
+  <style>
+    .projection-shell {
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(59, 130, 246, 0.2), transparent 28%),
+        radial-gradient(circle at top right, rgba(239, 68, 68, 0.18), transparent 30%),
+        linear-gradient(180deg, #020617 0%, #0f172a 45%, #020617 100%);
+      color: #fff;
+    }
+    .projection-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.25rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid rgba(255,255,255,.12);
+    }
+    .projection-label {
+      font-size: .92rem;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      opacity: .72;
+    }
+    .projection-title {
+      font-size: clamp(2rem, 3vw, 3rem);
+      font-weight: 900;
+      line-height: 1.05;
+      margin-top: .35rem;
+    }
+    .projection-clock {
+      font-size: clamp(2.5rem, 4vw, 4rem);
+      font-weight: 800;
+      letter-spacing: .08em;
+      font-variant-numeric: tabular-nums;
+      opacity: .9;
+    }
+    .projection-kata-top {
+      display: grid;
+      grid-template-columns: 1.35fr .85fr;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .projection-card {
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,.14);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 24px 70px rgba(0,0,0,.35);
+    }
+    .projection-athlete {
+      background: linear-gradient(135deg, rgba(91, 33, 182, .92), rgba(59, 7, 100, .88));
+      padding: 1.5rem;
+    }
+    .projection-total {
+      background: linear-gradient(135deg, rgba(250, 245, 255, .98), rgba(233, 213, 255, .94));
+      color: #3b0764;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      text-align: center;
+    }
+    .projection-athlete-name {
+      font-size: clamp(2.2rem, 3.8vw, 4.2rem);
+      font-weight: 900;
+      line-height: 1;
+      margin-top: .4rem;
+    }
+    .projection-athlete-sub {
+      font-size: clamp(1rem, 1.4vw, 1.35rem);
+      opacity: .82;
+      margin-top: .6rem;
+    }
+    .projection-total-label {
+      font-size: .95rem;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      opacity: .7;
+    }
+    .projection-total-value {
+      font-size: clamp(4.5rem, 8vw, 7rem);
+      font-weight: 900;
+      line-height: .95;
+      margin-top: .6rem;
+    }
+    .projection-judges {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: .9rem;
+    }
+    .projection-judge-card {
+      background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(237,233,254,.93));
+      color: #111827;
+      padding: 1rem;
+      border-radius: 18px;
+      text-align: center;
+      border: 1px solid rgba(221,214,254,.9);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.65);
+    }
+    .projection-judge-card.pulse {
+      animation: projectionJudgeCardPulse .75s ease-out 1;
+    }
+    @keyframes projectionJudgeCardPulse {
+      0% { transform: translateY(0) scale(1); box-shadow: inset 0 1px 0 rgba(255,255,255,.65), 0 0 0 rgba(139,92,246,0); }
+      40% { transform: translateY(-2px) scale(1.03); box-shadow: inset 0 1px 0 rgba(255,255,255,.75), 0 0 30px rgba(139,92,246,.5); }
+      100% { transform: translateY(0) scale(1); box-shadow: inset 0 1px 0 rgba(255,255,255,.65), 0 0 0 rgba(139,92,246,0); }
+    }
+    .projection-judge-seat {
+      font-size: .9rem;
+      text-transform: uppercase;
+      letter-spacing: .18em;
+      color: #7c3aed;
+    }
+    .projection-judge-name {
+      min-height: 52px;
+      margin-top: .55rem;
+      font-size: 1.05rem;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+    .projection-judge-score {
+      margin-top: .7rem;
+      font-size: clamp(2.2rem, 3.5vw, 3.2rem);
+      font-weight: 900;
+      color: #5b21b6;
+      line-height: 1;
+    }
+    .projection-judge-score.pulse {
+      animation: projectionJudgePulse .75s ease-out 1;
+    }
+    @keyframes projectionJudgePulse {
+      0% { transform: scale(1); text-shadow: 0 0 0 rgba(139,92,246,0); }
+      35% { transform: scale(1.18); text-shadow: 0 0 28px rgba(139,92,246,.72); }
+      100% { transform: scale(1); text-shadow: 0 0 0 rgba(139,92,246,0); }
+    }
+    .projection-kumite-board {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 1rem;
+      align-items: stretch;
+    }
+    .projection-side {
+      padding: 1.6rem;
+      border-radius: 22px;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 340px;
+      box-shadow: 0 24px 60px rgba(0,0,0,.32);
+    }
+    .projection-side.ao {
+      background: linear-gradient(135deg, #1d4ed8, #0f3ea8);
+    }
+    .projection-side.aka {
+      background: linear-gradient(135deg, #dc2626, #991b1b);
+    }
+    .projection-side-label {
+      font-size: 1rem;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      opacity: .82;
+    }
+    .projection-side-name {
+      font-size: clamp(2rem, 3.2vw, 3.2rem);
+      font-weight: 900;
+      line-height: 1;
+      margin-top: .45rem;
+    }
+    .projection-side-score {
+      font-size: clamp(6rem, 12vw, 9rem);
+      font-weight: 900;
+      line-height: .92;
+      margin-top: 1rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .projection-winner-chip {
+      margin-top: .8rem;
+      display: inline-flex;
+      align-self: center;
+      padding: .28rem .75rem;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #fef08a 0%, #facc15 100%);
+      color: #111827;
+      font-weight: 900;
+      letter-spacing: .08em;
+      font-size: .82rem;
+      box-shadow: 0 6px 16px rgba(250, 204, 21, .45);
+    }
+    .projection-side-meta {
+      margin-top: 1rem;
+      font-size: 1rem;
+      opacity: .88;
+      line-height: 1.35;
+    }
+    .projection-penalties {
+      margin-top: 1rem;
+      display: grid;
+      gap: .5rem;
+    }
+    .projection-penalty-row {
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      align-items: center;
+      gap: .45rem;
+    }
+    .projection-penalty-label {
+      font-size: .88rem;
+      font-weight: 800;
+      letter-spacing: .08em;
+      opacity: .95;
+    }
+    .projection-penalty-track {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: .35rem;
+    }
+    .projection-penalty-seg {
+      height: 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.45);
+      background: rgba(250, 204, 21, .22);
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,.1);
+    }
+    .projection-penalty-seg.active {
+      background: linear-gradient(180deg, #fde047 0%, #eab308 100%);
+      border-color: rgba(120, 53, 15, .65);
+      box-shadow: 0 0 10px rgba(250, 204, 21, .55);
+    }
+    .projection-penalty-seg.pulse {
+      animation: projectionPenaltyPulse .8s ease-out 1;
+    }
+    @keyframes projectionPenaltyPulse {
+      0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 rgba(250, 204, 21, 0);
+      }
+      35% {
+        transform: scale(1.12);
+        box-shadow: 0 0 18px rgba(250, 204, 21, .95);
+      }
+      100% {
+        transform: scale(1);
+        box-shadow: 0 0 10px rgba(250, 204, 21, .55);
+      }
+    }
+    .projection-vs {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-width: 110px;
+      gap: .65rem;
+      color: rgba(255,255,255,.8);
+      font-weight: 900;
+      letter-spacing: .14em;
+    }
+    .projection-vs-mark {
+      font-size: 2.2rem;
+    }
+    .projection-feed {
+      margin-top: 1rem;
+      background: rgba(255,255,255,.96);
+      color: #111827;
+      border-radius: 20px;
+      border: 1px solid rgba(226,232,240,.95);
+      padding: 1rem 1.2rem;
+      max-height: 28vh;
+      overflow: auto;
+      box-shadow: 0 16px 40px rgba(0,0,0,.22);
+    }
+    .projection-feed-title {
+      font-size: .9rem;
+      text-transform: uppercase;
+      letter-spacing: .15em;
+      color: #64748b;
+      margin-bottom: .6rem;
+      font-weight: 800;
+    }
+    @media (max-width: 900px) {
+      .projection-kata-top,
+      .projection-kumite-board {
+        grid-template-columns: 1fr;
+      }
+      .projection-vs {
+        min-width: 0;
+        padding: .5rem 0;
+      }
+      .projection-judges {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
 </head>
 <body>
 
@@ -63,6 +357,20 @@
 
 <!-- Vista de categorías del torneo -->
 <div id="view-tournament" style="display:none;" class="container mt-3">
+  <div id="live-technical-board" class="card mb-3" style="display:none;">
+    <div class="flex items-center justify-between gap-2 flex-wrap">
+      <div>
+        <h3 style="margin:0;font-size:1.05rem;">📡 Mesa técnica en vivo</h3>
+        <p class="text-xs text-muted" style="margin:.2rem 0 0;">Proyección pública de resultados y señales arbitrales.</p>
+      </div>
+      <div class="flex gap-1 flex-wrap items-center">
+        <span class="badge badge-green">En directo</span>
+        <button class="btn btn-outline btn-sm" id="btn-display-fullscreen" style="display:none;" type="button">Pantalla completa</button>
+      </div>
+    </div>
+    <div id="live-technical-content" class="mt-2"></div>
+  </div>
+
   <div class="tabs" id="main-tabs">
     <div class="tabs-list" id="tabs-list">
       <button class="tab-btn active" data-tab="tab-categories">Categorías</button>
@@ -154,7 +462,7 @@
 <script src="../js/categories.js"></script>
 <script src="../js/competitors.js"></script>
 <script src="../js/bracket.js"></script>
-<script src="../js/matches.js"></script>
+<script src="../js/matches.js?v=20260421c"></script>
 <script src="../js/display.js"></script>
 <script>
 (function () {
@@ -207,14 +515,78 @@
     realtimeSub:     null,
     activeCategoryId: null,
     dojoCompetitors: [],
+    displayMode: false,
+    displayTatami: null,
+    displayMatchId: null,
+    displayProjectionActive: false,
+    projectionTargetKey: null,
+    displayPollInterval: null,
+    projectionWarnCache: null,
+    projectionWarnMatchId: null,
+    projectionKataCache: null,
+    projectionKataMatchId: null,
   };
+
+  function _getProjectionTargetKey() {
+    if (!state.tournamentId || !state.displayTatami) return null;
+    return `ot_projection_target_${state.tournamentId}_${state.displayTatami}`;
+  }
+
+  function _getProjectionLiveKey() {
+    if (!state.tournamentId || !state.displayTatami) return null;
+    return `ot_projection_live_${state.tournamentId}_${state.displayTatami}`;
+  }
+
+  function _readProjectionTarget() {
+    const key = state.projectionTargetKey || _getProjectionTargetKey();
+    if (!key) return null;
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function _syncProjectionTargetFromStorage() {
+    const target = _readProjectionTarget();
+    if (target && Object.prototype.hasOwnProperty.call(target, 'matchId')) {
+      state.displayMatchId = target.matchId || null;
+      state.displayProjectionActive = !!target.active;
+      return;
+    }
+    if (state.displayMode) {
+      state.displayMatchId = null;
+      state.displayProjectionActive = false;
+    }
+  }
+
+  function _readProjectionLive() {
+    const key = _getProjectionLiveKey();
+    if (!key) return null;
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : null;
+    } catch (_) {
+      return null;
+    }
+  }
 
   /* ---- Parsear URL params ---- */
   const params = new URLSearchParams(window.location.search);
   const tid = params.get('t') || params.get('tournament');
+  state.displayMode = params.get('display') === 'mesa';
+  state.displayTatami = params.get('tatami') || null;
+  state.displayMatchId = params.get('match') || null;
+
+  if (state.displayMode) {
+    _applyProjectionMode();
+  }
 
   if (tid) {
     state.tournamentId = tid;
+    state.projectionTargetKey = _getProjectionTargetKey();
+    _syncProjectionTargetFromStorage();
     document.getElementById('view-select-tournament').style.display = 'none';
     _loadTournament(tid);
   } else {
@@ -232,21 +604,111 @@
       state.tournament = t;
       _renderHero(t);
       document.getElementById('view-tournament').style.display = 'block';
-      document.getElementById('tournament-hero').style.display = 'block';
-      Display.initTabs(document.getElementById('main-tabs'));
-      await _loadCategories(id);
-      await _loadSchedule(id);
-      await _loadDojos(id);
-      _loadResults();
+      document.getElementById('tournament-hero').style.display = state.displayMode ? 'none' : 'block';
+      if (!state.displayMode) {
+        Display.initTabs(document.getElementById('main-tabs'));
+        await _loadCategories(id);
+        await _loadSchedule(id);
+        await _loadDojos(id);
+      }
+      await _loadLiveBoard(id);
+      if (!state.displayMode) _loadResults();
       _subscribeRealtime(id);
     } catch (e) {
       document.getElementById('view-not-found').style.display = 'block';
     }
   }
 
+  function _applyProjectionMode() {
+    document.body.style.background = '#020617';
+    document.body.classList.add('projection-shell');
+    const nav = document.querySelector('.navbar');
+    const selectView = document.getElementById('view-select-tournament');
+    const hero = document.getElementById('tournament-hero');
+    const tabs = document.getElementById('main-tabs');
+    const board = document.getElementById('live-technical-board');
+    const viewTournament = document.getElementById('view-tournament');
+    const fullscreenBtn = document.getElementById('btn-display-fullscreen');
+    if (nav) nav.style.display = 'none';
+    if (selectView) selectView.style.display = 'none';
+    if (hero) hero.style.display = 'none';
+    if (tabs) tabs.style.display = 'none';
+    if (board) {
+      board.style.display = 'block';
+      board.style.minHeight = '100vh';
+      board.style.margin = '0';
+      board.style.borderRadius = '0';
+      board.style.border = 'none';
+      board.style.background = 'linear-gradient(180deg,#0f172a 0%,#020617 100%)';
+      board.style.color = '#fff';
+      board.style.padding = '1.25rem';
+    }
+    if (viewTournament) {
+      viewTournament.className = '';
+      viewTournament.style.maxWidth = '100vw';
+      viewTournament.style.margin = '0';
+      viewTournament.style.padding = '0';
+    }
+    if (fullscreenBtn) fullscreenBtn.style.display = 'inline-flex';
+    document.title = 'Marcador Mesa Tecnica';
+  }
+
+  function _projectionClockText(kumiteSummary = null) {
+    let remaining = Number.isFinite(Number(kumiteSummary?.clockRemaining))
+      ? Number(kumiteSummary.clockRemaining)
+      : null;
+
+    const running = !!kumiteSummary?.clockRunning;
+    const syncedAt = kumiteSummary?.clockUpdatedAt
+      ? new Date(kumiteSummary.clockUpdatedAt).getTime()
+      : null;
+
+    if (remaining != null && running && Number.isFinite(syncedAt)) {
+      const elapsed = Math.max(0, Math.floor((Date.now() - syncedAt) / 1000));
+      remaining = Math.max(0, remaining - elapsed);
+    }
+
+    if (remaining != null) {
+      const mm = Math.floor(remaining / 60);
+      const ss = remaining % 60;
+      return `${mm}:${String(ss).padStart(2, '0')}`;
+    }
+    return new Date().toLocaleTimeString('es-ES', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  }
+
+  function _renderPenaltyBars(warn = {}, prevWarn = {}) {
+    const c1 = Math.min(4, Math.max(0, Number.parseInt(warn?.c1, 10) || 0));
+    const c2 = Math.min(4, Math.max(0, Number.parseInt(warn?.c2, 10) || 0));
+    const p1 = Math.min(4, Math.max(0, Number.parseInt(prevWarn?.c1, 10) || 0));
+    const p2 = Math.min(4, Math.max(0, Number.parseInt(prevWarn?.c2, 10) || 0));
+    const segs = (count, prev) => Array.from({ length: 4 }, (_, idx) => {
+      const active = idx < count;
+      const pulse = active && idx >= prev && count > prev;
+      const classes = `projection-penalty-seg${active ? ' active' : ''}${pulse ? ' pulse' : ''}`;
+      return `<span class="${classes}"></span>`;
+    }).join('');
+
+    return `
+      <div class="projection-penalties">
+        <div class="projection-penalty-row">
+          <div class="projection-penalty-label">C1</div>
+          <div class="projection-penalty-track">${segs(c1, p1)}</div>
+        </div>
+        <div class="projection-penalty-row">
+          <div class="projection-penalty-label">C2</div>
+          <div class="projection-penalty-track">${segs(c2, p2)}</div>
+        </div>
+      </div>`;
+  }
+
   function _renderHero(t) {
-    document.getElementById('nav-tournament-name').textContent = t.name;
-    document.title = `${t.name} — Torneo Karate`;
+    const navName = document.getElementById('nav-tournament-name');
+    if (navName) navName.textContent = t.name;
+    if (!state.displayMode) document.title = `${t.name} — Torneo Karate`;
     document.getElementById('hero-name').textContent = t.name;
     document.getElementById('hero-location').textContent = t.location || '';
     document.getElementById('hero-date').textContent = t.date_start ? formatDate(t.date_start) : '';
@@ -256,6 +718,335 @@
     if (t.status !== 'active') {
       document.getElementById('live-indicator').className = 'status-dot gray';
       document.getElementById('live-text').textContent = STATUS_LABELS[t.status] || t.status;
+    }
+  }
+
+  /* ---- Mesa técnica en vivo / proyección pública ---- */
+  async function _loadLiveBoard(tid) {
+    const wrap = document.getElementById('live-technical-board');
+    const content = document.getElementById('live-technical-content');
+    if (!wrap || !content) return;
+    try {
+      const matches = await Matches.listByTournament(tid);
+      const scopedMatches = state.displayTatami
+        ? matches.filter(m => String(m.tatami || m.category?.tatami || '') === String(state.displayTatami))
+        : matches;
+      _syncProjectionTargetFromStorage();
+      const projectionLive = state.displayMode ? _readProjectionLive() : null;
+      const selectedMatch = state.displayMatchId
+        ? (scopedMatches.find(m => String(m.id) === String(state.displayMatchId))
+          || matches.find(m => String(m.id) === String(state.displayMatchId)))
+        : null;
+      const mirroredMatch = projectionLive?.matchId
+        ? (scopedMatches.find(m => String(m.id) === String(projectionLive.matchId))
+          || matches.find(m => String(m.id) === String(projectionLive.matchId)))
+        : null;
+      const recentResultMatches = [...scopedMatches]
+        .filter((m) => m.status === MATCH_STATUS.FINISHED && (m.winner_id || m.score_a != null || m.score_b != null))
+        .sort((a, b) => {
+          const ta = a.finished_at ? Date.parse(a.finished_at) : 0;
+          const tb = b.finished_at ? Date.parse(b.finished_at) : 0;
+          return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
+        });
+      const latestFinished = recentResultMatches[0] || null;
+      const pendingMatches = scopedMatches.filter(m => m.status === MATCH_STATUS.ONGOING || m.status === MATCH_STATUS.PENDING);
+      const ongoingMatch = pendingMatches.find(m => m.status === MATCH_STATUS.ONGOING) || null;
+      const liveMatch = state.displayMode
+        ? (selectedMatch
+          || mirroredMatch
+          || ongoingMatch
+          || latestFinished
+          || pendingMatches[0]
+          || scopedMatches.find(m => {
+            const kata = Matches.getKataSummary(m);
+            const kumi = Matches.getKumiteSummary(m);
+            return kata.submitted > 0 || (kumi.events || []).length > 0;
+          }))
+        : (selectedMatch
+          || ongoingMatch
+          || latestFinished
+          || pendingMatches[0]
+          || scopedMatches.find(m => {
+            const kata = Matches.getKataSummary(m);
+            const kumi = Matches.getKumiteSummary(m);
+            return kata.submitted > 0 || (kumi.events || []).length > 0;
+          }));
+
+      if (!liveMatch) {
+        wrap.style.display = 'block';
+        const waitText = state.displayMode
+          ? `Esperando que Mesa Tecnica inicie el combate en Tatami ${state.displayTatami || 'actual'}.`
+          : `Esperando actividad en Tatami ${state.displayTatami || 'actual'}.`;
+        content.innerHTML = `<div style="min-height:${state.displayMode ? '85vh' : '180px'};display:flex;flex-direction:column;align-items:center;justify-content:center;color:${state.displayMode ? '#fff' : '#64748b'};font-size:${state.displayMode ? '2rem' : '1rem'};font-weight:800;"><div>${waitText}</div></div>`;
+        return;
+      }
+
+      wrap.style.display = 'block';
+      const isKata = liveMatch.category?.discipline === 'kata' || liveMatch.bracket_type === 'kata_round';
+      const mirrorForLiveMatch = projectionLive && String(projectionLive.matchId || '') === String(liveMatch.id || '')
+        ? projectionLive
+        : null;
+      const nameA = mirrorForLiveMatch?.competitorAName || liveMatch.competitor_a?.competitors?.full_name || 'Competidor A';
+      const nameB = mirrorForLiveMatch?.competitorBName || liveMatch.competitor_b?.competitors?.full_name || 'Competidor B';
+      const clubA = mirrorForLiveMatch?.clubA || liveMatch.competitor_a?.competitors?.club || liveMatch.competitor_a?.club || '';
+      const clubB = mirrorForLiveMatch?.clubB || liveMatch.competitor_b?.competitors?.club || liveMatch.competitor_b?.club || '';
+      const heading = (clockText = _projectionClockText()) => state.displayMode
+        ? `<div class="projection-header"><div><div class="projection-label">Tatami ${liveMatch.tatami || liveMatch.category?.tatami || state.displayTatami || '—'}</div><div class="projection-title">${liveMatch.category?.name || (isKata ? 'Kata' : 'Kumite')}</div></div><div class="projection-clock">${clockText}</div></div>`
+        : '';
+
+      if (state.displayMode && String(state.projectionWarnMatchId || '') !== String(liveMatch.id || '')) {
+        state.projectionWarnMatchId = liveMatch.id || null;
+        state.projectionWarnCache = {
+          a: { c1: 0, c2: 0 },
+          b: { c1: 0, c2: 0 },
+        };
+      }
+      if (state.displayMode && String(state.projectionKataMatchId || '') !== String(liveMatch.id || '')) {
+        state.projectionKataMatchId = liveMatch.id || null;
+        state.projectionKataCache = {};
+      }
+
+      if (state.displayMode) {
+        if (isKata) {
+          const summary = mirrorForLiveMatch?.discipline === 'kata' && mirrorForLiveMatch?.kata
+            ? {
+                total: mirrorForLiveMatch.kata.total,
+                judges: Array.isArray(mirrorForLiveMatch.kata.judges) ? mirrorForLiveMatch.kata.judges : [],
+                submitted: Number.isFinite(Number(mirrorForLiveMatch.kata.submitted)) ? Number(mirrorForLiveMatch.kata.submitted) : null,
+                ready: !!mirrorForLiveMatch.kata.ready,
+              }
+            : Matches.getKataSummary(liveMatch);
+          const submitted = Number.isFinite(Number(summary.submitted))
+            ? Number(summary.submitted)
+            : (Array.isArray(summary.judges) ? summary.judges.filter(j => Number.isFinite(Number(j?.score))).length : 0);
+          const ready = typeof summary.ready === 'boolean' ? summary.ready : submitted >= 5;
+          const prevKataScores = state.projectionKataCache || {};
+          content.innerHTML = `
+            ${heading()}
+            <div class="match-display" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:24px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.35);">
+              <div class="match-header" style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:1rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);">
+                <span>${liveMatch.category?.name || '—'}</span>
+                <span>${ready ? '✅ Notas completas' : `🥋 Jueces ${submitted}/5`} · ${liveMatch.round_label || 'Ronda ' + liveMatch.round}</span>
+              </div>
+              <div class="match-body" style="display:flex;justify-content:center;padding:1.5rem;">
+                <div class="match-fighter" style="flex:unset;min-width:min(720px,100%);text-align:center;background:linear-gradient(135deg,rgba(91,33,182,.92),rgba(59,7,100,.88));border-radius:24px;padding:1.5rem;">
+                  <div class="match-fighter-name" style="font-size:clamp(2.2rem,4vw,4rem);font-weight:900;line-height:1;">${nameA}</div>
+                  <div class="match-fighter-info" style="margin-top:.45rem;font-size:1rem;opacity:.82;">${clubA}</div>
+                  <div class="match-fighter-score" style="font-size:clamp(5rem,9vw,7rem);font-weight:900;line-height:1;margin-top:1rem;">${summary.total != null ? Number(summary.total).toFixed(2) : '—'}</div>
+                </div>
+              </div>
+            </div>
+            <div class="projection-judges" style="margin-top:1rem;">
+              ${['J1','J2','J3','J4','J5'].map(seat => {
+                const judge = summary.judges.find(j => j.seat === seat);
+                const scoreNum = Number.isFinite(Number(judge?.score)) ? Number(judge.score) : null;
+                const hadPrev = Object.prototype.hasOwnProperty.call(prevKataScores, seat);
+                const prevScore = hadPrev ? prevKataScores[seat] : null;
+                const pulse = hadPrev && scoreNum != null && (prevScore == null || Math.abs(scoreNum - Number(prevScore)) > 0.0001);
+                return `<div class="projection-judge-card${pulse ? ' pulse' : ''}">
+                  <div class="projection-judge-seat">${seat}</div>
+                  <div class="projection-judge-name">${judge?.judge_name || 'Pendiente'}</div>
+                  <div class="projection-judge-score${pulse ? ' pulse' : ''}">${judge?.score != null ? Number(judge.score).toFixed(2) : '—'}</div>
+                </div>`;
+              }).join('')}
+            </div>`;
+          state.projectionKataCache = Object.fromEntries(
+            ['J1','J2','J3','J4','J5'].map((seat) => {
+              const judge = summary.judges.find(j => j.seat === seat);
+              const score = Number.isFinite(Number(judge?.score)) ? Number(judge.score) : null;
+              return [seat, score];
+            })
+          );
+          return;
+        }
+
+        const summary = mirrorForLiveMatch?.discipline === 'kumite' && mirrorForLiveMatch?.kumite
+          ? {
+              scoreA: Number.isFinite(Number(mirrorForLiveMatch.kumite.scoreA)) ? Number(mirrorForLiveMatch.kumite.scoreA) : 0,
+              scoreB: Number.isFinite(Number(mirrorForLiveMatch.kumite.scoreB)) ? Number(mirrorForLiveMatch.kumite.scoreB) : 0,
+              warnA: mirrorForLiveMatch.kumite.warnA || { c1: 0, c2: 0 },
+              warnB: mirrorForLiveMatch.kumite.warnB || { c1: 0, c2: 0 },
+              winner: mirrorForLiveMatch.kumite.winner || null,
+              senshu: mirrorForLiveMatch.kumite.senshu || null,
+              events: [],
+              clockRemaining: Number.isFinite(Number(mirrorForLiveMatch.kumite.clockRemaining)) ? Number(mirrorForLiveMatch.kumite.clockRemaining) : null,
+              clockSeconds: Number.isFinite(Number(mirrorForLiveMatch.kumite.clockSeconds)) ? Number(mirrorForLiveMatch.kumite.clockSeconds) : null,
+              clockRunning: !!mirrorForLiveMatch.kumite.clockRunning,
+              clockUpdatedAt: mirrorForLiveMatch.updatedAt || null,
+            }
+          : Matches.getKumiteSummary(liveMatch);
+        const winnerSide = (summary.winner === 'a' || summary.winner === 'b')
+          ? summary.winner
+          : (liveMatch.winner_id && liveMatch.competitor_a_id && liveMatch.winner_id === liveMatch.competitor_a_id)
+            ? 'a'
+            : (liveMatch.winner_id && liveMatch.competitor_b_id && liveMatch.winner_id === liveMatch.competitor_b_id)
+              ? 'b'
+              : null;
+        const aoWinner = winnerSide === 'a';
+        const akaWinner = winnerSide === 'b';
+        const aoCardStyle = aoWinner
+          ? 'background:linear-gradient(135deg,#1d4ed8,#0f3ea8);border-radius:24px;padding:1.5rem;text-align:center;display:flex;flex-direction:column;justify-content:center;border:3px solid #facc15;box-shadow:0 0 28px rgba(250,204,21,.45);'
+          : `background:linear-gradient(135deg,#1d4ed8,#0f3ea8);border-radius:24px;padding:1.5rem;text-align:center;display:flex;flex-direction:column;justify-content:center;${akaWinner ? 'opacity:.72;' : ''}`;
+        const akaCardStyle = akaWinner
+          ? 'background:linear-gradient(135deg,#dc2626,#991b1b);border-radius:24px;padding:1.5rem;text-align:center;display:flex;flex-direction:column;justify-content:center;border:3px solid #facc15;box-shadow:0 0 28px rgba(250,204,21,.45);'
+          : `background:linear-gradient(135deg,#dc2626,#991b1b);border-radius:24px;padding:1.5rem;text-align:center;display:flex;flex-direction:column;justify-content:center;${aoWinner ? 'opacity:.72;' : ''}`;
+        const prevWarn = state.projectionWarnCache || {
+          a: { c1: 0, c2: 0 },
+          b: { c1: 0, c2: 0 },
+        };
+        content.innerHTML = `
+          ${heading(_projectionClockText(summary))}
+          <div class="match-display" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:24px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.35);">
+            <div class="match-header" style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:1rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);">
+              <span>${liveMatch.category?.name || '—'}</span>
+              <span>${winnerSide ? `🏆 Ganador: ${aoWinner ? 'AO' : 'AKA'}` : (liveMatch.round_label || 'Ronda ' + liveMatch.round)}</span>
+            </div>
+            <div class="match-body" style="display:grid;grid-template-columns:1fr auto 1fr;gap:1rem;padding:1.5rem;align-items:stretch;">
+              <div class="match-fighter" style="${aoCardStyle}">
+                <div class="match-fighter-name" style="font-size:clamp(2rem,3.4vw,3.2rem);font-weight:900;line-height:1;">${nameA}</div>
+                <div class="match-fighter-info" style="margin-top:.45rem;font-size:1rem;opacity:.82;">${clubA}</div>
+                <div class="match-fighter-score" style="font-size:clamp(5rem,9vw,7rem);font-weight:900;line-height:1;margin-top:1rem;">${summary.scoreA}</div>
+                ${_renderPenaltyBars(summary.warnA, prevWarn.a)}
+                ${aoWinner ? '<div class="projection-winner-chip">GANADOR</div>' : ''}
+              </div>
+              <div class="match-vs" style="display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;opacity:.72;">VS</div>
+              <div class="match-fighter" style="${akaCardStyle}">
+                <div class="match-fighter-name" style="font-size:clamp(2rem,3.4vw,3.2rem);font-weight:900;line-height:1;">${nameB}</div>
+                <div class="match-fighter-info" style="margin-top:.45rem;font-size:1rem;opacity:.82;">${clubB}</div>
+                <div class="match-fighter-score" style="font-size:clamp(5rem,9vw,7rem);font-weight:900;line-height:1;margin-top:1rem;">${summary.scoreB}</div>
+                ${_renderPenaltyBars(summary.warnB, prevWarn.b)}
+                ${akaWinner ? '<div class="projection-winner-chip">GANADOR</div>' : ''}
+              </div>
+            </div>
+          </div>
+          <div class="projection-feed">
+            <div class="projection-feed-title">Actividad reciente</div>
+            ${(summary.events || []).slice(-8).reverse().map(evt => {
+              const label = evt.kind === 'point'
+                ? `${(evt.action || '').toUpperCase()} → ${evt.side === 'a' ? 'AO' : 'AKA'}`
+                : `Falta ${String(evt.category || '').toUpperCase()} → ${evt.side === 'a' ? 'AO' : 'AKA'}`;
+              return `<div style="padding:.45rem 0;border-bottom:1px solid #e2e8f0;font-size:1.05rem;"><strong>${evt.seat || 'J?'}</strong> · ${evt.judge_name || 'Juez'} · ${label}</div>`;
+            }).join('') || '<div class="text-sm text-muted">Sin acciones registradas aún.</div>'}
+          </div>`;
+        state.projectionWarnCache = {
+          a: {
+            c1: Math.min(4, Math.max(0, Number.parseInt(summary.warnA?.c1, 10) || 0)),
+            c2: Math.min(4, Math.max(0, Number.parseInt(summary.warnA?.c2, 10) || 0)),
+          },
+          b: {
+            c1: Math.min(4, Math.max(0, Number.parseInt(summary.warnB?.c1, 10) || 0)),
+            c2: Math.min(4, Math.max(0, Number.parseInt(summary.warnB?.c2, 10) || 0)),
+          },
+        };
+        return;
+      }
+
+      if (isKata) {
+        const summary = Matches.getKataSummary(liveMatch);
+        if (state.displayMode) {
+          content.innerHTML = `
+            ${heading()}
+            <div class="projection-kata-top">
+              <div class="projection-card projection-athlete">
+                <div class="projection-label">Atleta en tatami</div>
+                <div class="projection-athlete-name">${nameA}</div>
+                <div class="projection-athlete-sub">${liveMatch.category?.name || 'Kata'}${liveMatch.competitor_a?.competitors?.club ? ' · ' + liveMatch.competitor_a.competitors.club : ''}</div>
+              </div>
+              <div class="projection-card projection-total">
+                <div class="projection-total-label">Total oficial</div>
+                <div class="projection-total-value">${summary.total != null ? Number(summary.total).toFixed(2) : '—'}</div>
+              </div>
+            </div>
+            <div class="projection-judges">
+              ${['J1','J2','J3','J4','J5'].map(seat => {
+                const judge = summary.judges.find(j => j.seat === seat);
+                return `<div class="projection-judge-card">
+                  <div class="projection-judge-seat">${seat}</div>
+                  <div class="projection-judge-name">${judge?.judge_name || 'Pendiente'}</div>
+                  <div class="projection-judge-score">${judge?.score != null ? Number(judge.score).toFixed(2) : '—'}</div>
+                </div>`;
+              }).join('')}
+            </div>`;
+        } else {
+          content.innerHTML = `
+            ${heading(_projectionClockText(summary))}
+            <div class="flex items-center justify-between gap-2 flex-wrap mb-2">
+              <div>
+                <strong>${liveMatch.category?.name || 'Kata'}</strong>
+                <div class="text-sm text-muted">${nameA}</div>
+              </div>
+              <div style="font-size:2rem;font-weight:900;color:#7c3aed;">${summary.total != null ? Number(summary.total).toFixed(2) : '—'}</div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:.4rem;">
+              ${['J1','J2','J3','J4','J5'].map(seat => {
+                const judge = summary.judges.find(j => j.seat === seat);
+                return `<div style="background:#faf5ff;border:1px solid #ddd6fe;border-radius:12px;padding:.45rem;text-align:center;color:#111827;">
+                  <div class="text-xs text-muted">${seat}</div>
+                  <div style="font-size:.72rem;font-weight:700;min-height:28px;">${judge?.judge_name || 'Pendiente'}</div>
+                  <div style="font-size:1.15rem;font-weight:900;color:${judge?.score != null ? '#6d28d9' : '#94a3b8'};">${judge?.score != null ? Number(judge.score).toFixed(2) : '—'}</div>
+                </div>`;
+              }).join('')}
+            </div>`;
+        }
+      } else {
+        const summary = Matches.getKumiteSummary(liveMatch);
+        const recent = (summary.events || []).slice(-6).reverse().map(evt => {
+          const label = evt.kind === 'point'
+            ? `${(evt.action || '').toUpperCase()} → ${evt.side === 'a' ? 'AO' : 'AKA'}`
+            : `Falta ${String(evt.category || '').toUpperCase()} → ${evt.side === 'a' ? 'AO' : 'AKA'}`;
+          return `<div style="padding:${state.displayMode ? '.45rem 0' : '.25rem 0'};border-bottom:1px solid #e2e8f0;font-size:${state.displayMode ? '1.05rem' : '.8rem'};"><strong>${evt.seat || 'J?'}</strong> · ${evt.judge_name || 'Juez'} · ${label}</div>`;
+        }).join('') || '<div class="text-sm text-muted">Sin acciones registradas aún.</div>';
+        if (state.displayMode) {
+          content.innerHTML = `
+            ${heading(_projectionClockText(summary))}
+            <div class="projection-kumite-board">
+              <div class="projection-side ao">
+                <div>
+                  <div class="projection-side-label">AO</div>
+                  <div class="projection-side-name">${nameA}</div>
+                </div>
+                <div class="projection-side-score">${summary.scoreA}</div>
+                ${_renderPenaltyBars(summary.warnA)}
+              </div>
+              <div class="projection-vs">
+                <div class="projection-vs-mark">VS</div>
+                <div>TATAMI</div>
+                <div>${liveMatch.tatami || liveMatch.category?.tatami || state.displayTatami || '—'}</div>
+              </div>
+              <div class="projection-side aka">
+                <div>
+                  <div class="projection-side-label">AKA</div>
+                  <div class="projection-side-name">${nameB}</div>
+                </div>
+                <div class="projection-side-score">${summary.scoreB}</div>
+                ${_renderPenaltyBars(summary.warnB)}
+              </div>
+            </div>
+            <div class="projection-feed">
+              <div class="projection-feed-title">Actividad reciente</div>
+              ${recent}
+            </div>`;
+        } else {
+          content.innerHTML = `
+            ${heading()}
+            <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:.5rem;align-items:center;">
+              <div style="background:#1565c0;color:#fff;border-radius:12px;padding:.75rem;text-align:center;">
+                <div class="text-xs" style="opacity:.8;">AO</div>
+                <div style="font-size:1rem;font-weight:700;">${nameA}</div>
+                <div style="font-size:2.2rem;font-weight:900;">${summary.scoreA}</div>
+              </div>
+              <div style="font-weight:900;opacity:.55;font-size:1rem;">VS</div>
+              <div style="background:#c62828;color:#fff;border-radius:12px;padding:.75rem;text-align:center;">
+                <div class="text-xs" style="opacity:.8;">AKA</div>
+                <div style="font-size:1rem;font-weight:700;">${nameB}</div>
+                <div style="font-size:2.2rem;font-weight:900;">${summary.scoreB}</div>
+              </div>
+            </div>
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:.55rem;margin-top:.8rem;max-height:170px;overflow:auto;color:#111827;">${recent}</div>`;
+        }
+      }
+    } catch (_) {
+      wrap.style.display = 'none';
     }
   }
 
@@ -542,17 +1333,69 @@
 
   /* ---- Realtime ---- */
   function _subscribeRealtime(tid) {
-    if (!supabase) return;
-    state.realtimeSub = Matches.subscribeToTournament(tid, () => {
-      if (state.activeCategoryId) openBracket(state.activeCategoryId);
-    });
-    // Polling de respaldo para modo dev / offline
-    if (Auth.isDevMode()) {
-      setInterval(() => {
+    state.realtimeSub = Matches.subscribeToTournament(tid, async () => {
+      if (!state.displayMode) {
+        await _loadCategories(tid);
+        await _loadSchedule(tid);
+      }
+      await _loadLiveBoard(tid);
+      if (!state.displayMode) {
+        _loadResults();
         if (state.activeCategoryId) openBracket(state.activeCategoryId);
-      }, 10000);
+      }
+    });
+    if (Auth.isDevMode()) {
+      setInterval(async () => {
+        if (!state.displayMode) {
+          await _loadCategories(tid);
+          await _loadSchedule(tid);
+        }
+        await _loadLiveBoard(tid);
+        if (!state.displayMode) {
+          _loadResults();
+          if (state.activeCategoryId) openBracket(state.activeCategoryId);
+        }
+      }, state.displayMode ? 1000 : 10000);
+    }
+
+    // Fallback adicional: en pantalla extendida siempre hacemos refresh frecuente
+    // para que refleje instantáneamente lo que marca Mesa Técnica.
+    if (state.displayMode && !state.displayPollInterval) {
+      state.displayPollInterval = setInterval(async () => {
+        await _loadLiveBoard(tid);
+      }, 500);
     }
   }
+
+  document.getElementById('btn-display-fullscreen').addEventListener('click', async () => {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+        return;
+      }
+      await document.documentElement.requestFullscreen();
+    } catch (_) {}
+  });
+
+  window.addEventListener('storage', async (event) => {
+    if (!state.displayMode || !state.tournamentId) return;
+    const key = state.projectionTargetKey || _getProjectionTargetKey();
+    const liveKey = _getProjectionLiveKey();
+    if ((!key || event.key !== key) && (!liveKey || event.key !== liveKey)) return;
+    try {
+      if (event.key === key) {
+        const nextTarget = event.newValue ? JSON.parse(event.newValue) : null;
+        state.displayMatchId = nextTarget?.matchId || null;
+        state.displayProjectionActive = !!nextTarget?.active;
+      }
+    } catch (_) {
+      if (event.key === key) {
+        state.displayMatchId = null;
+        state.displayProjectionActive = false;
+      }
+    }
+    await _loadLiveBoard(state.tournamentId);
+  });
 
   /* ---- Tab Dojos ---- */
   async function _loadDojos(tid) {
