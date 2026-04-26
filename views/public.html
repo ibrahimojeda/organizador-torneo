@@ -705,6 +705,139 @@
       </div>`;
   }
 
+  function _isActiveKataRoundProjection(payload) {
+    if (!payload || payload.mode !== 'kata_round_results') return false;
+    if (!payload.showUntil) return true;
+    const until = Date.parse(payload.showUntil);
+    if (!Number.isFinite(until)) return true;
+    return until > Date.now();
+  }
+
+  function _isCategoryAwardsProjection(payload) {
+    return !!(payload && payload.mode === 'category_awards' && Array.isArray(payload.podium) && payload.podium.length);
+  }
+
+  function _awardLabel(position) {
+    if (position === 1) return 'ORO';
+    if (position === 2) return 'PLATA';
+    if (position === 3) return 'BRONCE';
+    return `TOP ${position}`;
+  }
+
+  function _awardColors(position) {
+    if (position === 1) return { bg: 'linear-gradient(135deg,#f59e0b,#b45309)', border: 'rgba(250,204,21,.85)' };
+    if (position === 2) return { bg: 'linear-gradient(135deg,#94a3b8,#475569)', border: 'rgba(226,232,240,.7)' };
+    if (position === 3) return { bg: 'linear-gradient(135deg,#d97706,#92400e)', border: 'rgba(251,191,36,.65)' };
+    return { bg: 'linear-gradient(135deg,#334155,#1e293b)', border: 'rgba(148,163,184,.45)' };
+  }
+
+  function _renderCategoryAwardsProjection(payload) {
+    const podium = [...(payload?.podium || [])]
+      .filter((p) => Number.isFinite(Number(p?.position)))
+      .sort((a, b) => Number(a.position) - Number(b.position));
+    const first = podium.find((p) => Number(p.position) === 1) || null;
+    const second = podium.find((p) => Number(p.position) === 2) || null;
+    const third = podium.find((p) => Number(p.position) === 3) || null;
+    const others = podium.filter((p) => Number(p.position) > 3).slice(0, 4);
+    const isKata = String(payload?.discipline || '').toLowerCase() === 'kata';
+    const headerClock = new Date().toLocaleTimeString('es-ES', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+
+    const renderPodiumCard = (item, fallbackPos) => {
+      const pos = Number(item?.position || fallbackPos || 0);
+      const colors = _awardColors(pos);
+      if (!item) {
+        return `
+          <div style="background:rgba(15,23,42,.4);border:2px dashed rgba(148,163,184,.35);border-radius:16px;padding:1rem;min-height:180px;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-weight:700;">
+            Puesto #${fallbackPos}
+          </div>`;
+      }
+      const score = Number(item?.score);
+      const hasScore = Number.isFinite(score);
+      return `
+        <div style="background:${colors.bg};border:2px solid ${colors.border};border-radius:16px;padding:1rem;box-shadow:0 12px 24px rgba(0,0,0,.25);min-height:180px;display:flex;flex-direction:column;justify-content:space-between;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;">
+            <div style="font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;opacity:.95;font-weight:800;">${_awardLabel(pos)}</div>
+            <div style="font-size:1.45rem;font-weight:900;line-height:1;">#${pos}</div>
+          </div>
+          <div style="margin-top:.55rem;font-size:1.45rem;font-weight:900;line-height:1.08;">${item.athleteName || 'Competidor'}</div>
+          <div style="margin-top:.35rem;font-size:.95rem;opacity:.9;">${item.club || '—'}</div>
+          ${isKata
+            ? `<div style="margin-top:.65rem;padding:.35rem .55rem;border-radius:10px;background:rgba(2,6,23,.28);font-size:1rem;font-weight:900;letter-spacing:.02em;">Puntaje: ${hasScore ? score.toFixed(2) : 'No disponible'}</div>`
+            : ''}
+        </div>`;
+    };
+
+    return `
+      <div class="projection-header">
+        <div>
+          <div class="projection-label">Tatami ${payload?.tatami || state.displayTatami || '—'} · Premiacion oficial</div>
+          <div class="projection-title">${payload?.categoryName || 'Categoria'}</div>
+        </div>
+        <div class="projection-clock">${headerClock}</div>
+      </div>
+      <div class="match-display" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:24px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.35);">
+        <div class="match-header" style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:1rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);">
+          <span>Ceremonia de premiacion</span>
+          <span>${(payload?.discipline || '').toUpperCase() || 'CATEGORIA'}${isKata ? ' · Puntajes oficiales' : ''}</span>
+        </div>
+        <div style="padding:1.25rem;display:grid;grid-template-columns:1fr;gap:.85rem;">
+          <div style="display:grid;grid-template-columns:1fr minmax(260px,1.2fr) 1fr;gap:.75rem;align-items:end;">
+            <div style="transform:translateY(18px);">${renderPodiumCard(second, 2)}</div>
+            <div>${renderPodiumCard(first, 1)}</div>
+            <div style="transform:translateY(32px);">${renderPodiumCard(third, 3)}</div>
+          </div>
+          ${others.length
+            ? `<div style="margin-top:.45rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.6rem;">${others.map((item) => renderPodiumCard(item, item.position)).join('')}</div>`
+            : ''}
+        </div>
+      </div>`;
+  }
+
+  function _renderKataRoundResultsProjection(payload) {
+    const ranking = Array.isArray(payload?.ranking) ? payload.ranking : [];
+    const winner = payload?.winner || ranking[0] || null;
+    const headerClock = new Date().toLocaleTimeString('es-ES', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+    return `
+      <div class="projection-header">
+        <div>
+          <div class="projection-label">Tatami ${payload?.tatami || state.displayTatami || '—'}</div>
+          <div class="projection-title">${payload?.categoryName || 'Kata'} · ${payload?.roundLabel || `Ronda ${payload?.round ?? '—'}`}</div>
+        </div>
+        <div class="projection-clock">${headerClock}</div>
+      </div>
+      <div class="match-display" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:24px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.35);">
+        <div class="match-header" style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:1rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);">
+          <span>Resultados de ronda</span>
+          <span>${winner ? `🏆 Ganador: ${winner.athleteName} (${Number(winner.score).toFixed(2)})` : 'Sin ganador definido'}</span>
+        </div>
+        <div style="padding:1.1rem 1.25rem 1.25rem;">
+          <div style="display:grid;grid-template-columns:84px 1fr 120px;gap:.55rem;color:#cbd5e1;text-transform:uppercase;letter-spacing:.06em;font-size:.8rem;font-weight:800;padding:.25rem .6rem;">
+            <div>Pos.</div>
+            <div>Competidor</div>
+            <div style="text-align:right;">Puntaje</div>
+          </div>
+          ${ranking.map(item => {
+            const isWinner = winner && item.athleteId && winner.athleteId && String(item.athleteId) === String(winner.athleteId);
+            const rowBg = isWinner ? 'linear-gradient(90deg,rgba(250,204,21,.35),rgba(250,204,21,.12))' : 'rgba(15,23,42,.45)';
+            return `
+              <div style="display:grid;grid-template-columns:84px 1fr 120px;gap:.55rem;align-items:center;background:${rowBg};border:1px solid ${isWinner ? 'rgba(250,204,21,.75)' : 'rgba(148,163,184,.2)'};border-radius:12px;padding:.62rem .7rem;margin-top:.45rem;">
+                <div style="font-size:1rem;font-weight:900;color:${isWinner ? '#fde047' : '#e2e8f0'};">#${item.position || '—'}</div>
+                <div style="font-size:1.15rem;font-weight:800;color:#f8fafc;line-height:1.1;">${item.athleteName || 'Competidor'}</div>
+                <div style="font-size:1.25rem;font-weight:900;color:${isWinner ? '#fde047' : '#f8fafc'};text-align:right;">${Number(item.score).toFixed(2)}</div>
+              </div>`;
+          }).join('') || '<div style="padding:1rem;color:#cbd5e1;">Sin puntajes para mostrar.</div>'}
+        </div>
+      </div>`;
+  }
+
   function _renderHero(t) {
     const navName = document.getElementById('nav-tournament-name');
     if (navName) navName.textContent = t.name;
@@ -733,6 +866,16 @@
         : matches;
       _syncProjectionTargetFromStorage();
       const projectionLive = state.displayMode ? _readProjectionLive() : null;
+      if (state.displayMode && _isCategoryAwardsProjection(projectionLive)) {
+        wrap.style.display = 'block';
+        content.innerHTML = _renderCategoryAwardsProjection(projectionLive);
+        return;
+      }
+      if (state.displayMode && _isActiveKataRoundProjection(projectionLive)) {
+        wrap.style.display = 'block';
+        content.innerHTML = _renderKataRoundResultsProjection(projectionLive);
+        return;
+      }
       const selectedMatch = state.displayMatchId
         ? (scopedMatches.find(m => String(m.id) === String(state.displayMatchId))
           || matches.find(m => String(m.id) === String(state.displayMatchId)))

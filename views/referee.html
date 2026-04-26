@@ -503,6 +503,7 @@
     manualKumiteTouched: false,
     projectionWindow: null,
     projectionLiveActive: false,
+    projectionModeOverride: null,
     referee: {
       name:  savedReferee.name || '',
       code:  String(session.codeId || session.userId || 'REF-LOCAL'),
@@ -772,6 +773,7 @@
   function _persistProjectionLiveState() {
     const key = _getProjectionLiveKey();
     if (!key) return;
+    if (state.projectionModeOverride === 'category_awards') return;
     const match = state.currentMatch;
     if (!match?.id) {
       try { localStorage.removeItem(key); } catch (_) {}
@@ -847,6 +849,239 @@
     try {
       localStorage.setItem(key, JSON.stringify(payload));
     } catch (_) {}
+  }
+
+  function _normalizeKataRoundAthlete(match) {
+    const athleteId = match?.competitor_a_id || null;
+    const athleteName = match?.competitor_a?.competitors?.full_name
+      || match?.competitor_a?.full_name
+      || 'Competidor';
+    const score = Number(match?.score_a);
+    return {
+      athleteId,
+      athleteName,
+      score: Number.isFinite(score) ? Number(score.toFixed(2)) : null,
+      finishedAt: match?.finished_at || match?.updated_at || null,
+    };
+  }
+
+  function _buildKataRoundProjectionPayload(seedMatch, roundMatches) {
+    const ranking = (roundMatches || [])
+      .map(_normalizeKataRoundAthlete)
+      .filter(item => Number.isFinite(item.score))
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        const ta = a.finishedAt ? Date.parse(a.finishedAt) : 0;
+        const tb = b.finishedAt ? Date.parse(b.finishedAt) : 0;
+        return (Number.isFinite(ta) ? ta : 0) - (Number.isFinite(tb) ? tb : 0);
+      })
+      .map((item, idx) => ({
+        ...item,
+        position: idx + 1,
+      }));
+
+    const winner = ranking[0] || null;
+    return {
+      mode: 'kata_round_results',
+      tournamentId: state.tournamentId || null,
+      tatami: state.tatami || null,
+      categoryId: seedMatch?.category_id || seedMatch?.category?.id || null,
+      categoryName: seedMatch?.category?.name || null,
+      round: Number.isFinite(Number(seedMatch?.round)) ? Number(seedMatch.round) : null,
+      roundLabel: seedMatch?.round_label || null,
+      discipline: 'kata',
+      matchId: seedMatch?.id || null,
+      updatedAt: new Date().toISOString(),
+      showUntil: new Date(Date.now() + 15000).toISOString(),
+      winner,
+      ranking,
+    };
+  }
+
+  async function _publishKataRoundResultsIfReady(savedResult) {
+    if (!_isKataMatch(savedResult)) return false;
+    const categoryId = savedResult?.category_id || savedResult?.category?.id;
+    const round = Number(savedResult?.round);
+    if (!categoryId || !Number.isFinite(round)) return false;
+
+    let allMatches = [];
+    try {
+      allMatches = await Matches.listByCategory(categoryId);
+    } catch (_) {
+      return false;
+    }
+
+    const roundMatches = (allMatches || []).filter(m => Number(m?.round) === round);
+    if (!roundMatches.length) return false;
+
+    const isComplete = roundMatches.every(m => {
+      const isFinished = String(m?.status || '') === String(MATCH_STATUS.FINISHED);
+      return isFinished && Number.isFinite(Number(m?.score_a));
+    });
+    if (!isComplete) return false;
+
+    const payload = _buildKataRoundProjectionPayload(savedResult, roundMatches);
+    if (!Array.isArray(payload.ranking) || !payload.ranking.length) return false;
+
+    const key = _getProjectionLiveKey();
+    if (!key) return false;
+    try {
+      localStorage.setItem(key, JSON.stringify(payload));
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function _normalizeAthleteName(value) {
+    return String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function _normalizePodiumEntries(podio, options = {}) {
+    const scoreByRegistration = options?.scoreByRegistration || {};
+    const scoreByAthleteName = options?.scoreByAthleteName || {};
+    const latestScoreByAthleteName = options?.latestScoreByAthleteName || {};
+    const includeScore = !!options?.includeScore;
+    const positions = Array.isArray(podio?.positions) ? podio.positions : [];
+    return positions
+      .filter((p) => Number.isFinite(Number(p?.position)))
+      .sort((a, b) => Number(a.position) - Number(b.position))
+      .map((p) => {
+        const athleteName = p.full_name || p.name || 'Competidor';
+        const athleteKey = _normalizeAthleteName(athleteName);
+        const registrationId = p.registration_id || null;
+
+        let score = null;
+        let scoreSource = null;
+        if (includeScore) {
+          if (registrationId && Number.isFinite(Number(scoreByRegistration[registrationId]))) {
+            score = Number(Number(scoreByRegistration[registrationId]).toFixed(2));
+            scoreSource = 'registration_id';
+          } else if (athleteKey && Number.isFinite(Number(scoreByAthleteName[athleteKey]))) {
+            score = Number(Number(scoreByAthleteName[athleteKey]).toFixed(2));
+            scoreSource = 'athlete_name';
+          } else if (athleteKey && Number.isFinite(Number(latestScoreByAthleteName[athleteKey]))) {
+            score = Number(Number(latestScoreByAthleteName[athleteKey]).toFixed(2));
+            scoreSource = 'latest_finished_match';
+          }
+        }
+
+        return {
+          position: Number(p.position),
+          registrationId,
+          athleteName,
+          club: p.club || '',
+          score,
+          scoreSource,
+        };
+      });
+  }
+
+  async function _publishCategoryAwardsProjection(categoryId) {
+    if (!categoryId) return { ok: false, reason: 'no-category' };
+
+    let category = null;
+    let podio = null;
+    try {
+      [category, podio] = await Promise.all([
+        Categories.getById(categoryId),
+        Bracket.getPodio(categoryId),
+      ]);
+    } catch (e) {
+      return { ok: false, reason: e?.message || 'load-error' };
+    }
+
+    let scoreByRegistration = {};
+    let scoreByAthleteName = {};
+    let latestScoreByAthleteName = {};
+    const isKataCategory = String(category?.discipline || '').toLowerCase() === 'kata';
+    if (isKataCategory) {
+      try {
+        const categoryMatches = await Matches.listByCategory(categoryId);
+        const kataMatches = (categoryMatches || []).filter(m => _isKataMatch(m));
+        const rounds = kataMatches
+          .map((m) => Number(m?.round))
+          .filter((r) => Number.isFinite(r));
+        const maxRound = rounds.length ? Math.max(...rounds) : null;
+        const finalRound = kataMatches.filter((m) =>
+          Number(m?.round) === maxRound
+          && String(m?.status || '') === String(MATCH_STATUS.FINISHED)
+          && Number.isFinite(Number(m?.score_a))
+          && m?.competitor_a_id
+        );
+        scoreByRegistration = Object.fromEntries(
+          finalRound.map((m) => [m.competitor_a_id, Number(m.score_a)])
+        );
+        scoreByAthleteName = Object.fromEntries(
+          finalRound
+            .map((m) => {
+              const name = m?.competitor_a?.competitors?.full_name || m?.competitor_a?.full_name || '';
+              const key = _normalizeAthleteName(name);
+              return [key, Number(m.score_a)];
+            })
+            .filter(([key, score]) => !!key && Number.isFinite(Number(score)))
+        );
+
+        const finishedByNewest = [...kataMatches]
+          .filter((m) =>
+            String(m?.status || '') === String(MATCH_STATUS.FINISHED)
+            && Number.isFinite(Number(m?.score_a))
+          )
+          .sort((a, b) => {
+            const ta = Date.parse(a?.finished_at || a?.updated_at || a?.started_at || 0);
+            const tb = Date.parse(b?.finished_at || b?.updated_at || b?.started_at || 0);
+            return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
+          });
+        latestScoreByAthleteName = {};
+        finishedByNewest.forEach((m) => {
+          const name = m?.competitor_a?.competitors?.full_name || m?.competitor_a?.full_name || '';
+          const key = _normalizeAthleteName(name);
+          if (!key || Object.prototype.hasOwnProperty.call(latestScoreByAthleteName, key)) return;
+          latestScoreByAthleteName[key] = Number(m.score_a);
+        });
+      } catch (_) {
+        scoreByRegistration = {};
+        scoreByAthleteName = {};
+        latestScoreByAthleteName = {};
+      }
+    }
+
+    const podium = _normalizePodiumEntries(podio, {
+      includeScore: isKataCategory,
+      scoreByRegistration,
+      scoreByAthleteName,
+      latestScoreByAthleteName,
+    });
+    if (!podium.length) return { ok: false, reason: 'not-finished' };
+
+    const key = _getProjectionLiveKey();
+    if (!key) return { ok: false, reason: 'no-projection-key' };
+
+    const payload = {
+      mode: 'category_awards',
+      tournamentId: state.tournamentId || null,
+      tatami: state.tatami || null,
+      categoryId: category?.id || categoryId,
+      categoryName: category?.name || 'Categoria',
+      discipline: category?.discipline || null,
+      scoreSource: isKataCategory ? 'registration_id|athlete_name|latest_finished_match' : null,
+      updatedAt: new Date().toISOString(),
+      podium,
+    };
+
+    try {
+      localStorage.setItem(key, JSON.stringify(payload));
+      state.projectionModeOverride = 'category_awards';
+      _persistProjectionTarget();
+      return { ok: true, payload };
+    } catch (_) {
+      return { ok: false, reason: 'save-error' };
+    }
   }
 
   function _clearProjectionTarget() {
@@ -1002,6 +1237,7 @@
       try { state.projectionWindow.close(); } catch (_) {}
     }
     state.projectionWindow = null;
+    state.projectionModeOverride = null;
     _clearProjectionTarget();
     const liveKey = _getProjectionLiveKey();
     if (liveKey) {
@@ -2389,11 +2625,24 @@
   });
 
   document.getElementById('btn-enable-projection').addEventListener('click', () => {
+    state.projectionModeOverride = null;
+    _syncProjectionWindow();
     _openProjectionWindow();
     Display.toast('Segunda pantalla habilitada.', 'success');
   });
 
-  document.getElementById('btn-open-scoreboard').addEventListener('click', () => {
+  document.getElementById('btn-open-scoreboard').addEventListener('click', async () => {
+    const categoryId = state.selectedCategoryId || null;
+    if (categoryId) {
+      const projection = await _publishCategoryAwardsProjection(categoryId);
+      if (projection.ok) {
+        _openProjectionWindow();
+        Display.toast('Pantalla extendida mostrando premiacion de la categoria seleccionada.', 'success');
+        return;
+      }
+    }
+    state.projectionModeOverride = null;
+    _syncProjectionWindow();
     _openProjectionWindow();
     Display.toast('Pantalla extendida del marcador abierta.', 'success');
   });
@@ -2465,7 +2714,13 @@
     try {
       _setSyncIndicator('syncing', `Guardando resultado final... ${_syncTimeStamp()}`);
       const savedResult = await Matches.recordResult(m.id, result);
+      const publishedRoundSummary = isKata
+        ? await _publishKataRoundResultsIfReady(savedResult)
+        : false;
       _setSyncIndicator('ok', `Resultado final sincronizado ${_syncTimeStamp()}`);
+      if (publishedRoundSummary) {
+        Display.toast('Ronda kata completada: resultados enviados a pantalla extendida.', 'success');
+      }
       if (savedResult?.status === MATCH_STATUS.FINISHED) _setFinalResultStatus(savedResult);
       _rememberLastFinishedMatch(m.id);
       Display.closeModal('modal-result');

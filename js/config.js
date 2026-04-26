@@ -44,8 +44,9 @@ const BELTS = [
   { id: 'naranja',      label: 'Naranja',       color: '#FFA500', textColor: '#1a1a2e', order: 3 },
   { id: 'verde',        label: 'Verde',         color: '#2e7d32', textColor: '#FFFFFF', order: 4 },
   { id: 'azul',         label: 'Azul',          color: '#1565c0', textColor: '#FFFFFF', order: 5 },
-  { id: 'marron',       label: 'Marrón',        color: '#6d4c41', textColor: '#FFFFFF', order: 6 },
-  { id: 'negro',        label: 'Negro (Kyu/Dan)', color: '#1a1a1a', textColor: '#FFD700', order: 7 },
+  { id: 'morado',       label: 'Morado',        color: '#7e22ce', textColor: '#FFFFFF', order: 6 },
+  { id: 'marron',       label: 'Marrón',        color: '#6d4c41', textColor: '#FFFFFF', order: 7 },
+  { id: 'negro',        label: 'Negro (Kyu/Dan)', color: '#1a1a1a', textColor: '#FFD700', order: 8 },
 ];
 
 /* ----- Grupos de cinturón para competencia ----- */
@@ -59,8 +60,8 @@ const BELT_GROUPS = [
   {
     id: 'intermedio',
     label: 'Intermedio',
-    belts: ['verde', 'azul'],
-    description: 'Cinturón Verde y Azul',
+    belts: ['verde', 'azul', 'morado'],
+    description: 'Cinturón Verde, Azul y Morado',
   },
   {
     id: 'avanzado',
