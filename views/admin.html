@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Panel Organizador — Torneo Karate</title>
   <link rel="stylesheet" href="../css/styles.css" />
+  <style>
+    .reg-status-denied { color:#dc2626; font-weight:600; }
+    .reg-status-accepted { color:#16a34a; font-weight:600; }
+    .reg-status-pending { color:#ca8a04; }
+    .bracket-warning-item { padding:4px 8px; background:#fffbeb; border-left:4px solid #f59e0b; margin:4px 0; border-radius:4px; font-size:.88rem; color:#92400e; }
+  </style>
 </head>
 <body>
 
@@ -16,6 +22,7 @@
     <span id="nav-tournament-name">Torneo Karate</span>
   </div>
   <div class="navbar-menu">
+    <a href="superadmin.html" class="btn btn-ghost btn-sm" id="btn-back-superadmin" style="display:none;">← Super Admin</a>
     <span class="badge badge-red text-xs mr-2" id="nav-role-badge">Organizador</span>
     <button class="btn btn-ghost btn-sm" id="btn-logout">Cerrar sesión</button>
   </div>
@@ -193,6 +200,12 @@
           </select>
           <select class="form-control" id="competitor-filter-belt" style="max-width:180px;">
             <option value="">Todos los cinturones</option>
+          </select>
+          <select class="form-control" id="competitor-filter-status" style="max-width:150px;">
+            <option value="">Todos los estados</option>
+            <option value="pending">⏳ Pendiente</option>
+            <option value="accepted">✅ Aceptado</option>
+            <option value="denied">❌ Negado</option>
           </select>
         </div>
       </div>
@@ -1030,6 +1043,7 @@
 <script src="../js/competitors.js"></script>
 <script src="../js/bracket.js"></script>
 <script src="../js/matches.js"></script>
+<script src="../js/reports.js"></script>
 <script src="../js/display.js"></script>
 <script>
 (function () {
@@ -1120,6 +1134,8 @@
       document.getElementById('sidebar-tournaments-label').textContent = 'Todos los Torneos';
       document.getElementById('sidebar-section-system').style.display = '';
       document.getElementById('section-create-user').style.display = '';
+      const backBtn = document.getElementById('btn-back-superadmin');
+      if (backBtn) backBtn.style.display = 'inline-flex';
     } else if (Auth.isDevMode()) {
       document.getElementById('nav-role-badge').textContent = 'Dev Mode';
       document.getElementById('nav-role-badge').className   = 'badge badge-muted text-xs mr-2';
@@ -3192,6 +3208,40 @@
   // Nav tabs de la barra inferior
   document.querySelectorAll('.mobile-bottom-nav .nav-tab[data-panel]').forEach(tab => {
     tab.addEventListener('click', () => window.switchPanel(tab.dataset.panel));
+  });
+
+  /* ---- changeRegistrationStatus ---- */
+  window.changeRegistrationStatus = async function(selectEl, registrationId, tournamentId) {
+    const newStatus = selectEl.value;
+    if (!registrationId || !tournamentId) return;
+    if (newStatus === 'denied' && !confirm('¿Negar acceso? Se eliminará de llaves y se regenerarán.')) {
+      selectEl.value = selectEl.dataset.prevVal || 'pending'; return;
+    }
+    selectEl.dataset.prevVal = newStatus;
+    try {
+      await Competitors.setStatus(registrationId, newStatus, tournamentId);
+      Display.toast('Estado actualizado a ' + ({pending:'Pendiente',accepted:'Aceptado',denied:'Negado'}[newStatus] || newStatus), 'success');
+      if (newStatus === 'denied' && state.activeCategory) await _loadBracket(state.activeCategory);
+    } catch (e) {
+      selectEl.value = selectEl.dataset.prevVal || 'pending';
+      Display.toast(e.message, 'error');
+    }
+  };
+
+  /* ---- match:click (round-robin y kata) ---- */
+  document.addEventListener('match:click', async (e) => {
+    const matchId = e.detail?.matchId;
+    if (!matchId) return;
+    try {
+      let match = await Matches.getById(matchId);
+      if (Auth.isDevMode() && match) {
+        const regs = JSON.parse(localStorage.getItem('ot_dev_registrations') || '[]');
+        const comps = JSON.parse(localStorage.getItem('ot_dev_competitors') || '[]');
+        const byRegId = id => { const r = regs.find(x => x.id === id); const c = r ? comps.find(x => x.id === r.competitor_id) : null; return c ? { full_name: c.full_name, club: c.club } : null; };
+        match = { ...match, competitor_a: match.competitor_a_id ? { full_name: byRegId(match.competitor_a_id)?.full_name, competitors: byRegId(match.competitor_a_id) } : null, competitor_b: match.competitor_b_id ? { full_name: byRegId(match.competitor_b_id)?.full_name, competitors: byRegId(match.competitor_b_id) } : null };
+      }
+      if (match) openResultModal(match);
+    } catch (err) { Display.toast('Error al cargar el combate.', 'error'); }
   });
 
   /* ---- Arrancar ---- */

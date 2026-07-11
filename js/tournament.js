@@ -2,9 +2,10 @@
    TOURNAMENT.JS — CRUD de torneos
    ============================================================ */
 
-const Tournament = (() => {
+if (!window.Tournament) {
+  window.Tournament = (() => {
 
-  const TABLE   = 'tournaments';
+    const TABLE   = 'tournaments';
   const DEV_KEY = 'ot_dev_tournaments';
   const ARCHIVE_KEY = 'ot_archived_tournaments';
 
@@ -466,3 +467,4 @@ const Tournament = (() => {
     remove,
   };
 })();
+}

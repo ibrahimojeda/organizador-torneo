@@ -38,7 +38,23 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();
 
 -- =====================================================
--- 2. TORNEOS
+-- 2. ASOCIACIONES (Federaciones / Clubes Matriz)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS associations (
+  id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        TEXT         NOT NULL UNIQUE,
+  logo        TEXT,               -- URL del logo
+  website     TEXT,               -- Sitio web
+  notes       TEXT,               -- Información adicional
+  created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+-- Índice para búsqueda por nombre
+CREATE INDEX IF NOT EXISTS idx_associations_name ON associations(name);
+
+-- =====================================================
+-- 3. TORNEOS
 -- =====================================================
 CREATE TABLE IF NOT EXISTS tournaments (
   id              UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -126,6 +142,8 @@ CREATE TABLE IF NOT EXISTS registrations (
   category_id    UUID         NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
   competitor_id  UUID         NOT NULL REFERENCES competitors(id) ON DELETE CASCADE,
   seed           INTEGER,            -- Posición de cabeza de serie (NULL = sin sembrar)
+  status         TEXT         NOT NULL DEFAULT 'pending'
+                              CHECK (status IN ('pending', 'accepted', 'denied')),
   registered_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
   UNIQUE (category_id, competitor_id)
 );
@@ -176,10 +194,12 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS matches_updated_at ON matches;
 CREATE TRIGGER matches_updated_at
   BEFORE UPDATE ON matches
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS tournaments_updated_at ON tournaments;
 CREATE TRIGGER tournaments_updated_at
   BEFORE UPDATE ON tournaments
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -189,7 +209,8 @@ CREATE TRIGGER tournaments_updated_at
 -- =====================================================
 
 -- Vista: combates con nombres de competidores expandidos
-CREATE OR REPLACE VIEW matches_full AS
+DROP VIEW IF EXISTS matches_full;
+CREATE VIEW matches_full AS
 SELECT
   m.*,
   ca.name                              AS category_name,
@@ -212,7 +233,8 @@ LEFT JOIN registrations  rw    ON rw.id = m.winner_id
 LEFT JOIN competitors    compw ON compw.id = rw.competitor_id;
 
 -- Vista: estadísticas por torneo
-CREATE OR REPLACE VIEW tournament_stats AS
+DROP VIEW IF EXISTS tournament_stats;
+CREATE VIEW tournament_stats AS
 SELECT
   t.id,
   t.name,
@@ -233,6 +255,7 @@ GROUP BY t.id, t.name, t.status;
 
 -- Habilitar RLS en todas las tablas
 ALTER TABLE profiles          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE associations     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tournaments       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tournament_codes  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE competitors       ENABLE ROW LEVEL SECURITY;
@@ -241,65 +264,96 @@ ALTER TABLE registrations     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE matches           ENABLE ROW LEVEL SECURITY;
 
 -- ---- profiles ----
+DROP POLICY IF EXISTS "profiles: ver propio" ON profiles;
 CREATE POLICY "profiles: ver propio" ON profiles
   FOR SELECT USING (auth.uid() = id);
+DROP POLICY IF EXISTS "profiles: actualizar propio" ON profiles;
 CREATE POLICY "profiles: actualizar propio" ON profiles
   FOR UPDATE USING (auth.uid() = id);
 
 -- ---- tournaments ----
+DROP POLICY IF EXISTS "tournaments: ver públicos o propios" ON tournaments;
 CREATE POLICY "tournaments: ver públicos o propios" ON tournaments
   FOR SELECT USING (is_public = TRUE OR organizer_id = auth.uid());
+DROP POLICY IF EXISTS "tournaments: crear como organizador" ON tournaments;
 CREATE POLICY "tournaments: crear como organizador" ON tournaments
   FOR INSERT WITH CHECK (organizer_id = auth.uid());
+DROP POLICY IF EXISTS "tournaments: editar propios" ON tournaments;
 CREATE POLICY "tournaments: editar propios" ON tournaments
   FOR UPDATE USING (organizer_id = auth.uid());
+DROP POLICY IF EXISTS "tournaments: eliminar propios" ON tournaments;
 CREATE POLICY "tournaments: eliminar propios" ON tournaments
   FOR DELETE USING (organizer_id = auth.uid());
 
 -- ---- tournament_codes ----
+DROP POLICY IF EXISTS "codes: ver por organizador" ON tournament_codes;
 CREATE POLICY "codes: ver por organizador" ON tournament_codes
   FOR SELECT USING (
     tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
     OR auth.role() = 'anon'   -- lectura anónima para validar código
   );
+DROP POLICY IF EXISTS "codes: gestionar por organizador" ON tournament_codes;
 CREATE POLICY "codes: gestionar por organizador" ON tournament_codes
   FOR ALL USING (
     tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
   );
 
 -- ---- competitors ----
+DROP POLICY IF EXISTS "competitors: ver todos (autenticados)" ON competitors;
 CREATE POLICY "competitors: ver todos (autenticados)" ON competitors
   FOR SELECT USING (auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "competitors: crear autenticados" ON competitors;
 CREATE POLICY "competitors: crear autenticados" ON competitors
   FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "competitors: editar autenticados" ON competitors;
 CREATE POLICY "competitors: editar autenticados" ON competitors
   FOR UPDATE USING (auth.role() = 'authenticated');
 
 -- ---- categories ----
+DROP POLICY IF EXISTS "categories: ver públicas" ON categories;
 CREATE POLICY "categories: ver públicas" ON categories
   FOR SELECT USING (
     tournament_id IN (SELECT id FROM tournaments WHERE is_public = TRUE)
     OR tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
   );
+DROP POLICY IF EXISTS "categories: gestionar por organizador" ON categories;
 CREATE POLICY "categories: gestionar por organizador" ON categories
   FOR ALL USING (
     tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
   );
 
+-- ---- associations ----
+DROP POLICY IF EXISTS "associations: ver todos" ON associations;
+CREATE POLICY "associations: ver todos" ON associations
+  FOR SELECT USING (TRUE);
+DROP POLICY IF EXISTS "associations: crear super_admin" ON associations;
+CREATE POLICY "associations: crear super_admin" ON associations
+  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "associations: editar super_admin" ON associations;
+CREATE POLICY "associations: editar super_admin" ON associations
+  FOR UPDATE USING (auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "associations: eliminar super_admin" ON associations;
+CREATE POLICY "associations: eliminar super_admin" ON associations
+  FOR DELETE USING (auth.role() = 'authenticated');
+
 -- ---- registrations ----
+DROP POLICY IF EXISTS "registrations: ver autenticados" ON registrations;
 CREATE POLICY "registrations: ver autenticados" ON registrations
   FOR SELECT USING (auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "registrations: gestionar por organizador" ON registrations;
 CREATE POLICY "registrations: gestionar por organizador" ON registrations
   FOR ALL USING (
     tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
   );
 
 -- ---- matches ----
+DROP POLICY IF EXISTS "matches: ver públicos" ON matches;
 CREATE POLICY "matches: ver públicos" ON matches
   FOR SELECT USING (
     tournament_id IN (SELECT id FROM tournaments WHERE is_public = TRUE)
     OR tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
   );
+DROP POLICY IF EXISTS "matches: gestionar por organizador o árbitro" ON matches;
 CREATE POLICY "matches: gestionar por organizador o árbitro" ON matches
   FOR ALL USING (auth.role() = 'authenticated');
 
@@ -308,7 +362,15 @@ CREATE POLICY "matches: gestionar por organizador o árbitro" ON matches
 -- Habilitar Realtime en la tabla de combates para
 -- actualizar llaves en tiempo real en todas las vistas
 -- =====================================================
-ALTER PUBLICATION supabase_realtime ADD TABLE matches;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'matches'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE matches;
+  END IF;
+END $$;
 
 -- =====================================================
 -- DATOS SEMINALES DE PRUEBA (opcional — comentar en producción)
@@ -338,3 +400,13 @@ SELECT table_name, table_type
 FROM   information_schema.tables
 WHERE  table_schema = 'public'
 ORDER  BY table_name;
+
+-- =====================================================
+-- MIGRACIÓN: Agregar columna status a registrations
+-- (Solo si ya creaste la tabla sin status)
+-- =====================================================
+ALTER TABLE registrations
+ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending'
+CHECK (status IN ('pending', 'accepted', 'denied'));
+
+CREATE INDEX IF NOT EXISTS idx_registrations_status ON registrations(status);

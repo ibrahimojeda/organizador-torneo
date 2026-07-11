@@ -8,6 +8,7 @@ const Competitors = (() => {
   const TABLE_REG   = 'registrations';
   const DEV_KEY_C   = 'ot_dev_competitors';
   const DEV_KEY_R   = 'ot_dev_registrations';
+  const REG_STATUS  = { PENDING: 'pending', ACCEPTED: 'accepted', DENIED: 'denied' };
 
   /* ---- localStorage helpers (modo dev) ---- */
   function _devCompList()   { try { return JSON.parse(localStorage.getItem(DEV_KEY_C) || '[]'); } catch { return []; } }
@@ -138,6 +139,7 @@ const Competitors = (() => {
         id,
         category_id,
         seed,
+        status,
         competitors (
           id, full_name, document_id, gender, dob, weight,
           belt_id, club, country, photo_url, discipline
@@ -146,7 +148,7 @@ const Competitors = (() => {
       .eq('tournament_id', tournamentId)
       .order('registered_at');
     if (error) throw error;
-    return (data || []).map(r => ({ ...r.competitors, registration_id: r.id, category_id: r.category_id, seed: r.seed }));
+    return (data || []).map(r => ({ ...r.competitors, registration_id: r.id, category_id: r.category_id, seed: r.seed, status: r.status || 'pending' }));
   }
 
   /* --------------------------------------------------------
@@ -154,22 +156,49 @@ const Competitors = (() => {
   -------------------------------------------------------- */
   async function listByCategory(categoryId) {
     if (Auth.isDevMode()) return _devListByCategory(categoryId);
-    const { data, error } = await supabase
+    let query = supabase
       .from(TABLE_REG)
       .select(`
-        id, seed,
+        id, seed, status,
         competitors (
           id, full_name, document_id, gender, dob, weight, belt_id, club, country, photo_url
         )
       `)
       .eq('category_id', categoryId)
       .order('seed', { nullsFirst: true });
-    if (error) throw error;
+    // Solo filtrar denied si la columna status existe (fallback si no existe)
+    try { query = query.neq('status', 'denied'); } catch (_) {}
+    const { data, error } = await query;
+    if (error) {
+      // Si falla por la columna status, reintentar sin el filtro
+      if (error.message && error.message.includes('status')) {
+        const { data: d2, error: e2 } = await supabase
+          .from(TABLE_REG)
+          .select(`
+            id, seed,
+            competitors (
+              id, full_name, document_id, gender, dob, weight, belt_id, club, country, photo_url
+            )
+          `)
+          .eq('category_id', categoryId)
+          .order('seed', { nullsFirst: true });
+        if (e2) throw e2;
+        return (d2 || []).map(r => ({
+          ...r.competitors,
+          registration_id: r.id,
+          category_id:     categoryId,
+          seed:            r.seed,
+          status:          'pending',
+        }));
+      }
+      throw error;
+    }
     return (data || []).map(r => ({
       ...r.competitors,
       registration_id: r.id,
       category_id:     categoryId,
       seed:            r.seed,
+      status:          r.status || 'pending',
     }));
   }
 
@@ -255,6 +284,88 @@ const Competitors = (() => {
       .update({ category_id: newCategoryId })
       .eq('id', registrationId);
     if (error) throw error;
+  }
+
+  /* --------------------------------------------------------
+     CAMBIAR ESTADO DE INSCRIPCIÓN (accepted/denied/pending)
+     Si se niega, también elimina al competidor de las llaves
+     de su categoría actual.
+  -------------------------------------------------------- */
+  async function setStatus(registrationId, newStatus, tournamentId) {
+    if (Auth.isDevMode()) {
+      const regs = _devRegList().map(r =>
+        r.id === registrationId ? { ...r, status: newStatus } : r
+      );
+      _devSaveR(regs);
+      if (newStatus === REG_STATUS.DENIED && tournamentId) {
+        // En dev mode, re-generate brackets for affected categories
+        const reg = regs.find(r => r.id === registrationId);
+        if (reg) {
+          await Bracket.regenerate(reg.category_id).catch(() => {});
+        }
+      }
+      return;
+    }
+    const reg = await _getRegistrationById(registrationId);
+    if (!reg) throw new Error('Inscripción no encontrada.');
+
+    const { error } = await supabase
+      .from(TABLE_REG)
+      .update({ status: newStatus })
+      .eq('id', registrationId);
+    if (error) throw error;
+
+    if (newStatus === REG_STATUS.DENIED) {
+      // Eliminar al competidor de los combates pendientes en su categoría
+      await _removeFromMatches(registrationId, reg.category_id);
+      // Regenerar llaves de la categoría automáticamente
+      await Bracket.regenerate(reg.category_id).catch(() => {});
+    }
+  }
+
+  async function _removeFromMatches(registrationId, categoryId) {
+    if (Auth.isDevMode()) {
+      const list = JSON.parse(localStorage.getItem('ot_dev_matches') || '[]');
+      const updated = list.map(m => {
+        if (m.category_id !== categoryId) return m;
+        const upd = { ...m };
+        if (m.competitor_a_id === registrationId) upd.competitor_a_id = null;
+        if (m.competitor_b_id === registrationId) upd.competitor_b_id = null;
+        if (m.winner_id === registrationId) upd.winner_id = null;
+        return upd;
+      });
+      localStorage.setItem('ot_dev_matches', JSON.stringify(updated));
+      return;
+    }
+    // Limpiar referencia en combates pendientes — actualizar cada columna por separado
+    await supabase
+      .from('matches')
+      .update({ competitor_a_id: null })
+      .eq('competitor_a_id', registrationId)
+      .eq('category_id', categoryId)
+      .in('status', ['pending', 'bye']);
+    await supabase
+      .from('matches')
+      .update({ competitor_b_id: null })
+      .eq('competitor_b_id', registrationId)
+      .eq('category_id', categoryId)
+      .in('status', ['pending', 'bye']);
+    await supabase
+      .from('matches')
+      .update({ winner_id: null })
+      .eq('winner_id', registrationId)
+      .eq('category_id', categoryId)
+      .in('status', ['pending', 'bye']);
+  }
+
+  async function _getRegistrationById(id) {
+    if (Auth.isDevMode()) return _devRegList().find(r => r.id === id) || null;
+    const { data } = await supabase
+      .from(TABLE_REG)
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    return data || null;
   }
 
   /* --------------------------------------------------------
@@ -370,6 +481,39 @@ const Competitors = (() => {
     if (data.weight == null || isNaN(data.weight)) throw new Error('El peso es obligatorio.');
   }
 
+  /* ---- Detectar duplicados ---- */
+  async function detectDuplicates(tournamentId) {
+    const comps = await listByTournament(tournamentId);
+    const byDoc = {};
+    const dupes = [];
+    comps.forEach(c => {
+      if (c.document_id) {
+        if (byDoc[c.document_id]) {
+          if (!dupes.find(d => d.id === c.id) && !dupes.find(d => d.id === byDoc[c.document_id].id)) {
+            dupes.push(byDoc[c.document_id], c);
+          }
+        } else {
+          byDoc[c.document_id] = c;
+        }
+      }
+    });
+    return dupes;
+  }
+
+  /* ---- Eliminar competidor ---- */
+  async function remove(id) {
+    if (Auth.isDevMode()) {
+      const list = _devCompList().filter(c => c.id !== id);
+      _devSaveC(list);
+      const regs = _devRegList().filter(r => r.competitor_id !== id);
+      _devSaveR(regs);
+      return;
+    }
+    const { error } = await supabase.from(TABLE_COMP).delete().eq('id', id);
+    if (error) throw error;
+    await supabase.from(TABLE_REG).delete().eq('competitor_id', id);
+  }
+
   return {
     register,
     registerBatch,
@@ -380,6 +524,9 @@ const Competitors = (() => {
     setSeed,
     unregister,
     moveCategory,
+    setStatus,
     search,
+    detectDuplicates,
+    remove,
   };
 })();

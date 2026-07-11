@@ -195,6 +195,50 @@ const Bracket = (() => {
     return data || [];
   }
 
+  /**
+   * Genera el HTML de una llave profesional para impresión A4.
+   * @param {string} categoryId 
+   * @param {object} category 
+   */
+  async function renderPrintableBracket(categoryId, category) {
+    const matches = await getByCategoryId(categoryId);
+    if (!matches.length) return '<div class="text-center p-4">No hay combates generados para esta categoría.</div>';
+
+    const rounds = [...new Set(matches.map(m => m.round))].sort((a, b) => a - b);
+    
+    let html = `<div class="bracket-print-page">`;
+    html += `<div class="print-header">
+                <h1>${escape(category.name)}</h1>
+                <p>${escape(category.discipline)} - ${escape(category.gender)} - ${escape(category.age_group)}</p>
+              </div>`;
+    
+    html += `<div class="bracket-grid-print" style="display: flex; gap: 20px; align-items: flex-start;">`;
+    
+    for (const round of rounds) {
+      const roundMatches = matches.filter(m => m.round === round);
+      html += `<div class="bracket-round-print" style="display: flex; flex-direction: column; justify-content: space-around; height: 100%;">`;
+      html += `<div style="text-align:center; font-weight:bold; margin-bottom:10px;">Ronda ${round}</div>`;
+      
+      for (const m of roundMatches) {
+        const compA = m.competitor_a?.competitors?.full_name || '---';
+        const compB = m.competitor_b?.competitors?.full_name || '---';
+        const winner = m.winner?.competitors?.full_name || '';
+        
+        html += `
+          <div class="bracket-match" style="border: 1px solid black; width: 150px; margin-bottom: 15px; font-size: 10px;">
+            <div class="bracket-competitor ${winner === compA ? 'bracket-winner' : ''}" style="padding: 2px; border-bottom: 1px solid #ccc;">${escape(compA)}</div>
+            <div class="bracket-competitor ${winner === compB ? 'bracket-winner' : ''}" style="padding: 2px;">${escape(compB)}</div>
+          </div>`;
+      }
+      html += `</div>`;
+    }
+    
+    html += `</div></div>`;
+    return html;
+  }
+
+  function escape(s) { return String(s || '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
+
   /* --------------------------------------------------------
      REGENERAR LLAVES (borra y vuelve a crear)
   -------------------------------------------------------- */
@@ -472,6 +516,24 @@ const Bracket = (() => {
       tatami:           data.tatami ?? data.category?.tatami ?? null,
       scheduled_time:   null,
     };
+  }
+
+  /* --------------------------------------------------------
+     GENERAR TODAS LAS LLAVES DE UN TORNEO
+     Itera las categorías y llama a generate(categoryId)
+  -------------------------------------------------------- */
+  async function generateAll(tournamentId) {
+    const cats = await Categories.listByTournament(tournamentId);
+    const results = [];
+    for (const c of cats) {
+      try {
+        const res = await generate(c.id);
+        results.push({ category: c.id, ok: true, matches: res.matches?.length || 0, warnings: res.warnings || [] });
+      } catch (e) {
+        results.push({ category: c.id, ok: false, error: e.message });
+      }
+    }
+    return results;
   }
 
   /** Mezcla y respeta seeds; si presorted=true no baraja los sin-seed. */
@@ -803,6 +865,7 @@ const Bracket = (() => {
     advanceKataRound,
     checkAndSavePodio,
     getPodio,
+    generateAll,
     // Expuesto para tests
     _buildRoundRobin,
     _buildSingleElimination,

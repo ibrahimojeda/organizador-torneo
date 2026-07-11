@@ -36,6 +36,16 @@ const Matches = (() => {
     }
   }
 
+  function _formatSupabaseError(err) {
+    try {
+      const code = err?.code || err?.status || '';
+      const msg = err?.message || (typeof err === 'string' ? err : JSON.stringify(err));
+      return code ? `${code}: ${msg}` : msg;
+    } catch (_) {
+      return 'Supabase error';
+    }
+  }
+
   function _broadcastTournamentUpdate(tournamentId, type = 'sync', matchId = null) {
     try {
       const ch = new BroadcastChannel('ot_matches_' + tournamentId);
@@ -712,7 +722,10 @@ const Matches = (() => {
       else query = query.eq('notes', match.notes);
 
       const { data, error } = await query.select();
-      if (error) throw error;
+      if (error) {
+        console.error('[Matches.updateLiveState] Supabase error (first try):', error);
+        throw new Error(_formatSupabaseError(error));
+      }
       const row = Array.isArray(data) ? data[0] : null;
       if (row) return row;
     }
@@ -749,7 +762,10 @@ const Matches = (() => {
         .update(payload)
         .eq('id', matchId)
         .select();
-      if (error) throw error;
+      if (error) {
+        console.error('[Matches.updateLiveState] Supabase error (fallback):', error);
+        throw new Error(_formatSupabaseError(error));
+      }
       const row = Array.isArray(data) ? data[0] : null;
       if (!row) {
         throw new Error('Supabase no permitio guardar el estado en vivo del combate (0 filas afectadas por RLS).');
@@ -783,6 +799,7 @@ const Matches = (() => {
         tatami: refereeInfo.tatami || null,
         discipline,
         updated_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
       };
       nextLive.referee_sessions[discipline + ':' + seat] = entry;
       nextLive[discipline].referees = { ...(nextLive[discipline].referees || {}), [seat]: entry };
@@ -796,6 +813,56 @@ const Matches = (() => {
         message: `${refereeInfo.name || 'Juez'} se conectó en ${seat} para ${discipline}.`,
       },
     });
+  }
+
+  /* --------------------------------------------------------
+     VOTACION POR BANDERAS (WKF-2026) — Opt-in por categoría
+     submitFlagVote(matchId, seat, vote) : vote = 'a' | 'b'
+  -------------------------------------------------------- */
+  async function submitFlagVote(matchId, seat, vote) {
+    if (!['a','b'].includes(String(vote))) throw new Error('Vote must be "a" or "b"');
+    const match = await getById(matchId);
+    const catMode = match?.category?.kata_mode || (match?.category?.rules && match.category.rules.kata_mode);
+    if (match.bracket_type !== 'kata_round' || String(catMode) !== 'flag') {
+      throw new Error('Esta categoría no usa modo de banderas.');
+    }
+    return updateLiveState(matchId, (nextLive) => {
+      nextLive.kata = nextLive.kata || {};
+      nextLive.kata.flags = nextLive.kata.flags || {};
+      nextLive.kata.flags[seat] = { seat, vote: String(vote), submitted_at: new Date().toISOString() };
+      return nextLive;
+    }, { logEntry: { type: 'flag_vote', label: 'Voto por bandera', message: `Voto ${vote} en ${seat}`, actor: Auth.getUserId(), seat } });
+  }
+
+  function _getFlagSummaryFromLive(live) {
+    const flags = live?.kata?.flags || {};
+    const counts = { a: 0, b: 0 };
+    Object.values(flags).forEach(f => { if (f && f.vote) { const v = String(f.vote); if (v === 'a' || v === 'b') counts[v]++; } });
+    const total = counts.a + counts.b;
+    const leading = counts.a === counts.b ? null : (counts.a > counts.b ? 'a' : 'b');
+    return { counts, total, leading, ready: total >= 3 || (total > 0 && leading && Math.abs(counts.a - counts.b) >= 3) };
+  }
+
+  async function getFlagSummary(matchId) {
+    const match = await getById(matchId);
+    const live = getLiveState(match);
+    return _getFlagSummaryFromLive(live);
+  }
+
+  async function resolveKataByFlags(matchId) {
+    const match = await getById(matchId);
+    const catMode = match?.category?.kata_mode || (match?.category?.rules && match.category.rules.kata_mode);
+    if (match.bracket_type !== 'kata_round' || String(catMode) !== 'flag') {
+      throw new Error('Esta categoría no usa modo de banderas.');
+    }
+    const live = getLiveState(match);
+    const summary = _getFlagSummaryFromLive(live);
+    if (!summary.leading) throw new Error('Empate - no se puede resolver automáticamente.');
+    // Determine winner id: 'a' -> competitor_a_id, 'b' -> competitor_b_id
+    const winnerId = summary.leading === 'a' ? match.competitor_a_id : match.competitor_b_id;
+    if (!winnerId) throw new Error('No hay competidor para la posición seleccionada.');
+    const notes = { live: { kata: { resolved_by_flags: true, flag_summary: summary } } };
+    return recordResult(matchId, { winner_id: winnerId, score_a: null, score_b: null, notes });
   }
 
   async function saveKataJudgeScore(matchId, judgeInfo = {}, score) {
@@ -947,6 +1014,57 @@ const Matches = (() => {
       live.kumite.clock_remaining = remaining;
       live.kumite.clock_running = running;
       return live;
+    });
+  }
+
+  /* --------------------------------------------------------
+     PING / PONG helpers for latency testing between Mesa and Juez
+  -------------------------------------------------------- */
+  async function pingMatch(matchId) {
+    return updateLiveState(matchId, (live) => {
+      const pkt = {
+        id: 'ping-' + Date.now() + '-' + Math.random().toString(36).slice(2,7),
+        at: new Date().toISOString(),
+        from: 'mesa',
+      };
+      live.kumite = live.kumite || {};
+      live.kumite.ping = pkt;
+      return live;
+    }, {
+      logEntry: {
+        type: 'ping',
+        label: 'Ping de Mesa',
+        message: 'Ping enviado desde Mesa Tecnica',
+      },
+    });
+  }
+
+  async function pongReferee(matchId, refereeInfo = {}) {
+    return updateLiveState(matchId, (live) => {
+      const pkt = {
+        id: 'pong-' + Date.now() + '-' + Math.random().toString(36).slice(2,7),
+        at: new Date().toISOString(),
+        seat: refereeInfo.seat || null,
+        code: refereeInfo.code || null,
+        from: 'referee',
+      };
+      live.kumite = live.kumite || {};
+      live.kumite.last_pong = pkt;
+      // also track per-referee last_pong in referee_sessions
+      if (refereeInfo.seat) {
+        live.referee_sessions = live.referee_sessions || {};
+        const key = (refereeInfo.discipline || 'kumite') + ':' + refereeInfo.seat;
+        live.referee_sessions[key] = { ...(live.referee_sessions[key] || {}), last_pong_at: pkt.at };
+      }
+      return live;
+    }, {
+      logEntry: {
+        type: 'pong',
+        label: 'Pong de Juez',
+        seat: refereeInfo.seat || null,
+        actor: refereeInfo.name || refereeInfo.code || 'Juez',
+        message: `Pong desde ${refereeInfo.seat || 'Juez'}`,
+      },
     });
   }
 
@@ -1291,6 +1409,8 @@ const Matches = (() => {
     setKumiteWinner,
     setKumiteScoreboard,
     setKumiteClock,
+    pingMatch,
+    pongReferee,
     getLiveState,
     getRefereePresence,
     isJudgeActive,
@@ -1298,6 +1418,9 @@ const Matches = (() => {
     getKumiteCallDecision,
     getKumiteSummary,
     getBitacora,
+    submitFlagVote,
+    getFlagSummary,
+    resolveKataByFlags,
     buildTournamentBitacora,
     getRoundRobinStandings,
   };

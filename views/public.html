@@ -717,6 +717,132 @@
     return !!(payload && payload.mode === 'category_awards' && Array.isArray(payload.podium) && payload.podium.length);
   }
 
+  function _isGenericBoardProjection(payload) {
+    return !!(payload && payload.mode === 'generic_board' && (payload.boardType === 'kata' || payload.boardType === 'kumite'));
+  }
+
+  function _formatProjectionSeconds(seconds) {
+    const total = Number.isFinite(Number(seconds)) ? Math.max(0, Number(seconds)) : 0;
+    const mm = Math.floor(total / 60);
+    const ss = total % 60;
+    return `${mm}:${String(ss).padStart(2, '0')}`;
+  }
+
+  function _computeWkfKataScore(judgeScores = []) {
+    const valid = (Array.isArray(judgeScores) ? judgeScores : [])
+      .map((n) => Number(n))
+      .filter((n) => Number.isFinite(n));
+    if (!valid.length) return null;
+    if (valid.length < 5) {
+      const total = valid.reduce((sum, n) => sum + n, 0);
+      return Number(total.toFixed(2));
+    }
+    const ordered = [...valid].sort((a, b) => a - b);
+    const middle = ordered.slice(1, -1);
+    if (!middle.length) return null;
+    const total = middle.reduce((sum, n) => sum + n, 0);
+    return Number(total.toFixed(2));
+  }
+
+  function _renderGenericBoardProjection(payload) {
+    const boardType = payload?.boardType === 'kumite' ? 'kumite' : 'kata';
+    const title = payload?.title || (boardType === 'kata' ? 'Pantalla Generica Kata' : 'Pantalla Generica Kumite');
+
+    if (boardType === 'kata') {
+      const headerClock = new Date().toLocaleTimeString('es-ES', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
+      const name = payload?.kata?.name || 'Competidor Kata';
+      const judgeScoresRaw = Array.isArray(payload?.kata?.judgeScores) ? payload.kata.judgeScores : [];
+      const judgeScores = judgeScoresRaw.slice(0, 5).map((s) => {
+        const n = Number(s);
+        return Number.isFinite(n) ? n : null;
+      });
+      while (judgeScores.length < 5) judgeScores.push(null);
+      const validJudges = judgeScores.filter((n) => Number.isFinite(n));
+      const scoreNum = Number(payload?.kata?.score);
+      const scoreFromJudges = _computeWkfKataScore(validJudges);
+      const resolvedScore = Number.isFinite(scoreNum)
+        ? scoreNum
+        : (Number.isFinite(scoreFromJudges) ? scoreFromJudges : Number.NaN);
+      const scoreText = Number.isFinite(resolvedScore) ? resolvedScore.toFixed(2) : '—';
+      const judgesHtml = judgeScores.map((score, idx) => {
+        const text = Number.isFinite(score) ? Number(score).toFixed(2) : '—';
+        return `
+          <div style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:.5rem .4rem;">
+            <div style="font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;opacity:.8;">J${idx + 1}</div>
+            <div style="margin-top:.15rem;font-size:clamp(1.1rem,2.3vw,1.7rem);font-weight:900;line-height:1;">${text}</div>
+          </div>`;
+      }).join('');
+      return `
+        <div class="projection-header">
+          <div>
+            <div class="projection-label">Tatami ${payload?.tatami || state.displayTatami || '—'} · Modo libre</div>
+            <div class="projection-title">${title}</div>
+          </div>
+          <div class="projection-clock">${headerClock}</div>
+        </div>
+        <div class="match-display" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:24px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.35);">
+          <div class="match-header" style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:1rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);">
+            <span>Kata</span>
+            <span>Captura manual de Mesa</span>
+          </div>
+          <div style="padding:2rem 1.5rem;text-align:center;">
+            <div style="font-size:clamp(2rem,4vw,3.4rem);font-weight:900;line-height:1.1;">${name}</div>
+            <div style="margin-top:1rem;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.55rem;">${judgesHtml}</div>
+            <div style="margin-top:.75rem;font-size:clamp(4rem,9vw,7rem);font-weight:900;line-height:1;color:#c4b5fd;">${scoreText}</div>
+          </div>
+        </div>`;
+    }
+
+    const nameA = payload?.kumite?.competitorAName || 'AO';
+    const nameB = payload?.kumite?.competitorBName || 'AKA';
+    const scoreA = Math.max(0, Number.parseInt(payload?.kumite?.scoreA, 10) || 0);
+    const scoreB = Math.max(0, Number.parseInt(payload?.kumite?.scoreB, 10) || 0);
+    const assignedSeconds = Number.isFinite(Number(payload?.kumite?.assignedSeconds))
+      ? Math.max(10, Number(payload.kumite.assignedSeconds))
+      : 180;
+    const warnA = {
+      c1: Math.min(4, Math.max(0, Number.parseInt(payload?.kumite?.warnA?.c1, 10) || 0)),
+      c2: Math.min(4, Math.max(0, Number.parseInt(payload?.kumite?.warnA?.c2, 10) || 0)),
+    };
+    const warnB = {
+      c1: Math.min(4, Math.max(0, Number.parseInt(payload?.kumite?.warnB?.c1, 10) || 0)),
+      c2: Math.min(4, Math.max(0, Number.parseInt(payload?.kumite?.warnB?.c2, 10) || 0)),
+    };
+    return `
+      <div class="projection-header">
+        <div>
+          <div class="projection-label">Tatami ${payload?.tatami || state.displayTatami || '—'} · Modo libre</div>
+          <div class="projection-title">${title}</div>
+        </div>
+        <div class="projection-clock">${_formatProjectionSeconds(assignedSeconds)}</div>
+      </div>
+      <div class="match-display" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:24px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.35);">
+        <div class="match-header" style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:1rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);">
+          <span>Kumite</span>
+          <span>Captura manual de Mesa</span>
+        </div>
+        <div style="padding:1.5rem;display:grid;grid-template-columns:1fr auto 1fr;gap:1rem;align-items:stretch;">
+          <div style="background:linear-gradient(135deg,#1d4ed8,#0f3ea8);border-radius:20px;padding:1.2rem;display:flex;flex-direction:column;justify-content:center;text-align:center;">
+            <div style="font-size:.9rem;opacity:.85;letter-spacing:.06em;text-transform:uppercase;">AO</div>
+            <div style="font-size:clamp(1.8rem,3vw,2.8rem);font-weight:900;line-height:1.1;margin-top:.3rem;">${nameA}</div>
+            <div style="font-size:clamp(4rem,8vw,6rem);font-weight:900;line-height:1;margin-top:.65rem;">${scoreA}</div>
+            ${_renderPenaltyBars(warnA)}
+          </div>
+          <div style="display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;opacity:.7;">VS</div>
+          <div style="background:linear-gradient(135deg,#dc2626,#991b1b);border-radius:20px;padding:1.2rem;display:flex;flex-direction:column;justify-content:center;text-align:center;">
+            <div style="font-size:.9rem;opacity:.85;letter-spacing:.06em;text-transform:uppercase;">AKA</div>
+            <div style="font-size:clamp(1.8rem,3vw,2.8rem);font-weight:900;line-height:1.1;margin-top:.3rem;">${nameB}</div>
+            <div style="font-size:clamp(4rem,8vw,6rem);font-weight:900;line-height:1;margin-top:.65rem;">${scoreB}</div>
+            ${_renderPenaltyBars(warnB)}
+          </div>
+        </div>
+      </div>`;
+  }
+
   function _awardLabel(position) {
     if (position === 1) return 'ORO';
     if (position === 2) return 'PLATA';
@@ -866,6 +992,11 @@
         : matches;
       _syncProjectionTargetFromStorage();
       const projectionLive = state.displayMode ? _readProjectionLive() : null;
+      if (state.displayMode && _isGenericBoardProjection(projectionLive)) {
+        wrap.style.display = 'block';
+        content.innerHTML = _renderGenericBoardProjection(projectionLive);
+        return;
+      }
       if (state.displayMode && _isCategoryAwardsProjection(projectionLive)) {
         wrap.style.display = 'block';
         content.innerHTML = _renderCategoryAwardsProjection(projectionLive);

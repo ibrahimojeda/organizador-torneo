@@ -1,27 +1,3 @@
-  /* ---- Activar/desactivar usuario (solo super_admin) ---- */
-  async function updateActive(userId, isActive) {
-    if (!_initSupabase()) throw new Error('Supabase no está configurado.');
-    if (!isSuperAdmin()) throw new Error('Solo el super administrador puede cambiar el estado.');
-    const { error } = await supabase
-      .from('profiles')
-      .update({ active: isActive })
-      .eq('id', userId);
-    if (error) throw error;
-  }
-
-  async function toggleActive(userId) {
-    if (!_initSupabase()) throw new Error('Supabase no está configurado.');
-    if (!isSuperAdmin()) throw new Error('Solo el super administrador puede cambiar el estado.');
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('active')
-      .eq('id', userId)
-      .single();
-    if (error) throw error;
-    const newActive = !data.active;
-    await updateActive(userId, newActive);
-    return newActive;
-  }
 /* ============================================================
    AUTH.JS — Autenticación y manejo de roles
    ============================================================ */
@@ -624,6 +600,31 @@ const Auth = (() => {
       return false;
     }
     return true;
+  }
+
+  /* ---- Activar/desactivar usuario (solo super_admin) ---- */
+  async function updateActive(userId, isActive) {
+    if (!_initSupabase()) throw new Error('Supabase no está configurado.');
+    if (!isSuperAdmin()) throw new Error('Solo el super administrador puede cambiar el estado.');
+    const { error } = await supabase
+      .from('profiles')
+      .update({ active: isActive })
+      .eq('id', userId);
+    if (error) throw error;
+  }
+
+  async function toggleActive(userId) {
+    if (!_initSupabase()) throw new Error('Supabase no está configurado.');
+    if (!isSuperAdmin()) throw new Error('Solo el super administrador puede cambiar el estado.');
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('active')
+      .eq('id', userId)
+      .single();
+    if (error) throw error;
+    const newActive = !data.active;
+    await updateActive(userId, newActive);
+    return newActive;
   }
 
   return {

@@ -22,9 +22,20 @@
   document.querySelectorAll('.sidebar-item').forEach(btn => {
     btn.addEventListener('click', function () {
       const panel = btn.getAttribute('data-panel');
-      if (panel) showPanel(panel);
+      if (panel) {
+        showPanel(panel);
+        // Forzar actualización de reportes si entramos al centro de reportes
+        if (panel === 'reports-center') {
+          window.dispatchEvent(new CustomEvent('panel-changed', { detail: 'reports-center' }));
+        }
+      }
     });
   });
+
+  // Soporte para cambio de panel desde otras ventanas (ej. admin.html)
+  window.switchPanel = function(panel) {
+    showPanel(panel);
+  };
 
   // Botón logout
   const btnLogout = document.getElementById('btn-logout');

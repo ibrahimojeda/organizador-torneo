@@ -5,6 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Panel Super Admin — Torneo Karate</title>
   <link rel="stylesheet" href="../css/styles.css" />
+  <script>
+    window.onerror = function(msg, url, line, col, error) {
+      const alertDiv = document.createElement('div');
+      alertDiv.style = 'position:fixed;top:20px;right:20px;z-index:9999;background:#ef4444;color:white;padding:1rem;border-radius:8px;font-family:monospace;box-shadow:0 4px 12px rgba(0,0,0,0.3);max-width:400px;border:2px solid white;';
+      alertDiv.innerHTML = `<strong>🚨 ERROR CRÍTICO</strong><br><small>${msg}</small><br>Línea: ${line}, Col: ${col}`;
+      document.body.appendChild(alertDiv);
+      setTimeout(() => alertDiv.remove(), 10000);
+      return false;
+    };
+    window.onunhandledrejection = function(event) {
+      const alertDiv = document.createElement('div');
+      alertDiv.style = 'position:fixed;top:20px;right:20px;z-index:9999;background:#f59e0b;color:white;padding:1rem;border-radius:8px;font-family:monospace;box-shadow:0 4px 12px rgba(0,0,0,0.3);max-width:400px;border:2px solid white;';
+      alertDiv.innerHTML = `<strong>⚠️ PROMESA RECHAZADA</strong><br><small>${event.reason}</small>`;
+      document.body.appendChild(alertDiv);
+      setTimeout(() => alertDiv.remove(), 10000);
+    };
+  </script>
 </head>
 <body>
 <!-- Navbar -->
@@ -67,6 +84,9 @@
       <div class="sidebar-item" data-panel="medals">
         <span class="icon">🏅</span> Medallero
       </div>
+      <div class="sidebar-item" data-panel="reports-center">
+        <span class="icon">🖨️</span> Centro de Reportes
+      </div>
     </div>
   </aside>
   <main class="main-content">
@@ -115,6 +135,48 @@
       </div>
       <div id="settings-panel"></div>
     </section>
+    <!-- =========================================================
+         PANEL: CENTRO DE REPORTES
+    ========================================================== -->
+    <section id="panel-reports-center" class="panel" style="display:none;">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Centro de Reportes e Impresiones</h1>
+          <p class="page-subtitle">Genera y exporta todos los documentos oficiales del torneo</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <label class="form-label mb-0">Torneo:</label>
+          <select class="form-control" id="report-tournament-select" style="min-width:220px;max-width:320px;">
+            <option value="">— Selecciona un torneo —</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid-3 gap-4">
+        <div class="card">
+          <h3 class="card-title mb-3">⚔️ Competición</h3>
+          <div class="flex flex-col gap-2">
+            <button class="btn btn-outline btn-block" id="btn-report-brackets">🖨️ Imprimir Llaves (A4)</button>
+            <button class="btn btn-outline btn-block" id="btn-report-medals">🏅 Imprimir Medallero</button>
+            <button class="btn btn-outline btn-block" id="btn-report-schedule">📅 Imprimir Programación</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3 class="card-title mb-3">🧾 Administración</h3>
+          <div class="flex flex-col gap-2">
+            <button class="btn btn-outline btn-block" id="btn-report-invoices">💸 Reporte de Pagos</button>
+            <button class="btn btn-outline btn-block" id="btn-report-competitors">👤 Lista de Competidores</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3 class="card-title mb-3">⚙️ Opciones</h3>
+          <div class="text-sm text-muted mb-3">Ajustes rápidos para la salida de documentos.</div>
+          <div class="flex flex-col gap-2">
+            <button class="btn btn-ghost btn-sm btn-block" onclick="window.print()">🖨️ Vista Previa de Página</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Paneles de gestión extendidos -->
     <section id="panel-competitors" class="panel" style="display:none;"></section>
     <section id="panel-categories" class="panel" style="display:none;"></section>
@@ -139,5 +201,8 @@
   <script src="../js/superadmin-management.js"></script>
   <script src="../js/superadmin-logs.js"></script>
   <script src="../js/superadmin-settings.js"></script>
+  <script src="../js/reports.js"></script>
+  <script src="../js/reports-center.js"></script>
+  <!-- superadmin-reports.js eliminado para evitar conflictos con reports-center.js -->
 </body>
 </html>

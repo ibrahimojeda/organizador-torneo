@@ -43,17 +43,54 @@
       <div id="judge-live-title" style="font-size:1.15rem;font-weight:800;">Tatami —</div>
       <div id="judge-live-meta" class="text-sm" style="opacity:.8;">Esperando combate…</div>
     </div>
-    <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;">
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;">
       <span class="badge badge-blue" id="judge-live-seat">—</span>
       <span class="badge badge-gold" id="judge-live-id">—</span>
+      <span class="badge" id="judge-conn-indicator" style="background:#0f172a;color:#fff;border:1px solid #334155;">—</span>
+      <span class="badge" id="judge-timer-display" style="background:#0f172a;color:#fff;border:1px solid #334155;">—</span>
       <button class="btn btn-outline btn-sm" id="btn-judge-exit">Salir</button>
     </div>
   </div>
-
+    <div id="judge-flag-screen" style="display:none;padding:1rem;">
+      <div class="card" style="padding:1rem;background:#111827;color:#fff;border:1px solid #334155;text-align:center;">
+        <div class="text-sm mb-3" style="opacity:.8;">Votación por Banderas (WKF-2026)</div>
+        <div class="grid-2 gap-3">
+          <div class="form-group">
+            <label class="form-label" style="color:#fff;">Puntaje AO</label>
+            <input type="number" id="judge-flag-score-a" class="form-control" step="0.01" placeholder="0.00" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="color:#fff;">Puntaje AKA</label>
+            <input type="number" id="judge-flag-score-b" class="form-control" step="0.01" placeholder="0.00" />
+          </div>
+        </div>
+        <button class="btn btn-primary btn-block mt-3" id="btn-submit-flag-vote">Enviar Voto</button>
+        <div id="judge-flag-status" class="text-sm mt-3" style="opacity:.8;">Esperando decisión...</div>
+      </div>
+    </div>
   <div id="judge-kata-screen" style="display:none;padding:1rem;">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:.75rem;">
       <div class="text-sm" id="judge-kata-refresh-status" style="opacity:.8;">Puedes refrescar manualmente para verificar la llegada de notas.</div>
       <button class="btn btn-outline btn-sm" id="btn-refresh-kata">Actualizar kata</button>
+    </div>
+    <div class="card" style="padding:.75rem;background:#0b1220;color:#fff;border:1px solid #334155;max-width:280px;margin-bottom:.75rem;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;">
+        <div>
+          <div style="font-size:.78rem;opacity:.8;">Temporizador Kata</div>
+          <div id="judge-kata-timer-display" style="font-weight:800;font-size:1.1rem;">0:35</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.35rem;align-items:flex-end;">
+          <div>
+            <button class="btn btn-sm" id="btn-kata-start">Iniciar</button>
+            <button class="btn btn-sm" id="btn-kata-pause" style="display:none;">Pausar</button>
+            <button class="btn btn-sm" id="btn-kata-reset">Reset</button>
+          </div>
+          <div style="margin-top:.25rem;">
+            <label class="text-xs" style="opacity:.8;">Segundos:</label>
+            <input id="judge-kata-seconds" type="number" min="5" max="180" value="35" style="width:72px;margin-left:.35rem;padding:.25rem;border-radius:6px;border:1px solid #334155;background:#0b1220;color:#fff;" />
+          </div>
+        </div>
+      </div>
     </div>
     <div class="card" style="padding:1rem;background:#111827;color:#fff;border:1px solid #334155;max-width:420px;">
       <label class="form-label" style="color:#fff;">Nota del juez</label>
@@ -61,392 +98,7 @@
       <div class="text-sm mt-2" style="opacity:.8;">Solo valores entre 0.00 y 9.99.</div>
       <button class="btn btn-primary mt-3" id="btn-send-kata-score" type="button">Enviar nota</button>
     </div>
-    <div id="judge-last-sent" class="card mt-3" style="padding:.75rem;background:#111827;color:#fff;border:1px solid #334155;">Sin acción enviada.</div>
-  </div>
-
-  <div id="judge-kumite-screen" style="display:none;min-height:calc(100vh - 84px);padding:1rem;">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;min-height:65vh;">
-      <div style="background:#1565c0;border-radius:14px;padding:1rem;display:flex;flex-direction:column;justify-content:space-between;">
-        <div>
-          <div style="font-size:.8rem;opacity:.8;text-transform:uppercase;letter-spacing:.1em;">AO</div>
-          <div style="font-size:1.15rem;font-weight:900;">Panel azul</div>
-        </div>
-        <div style="display:grid;gap:.65rem;">
-          <button class="btn" style="background:#0f766e;color:#fff;border:none;font-size:1.05rem;padding:1rem;" onclick="sendJudgeKumite('a','yuko')">YUKO</button>
-          <button class="btn" style="background:#0369a1;color:#fff;border:none;font-size:1.05rem;padding:1rem;" onclick="sendJudgeKumite('a','wazaari')">WAZARI</button>
-          <button class="btn" style="background:#7c3aed;color:#fff;border:none;font-size:1.05rem;padding:1rem;" onclick="sendJudgeKumite('a','ippon')">IPPON</button>
-        </div>
-        <div style="display:grid;gap:.5rem;margin-top:1rem;">
-          <button class="btn btn-sm" style="background:#d97706;color:#fff;border:none;padding:.8rem;" onclick="sendJudgePenalty('a','c1')">FALTA C1</button>
-          <button class="btn btn-sm" style="background:#b45309;color:#fff;border:none;padding:.8rem;" onclick="sendJudgePenalty('a','c2')">FALTA C2</button>
-        </div>
-      </div>
-
-      <div style="background:#c62828;border-radius:14px;padding:1rem;display:flex;flex-direction:column;justify-content:space-between;">
-        <div>
-          <div style="font-size:.8rem;opacity:.8;text-transform:uppercase;letter-spacing:.1em;">AKA</div>
-          <div style="font-size:1.15rem;font-weight:900;">Panel rojo</div>
-        </div>
-        <div style="display:grid;gap:.65rem;">
-          <button class="btn" style="background:#0f766e;color:#fff;border:none;font-size:1.05rem;padding:1rem;" onclick="sendJudgeKumite('b','yuko')">YUKO</button>
-          <button class="btn" style="background:#0369a1;color:#fff;border:none;font-size:1.05rem;padding:1rem;" onclick="sendJudgeKumite('b','wazaari')">WAZARI</button>
-          <button class="btn" style="background:#7c3aed;color:#fff;border:none;font-size:1.05rem;padding:1rem;" onclick="sendJudgeKumite('b','ippon')">IPPON</button>
-        </div>
-        <div style="display:grid;gap:.5rem;margin-top:1rem;">
-          <button class="btn btn-sm" style="background:#d97706;color:#fff;border:none;padding:.8rem;" onclick="sendJudgePenalty('b','c1')">FALTA C1</button>
-          <button class="btn btn-sm" style="background:#b45309;color:#fff;border:none;padding:.8rem;" onclick="sendJudgePenalty('b','c2')">FALTA C2</button>
-        </div>
-      </div>
-    </div>
-    <div id="judge-kumite-status" class="card mt-3" style="padding:.75rem;background:#111827;color:#fff;border:1px solid #334155;">Sin acción enviada.</div>
   </div>
 </div>
-
-<div id="toast-container"></div>
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
-<script src="../js/config.js?v=20260424a"></script>
-<script src="../js/auth.js?v=20260421b"></script>
-<script src="../js/tournament.js"></script>
-<script src="../js/categories.js"></script>
-<script src="../js/competitors.js"></script>
-<script src="../js/bracket.js"></script>
-<script src="../js/matches.js?v=20260421c"></script>
-<script src="../js/display.js"></script>
-<script>
-(function () {
-  if (SUPABASE_URL && SUPABASE_ANON_KEY && typeof supabase.from !== 'function') {
-    window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  }
-
-  const params = new URLSearchParams(window.location.search);
-  const authSession = Auth.getSession();
-  const tournamentId = params.get('t') || params.get('tournament') || authSession?.tournamentId;
-  const tatami = params.get('tatami') || authSession?.judgeTatami;
-  const discipline = (params.get('discipline') || authSession?.judgeDiscipline || 'kumite').toLowerCase();
-  const access = params.get('access') || authSession?.judgeAccessCode;
-
-  const STORE_KEY = 'ot_judge_session_' + (access || 'judge');
-  const saved = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
-
-  const state = {
-    tournamentId,
-    tatami,
-    discipline,
-    access,
-    currentMatch: null,
-    judgeId: saved.judgeId || ('JZ-' + generateId().slice(-6).toUpperCase()),
-    judgeName: saved.judgeName || '',
-    seat: saved.seat || '',
-    joined: !!saved.joined,
-    realtimeSub: null,
-    poll: null,
-    heartbeat: null,
-  };
-
-  document.getElementById('judge-name').value = state.judgeName;
-  document.getElementById('judge-id-badge').textContent = state.judgeId;
-  document.getElementById('judge-live-id').textContent = state.judgeId;
-
-  if (!state.tournamentId || !state.tatami || !state.access) {
-    document.getElementById('join-title').textContent = 'Acceso de juez inválido';
-    document.getElementById('join-meta').textContent = 'Solicita a la mesa técnica un nuevo enlace.';
-    document.getElementById('btn-join-judge').disabled = true;
-    return;
-  }
-
-  // Modo radical: Mesa Tecnica es la unica fuente de puntaje.
-  document.getElementById('join-title').textContent = 'Panel de juez deshabilitado';
-  document.getElementById('join-meta').textContent = 'Puntuacion centralizada: solo Mesa Tecnica puede registrar puntajes.';
-  document.getElementById('join-status').textContent = 'Solicita a Mesa Tecnica cualquier ajuste de Kata o Kumite.';
-  document.getElementById('btn-join-judge').disabled = true;
-  document.getElementById('btn-send-kata-score').disabled = true;
-  document.getElementById('judge-kata-score-input').disabled = true;
-  return;
-
-  if (state.joined && state.judgeName && state.seat) showJudgePanel();
-  loadContext();
-  subscribeRealtime();
-  state.poll = setInterval(loadCurrentMatch, 60000);
-  state.heartbeat = setInterval(async () => {
-    if (!state.joined || !state.currentMatch?.id || !state.seat) return;
-    try {
-      await Matches.registerReferee(state.currentMatch.id, {
-        seat: state.seat,
-        name: state.judgeName,
-        code: state.judgeId,
-        tatami: state.tatami,
-        discipline: state.discipline,
-      });
-    } catch (_) {}
-  }, 30000);
-
-  function persistState() {
-    localStorage.setItem(STORE_KEY, JSON.stringify({
-      judgeId: state.judgeId,
-      judgeName: state.judgeName,
-      seat: state.seat,
-      joined: state.joined,
-    }));
-  }
-
-  function humanDiscipline(value) {
-    return value === 'kata' ? 'Kata' : 'Kumite';
-  }
-
-  function getMatchDiscipline(match) {
-    return match?.category?.discipline || (match?.bracket_type === 'kata_round' ? 'kata' : 'kumite');
-  }
-
-  async function loadContext() {
-    try {
-      const tournament = await Tournament.getById(state.tournamentId);
-      document.getElementById('join-title').textContent = tournament?.name || 'Panel de Juez';
-      document.getElementById('join-meta').textContent = `Tatami ${state.tatami} · ${humanDiscipline(state.discipline)}`;
-    } catch (_) {
-      document.getElementById('join-title').textContent = 'Panel de Juez';
-      document.getElementById('join-meta').textContent = `Tatami ${state.tatami} · ${humanDiscipline(state.discipline)}`;
-    }
-    await loadCurrentMatch();
-  }
-
-  async function loadCurrentMatch() {
-    try {
-      const matches = await Matches.listPendingByTatami(state.tournamentId, state.tatami);
-      const filtered = (matches || []).filter(match => String(getMatchDiscipline(match) || '').toLowerCase() === state.discipline);
-      const selected = filtered.find(match => match.status === MATCH_STATUS.ONGOING) || filtered[0] || null;
-      state.currentMatch = selected?.id ? await Matches.getById(selected.id) : null;
-      renderHeader();
-      renderSeatSelector();
-      if (state.joined && state.judgeName && state.seat) {
-        if (!state.currentMatch?.id) {
-          showJudgePanel();
-          return;
-        }
-        try {
-          await Matches.registerReferee(state.currentMatch.id, {
-            seat: state.seat,
-            name: state.judgeName,
-            code: state.judgeId,
-            tatami: state.tatami,
-            discipline: state.discipline,
-          });
-          showJudgePanel();
-        } catch (e) {
-          document.getElementById('join-status').textContent = e.message;
-          if ((e.message || '').toLowerCase().includes('puesto')) {
-            state.seat = '';
-            persistState();
-          }
-        }
-      }
-    } catch (e) {
-      document.getElementById('join-status').textContent = e.message;
-    }
-  }
-
-  function renderHeader() {
-    const match = state.currentMatch;
-    const titleEl = document.getElementById('judge-live-title');
-    const metaEl = document.getElementById('judge-live-meta');
-
-    document.getElementById('judge-live-seat').textContent = state.seat || 'Sin puesto';
-    if (!match) {
-      titleEl.textContent = `Tatami ${state.tatami} · ${humanDiscipline(state.discipline)}`;
-      metaEl.textContent = 'Esperando el próximo combate asignado por la mesa técnica.';
-      return;
-    }
-
-    if (state.discipline === 'kata') {
-      const athlete = match.competitor_a?.competitors?.full_name || match.competitor_a?.full_name || 'Competidor';
-      const club = match.competitor_a?.competitors?.club || match.competitor_a?.club || '';
-      titleEl.textContent = `Tatami ${state.tatami} · ${athlete}`;
-      metaEl.textContent = `${match.category?.name || 'Kata'}${club ? ' · ' + club : ''}`;
-    } else {
-      const a = match.competitor_a?.competitors?.full_name || match.competitor_a?.full_name || 'AO';
-      const b = match.competitor_b?.competitors?.full_name || match.competitor_b?.full_name || 'AKA';
-      titleEl.textContent = `Tatami ${state.tatami} · ${a} vs ${b}`;
-      metaEl.textContent = `${match.category?.name || 'Kumite'} · ${match.round_label || 'En curso'}`;
-    }
-  }
-
-  function renderSeatSelector() {
-    const wrap = document.getElementById('seat-selector');
-    const seats = state.discipline === 'kata' ? ['J1','J2','J3','J4','J5'] : ['J1','J2','J3','J4'];
-    const refs = state.currentMatch ? (Matches.getRefereePresence(state.currentMatch, state.discipline) || {}) : {};
-    wrap.innerHTML = seats.map(seat => {
-      const occupant = refs[seat];
-      const occupiedByOther = occupant?.active && occupant.code !== state.judgeId && occupant.name !== state.judgeName;
-      const selected = state.seat === seat;
-      const style = occupiedByOther
-        ? 'background:#475569;color:#cbd5e1;border:none;opacity:.7;cursor:not-allowed;'
-        : selected
-          ? 'background:#16a34a;color:#fff;border:none;'
-          : 'background:#1e293b;color:#fff;border:1px solid #475569;';
-      const suffix = occupiedByOther ? ' · ocupado' : (occupant && !occupant.active ? ' · libre' : '');
-      return `<button type="button" class="btn btn-sm" style="${style}" ${occupiedByOther ? 'disabled' : ''} onclick="chooseJudgeSeat('${seat}')">${seat}${suffix}</button>`;
-    }).join('');
-  }
-
-  window.chooseJudgeSeat = function (seat) {
-    state.seat = seat;
-    persistState();
-    renderSeatSelector();
-    document.getElementById('join-status').textContent = `Puesto seleccionado: ${seat}`;
-  };
-
-  function showJudgePanel() {
-    document.getElementById('judge-join-view').style.display = 'none';
-    document.getElementById('judge-panel-view').style.display = 'block';
-    document.getElementById('judge-kata-screen').style.display = state.discipline === 'kata' ? 'block' : 'none';
-    document.getElementById('judge-kumite-screen').style.display = state.discipline === 'kumite' ? 'block' : 'none';
-  }
-
-  document.getElementById('btn-judge-exit').addEventListener('click', () => {
-    try { if (state.realtimeSub?.unsubscribe) state.realtimeSub.unsubscribe(); } catch (_) {}
-    try { if (state.poll) clearInterval(state.poll); } catch (_) {}
-    try { if (state.heartbeat) clearInterval(state.heartbeat); } catch (_) {}
-    try { localStorage.removeItem(STORE_KEY); } catch (_) {}
-    try { Auth.logout(); } catch (_) { window.location.href = '../index.html'; }
-  });
-
-  document.getElementById('btn-refresh-kata').addEventListener('click', async () => {
-    try {
-      await loadCurrentMatch();
-      const stamp = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      const statusEl = document.getElementById('judge-kata-refresh-status');
-      const lastEl = document.getElementById('judge-last-sent');
-      const summary = state.currentMatch ? Matches.getKataSummary(state.currentMatch) : null;
-      if (statusEl) statusEl.textContent = `Actualizado manualmente a las ${stamp}`;
-      if (lastEl && summary) lastEl.textContent = `Sincronización manual completada. Notas recibidas: ${summary.submitted}/5.`;
-      Display.toast('Pantalla de kata actualizada.', 'info');
-    } catch (e) {
-      Display.toast(e.message, 'error');
-    }
-  });
-
-  document.getElementById('btn-join-judge').addEventListener('click', async () => {
-    state.judgeName = document.getElementById('judge-name').value.trim();
-    if (!state.judgeName) { Display.toast('Escribe el nombre del juez.', 'warning'); return; }
-    if (!state.seat) { Display.toast('Selecciona tu puesto.', 'warning'); return; }
-    state.joined = true;
-    persistState();
-
-    if (state.currentMatch?.id) {
-      try {
-        await Matches.registerReferee(state.currentMatch.id, {
-          seat: state.seat,
-          name: state.judgeName,
-          code: state.judgeId,
-          tatami: state.tatami,
-          discipline: state.discipline,
-        });
-        showJudgePanel();
-        Display.toast('Acceso del juez activado.', 'success');
-      } catch (e) {
-        Display.toast(e.message, 'error');
-        await loadCurrentMatch();
-      }
-    } else {
-      showJudgePanel();
-      Display.toast('Quedaste listo. Esperando combate del tatami.', 'info');
-    }
-  });
-
-  window.sendJudgeKata = async function (value) {
-    if (!state.currentMatch?.id) { Display.toast('No hay kata activo en este momento.', 'warning'); return; }
-    try {
-      await Matches.registerReferee(state.currentMatch.id, {
-        seat: state.seat,
-        name: state.judgeName,
-        code: state.judgeId,
-        tatami: state.tatami,
-        discipline: state.discipline,
-      });
-      await Matches.saveKataJudgeScore(state.currentMatch.id, {
-        seat: state.seat,
-        name: state.judgeName,
-        code: state.judgeId,
-        tatami: state.tatami,
-      }, value);
-      document.getElementById('judge-last-sent').textContent = `Nota enviada automáticamente: ${value} · ${state.seat}`;
-      document.getElementById('judge-kata-score-input').value = '';
-      await loadCurrentMatch();
-      Display.toast('Nota enviada a la mesa técnica.', 'success');
-    } catch (e) {
-      Display.toast(e.message, 'error');
-    }
-  };
-
-  document.getElementById('btn-send-kata-score').addEventListener('click', async () => {
-    const value = document.getElementById('judge-kata-score-input').value;
-    if (!value) {
-      Display.toast('Ingresa una nota entre 0.00 y 9.99.', 'warning');
-      return;
-    }
-    await window.sendJudgeKata(value);
-  });
-
-  window.sendJudgeKumite = async function (side, action) {
-    if (!state.currentMatch?.id) { Display.toast('No hay combate activo en este momento.', 'warning'); return; }
-    try {
-      await Matches.registerReferee(state.currentMatch.id, {
-        seat: state.seat,
-        name: state.judgeName,
-        code: state.judgeId,
-        tatami: state.tatami,
-        discipline: state.discipline,
-      });
-      await Matches.submitJudgeSignal(state.currentMatch.id, {
-        kind: 'point',
-        side,
-        action,
-        seat: state.seat,
-        judge_name: state.judgeName,
-        code: state.judgeId,
-      });
-      document.getElementById('judge-kumite-status').textContent = `Señal enviada automáticamente: ${action.toUpperCase()} para ${side === 'a' ? 'AO' : 'AKA'} · ${state.seat}`;
-      await loadCurrentMatch();
-      Display.toast('Señal enviada a la mesa técnica.', 'success');
-    } catch (e) {
-      Display.toast(e.message, 'error');
-    }
-  };
-
-  window.sendJudgePenalty = async function (side, category) {
-    if (!state.currentMatch?.id) { Display.toast('No hay combate activo en este momento.', 'warning'); return; }
-    try {
-      await Matches.registerReferee(state.currentMatch.id, {
-        seat: state.seat,
-        name: state.judgeName,
-        code: state.judgeId,
-        tatami: state.tatami,
-        discipline: state.discipline,
-      });
-      await Matches.submitJudgeSignal(state.currentMatch.id, {
-        kind: 'penalty',
-        side,
-        action: category,
-        category,
-        seat: state.seat,
-        judge_name: state.judgeName,
-        code: state.judgeId,
-      });
-      document.getElementById('judge-kumite-status').textContent = `Falta enviada automáticamente: ${category.toUpperCase()} para ${side === 'a' ? 'AO' : 'AKA'} · ${state.seat}`;
-      await loadCurrentMatch();
-      Display.toast('Falta enviada a la mesa técnica.', 'success');
-    } catch (e) {
-      Display.toast(e.message, 'error');
-    }
-  };
-
-  function subscribeRealtime() {
-    if (!state.tournamentId) return;
-    state.realtimeSub = Matches.subscribeToTournament(state.tournamentId, () => {
-      loadCurrentMatch();
-    });
-  }
-})();
-</script>
 </body>
 </html>

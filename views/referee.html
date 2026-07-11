@@ -72,6 +72,7 @@
       </div>
       <div class="flex gap-2">
         <button class="btn btn-outline btn-sm" id="btn-change-tatami">Cambiar Tatami</button>
+        <button class="btn btn-outline btn-sm" id="btn-open-generic-panel">🧩 Pantalla generica</button>
         <button class="btn btn-outline btn-sm" id="btn-refresh">🔄 Actualizar</button>
       </div>
     </div>
@@ -143,6 +144,18 @@
             </div>
           </div>
 
+          <div id="judge-qr-viewer" style="display:none;margin-top:.65rem;background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:.75rem;color:#111827;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap;">
+              <div id="judge-qr-title" style="font-size:.85rem;font-weight:800;">QR de acceso</div>
+              <button class="btn btn-outline btn-sm" type="button" onclick="closeJudgeQr()">Cerrar</button>
+            </div>
+            <div style="display:flex;justify-content:center;align-items:center;padding:.55rem 0;">
+              <canvas id="judge-qr-canvas" width="220" height="220" style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;"></canvas>
+            </div>
+            <div id="judge-qr-code" class="text-xs" style="font-weight:700;word-break:break-all;text-align:center;"></div>
+            <div class="text-xs text-muted" style="margin-top:.35rem;text-align:center;">El juez puede escanear este QR con el APK de juez.</div>
+          </div>
+
           <div id="judge-kata-panel" style="display:none;margin-top:.75rem;">
             <div class="form-group">
               <label class="form-label">Nota del juez</label>
@@ -166,6 +179,14 @@
             </div>
             <div id="judge-kumite-last" class="text-xs text-muted mt-2" style="text-align:center;">Sin señal enviada.</div>
           </div>
+
+          <div id="judge-flag-board" style="display:none;margin-top:.75rem;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:.75rem;color:#111827;">
+            <div class="text-xs text-muted mb-2" style="text-align:center;text-transform:uppercase;font-weight:700;">Banderas en tiempo real</div>
+            <div id="judge-flag-content" style="display:grid;grid-template-columns:repeat(5,1fr);gap:.5rem;text-align:center;">
+              <!-- J1..J5 flags -->
+            </div>
+            <div id="judge-flag-summary" class="text-sm mt-3 text-center font-bold" style="color:#4338ca;">Esperando votos...</div>
+          </div>
         </div>
 
         <div id="judges-live-board" class="card mt-3" style="display:none;">
@@ -186,8 +207,127 @@
         </div>
       </div>
 
-      <!-- Cola de combates pendientes -->
+      <!-- Modo Extra (al lado del combate en curso) -->
       <div>
+        <div class="card mb-3" id="generic-panel-card" style="color:#111827;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap;">
+            <div>
+              <div class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:.06em;">Modo extra</div>
+              <div style="font-size:1rem;font-weight:700;">Pantalla Generica</div>
+            </div>
+            <span class="badge badge-blue">Pantalla extendida</span>
+          </div>
+          <div class="text-xs text-muted mt-1">Este modo no altera llaves ni resultados oficiales.</div>
+
+          <div class="grid-2 gap-2 mt-2">
+            <label>
+              <span class="text-xs text-muted">Disciplina</span>
+              <select class="form-control" id="generic-mode">
+                <option value="kata">Kata</option>
+                <option value="kumite">Kumite</option>
+              </select>
+            </label>
+            <label>
+              <span class="text-xs text-muted">Titulo opcional</span>
+              <input class="form-control" id="generic-title" placeholder="Ej: Exhibicion Especial" />
+            </label>
+          </div>
+
+          <div id="generic-kata-fields" class="mt-2">
+            <div class="grid-2 gap-2">
+              <label>
+                <span class="text-xs text-muted">Competidor Kata</span>
+                <input class="form-control" id="generic-kata-name" placeholder="Nombre del competidor" />
+              </label>
+              <label>
+                <span class="text-xs text-muted">Puntaje Kata (WKF)</span>
+                <input class="form-control" id="generic-kata-score" type="number" min="0" step="0.01" placeholder="0.00" />
+              </label>
+            </div>
+            <div class="grid-2 gap-2 mt-2" style="grid-template-columns:repeat(5,minmax(0,1fr));">
+              <label>
+                <span class="text-xs text-muted">J1</span>
+                <input class="form-control" id="generic-kata-judge-1" type="number" min="0" max="10" step="0.01" placeholder="0.00" />
+              </label>
+              <label>
+                <span class="text-xs text-muted">J2</span>
+                <input class="form-control" id="generic-kata-judge-2" type="number" min="0" max="10" step="0.01" placeholder="0.00" />
+              </label>
+              <label>
+                <span class="text-xs text-muted">J3</span>
+                <input class="form-control" id="generic-kata-judge-3" type="number" min="0" max="10" step="0.01" placeholder="0.00" />
+              </label>
+              <label>
+                <span class="text-xs text-muted">J4</span>
+                <input class="form-control" id="generic-kata-judge-4" type="number" min="0" max="10" step="0.01" placeholder="0.00" />
+              </label>
+              <label>
+                <span class="text-xs text-muted">J5</span>
+                <input class="form-control" id="generic-kata-judge-5" type="number" min="0" max="10" step="0.01" placeholder="0.00" />
+              </label>
+            </div>
+          </div>
+
+          <div id="generic-kumite-fields" class="mt-2" style="display:none;">
+            <div class="grid-2 gap-2">
+              <label>
+                <span class="text-xs text-muted">AO (izquierda)</span>
+                <input class="form-control" id="generic-kumite-name-a" placeholder="Nombre AO" />
+              </label>
+              <label>
+                <span class="text-xs text-muted">AKA (derecha)</span>
+                <input class="form-control" id="generic-kumite-name-b" placeholder="Nombre AKA" />
+              </label>
+              <label>
+                <span class="text-xs text-muted">Puntaje AO</span>
+                <input class="form-control" id="generic-kumite-score-a" type="number" min="0" step="1" placeholder="0" />
+              </label>
+              <label>
+                <span class="text-xs text-muted">Puntaje AKA</span>
+                <input class="form-control" id="generic-kumite-score-b" type="number" min="0" step="1" placeholder="0" />
+              </label>
+              <label>
+                <span class="text-xs text-muted">Tiempo asignado (segundos)</span>
+                <input class="form-control" id="generic-kumite-time-seconds" type="number" min="10" step="1" placeholder="180" />
+              </label>
+              <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.45rem;align-items:end;">
+                <label>
+                  <span class="text-xs text-muted">AO C1</span>
+                  <input class="form-control" id="generic-kumite-warn-a-c1" type="number" min="0" max="4" step="1" placeholder="0" />
+                </label>
+                <label>
+                  <span class="text-xs text-muted">AO C2</span>
+                  <input class="form-control" id="generic-kumite-warn-a-c2" type="number" min="0" max="4" step="1" placeholder="0" />
+                </label>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.45rem;align-items:end;">
+                <label>
+                  <span class="text-xs text-muted">AKA C1</span>
+                  <input class="form-control" id="generic-kumite-warn-b-c1" type="number" min="0" max="4" step="1" placeholder="0" />
+                </label>
+                <label>
+                  <span class="text-xs text-muted">AKA C2</span>
+                  <input class="form-control" id="generic-kumite-warn-b-c2" type="number" min="0" max="4" step="1" placeholder="0" />
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex gap-2 mt-2 flex-wrap">
+            <button class="btn btn-outline btn-sm" id="btn-generic-preset-kata" type="button">Preset Kata individual</button>
+            <button class="btn btn-outline btn-sm" id="btn-generic-preset-kumite" type="button">Preset Kumite estandar</button>
+          </div>
+
+          <div class="flex gap-2 mt-2 flex-wrap">
+            <button class="btn btn-primary btn-sm" id="btn-generic-open" type="button">Mostrar en pantalla extendida</button>
+            <button class="btn btn-outline btn-sm" id="btn-generic-update" type="button">Actualizar vista extendida</button>
+            <button class="btn btn-outline btn-sm" id="btn-generic-clear" type="button">Limpiar</button>
+            <button class="btn btn-danger btn-sm" id="btn-generic-exit" type="button">Salir modo generico</button>
+          </div>
+          <div id="generic-status" class="text-xs text-muted mt-2">Modo inactivo.</div>
+        </div>
+
+        <!-- Selección directa (debajo del modo extra, mismo lado) -->
         <div class="card mb-3" style="color:#111827;">
           <div class="text-xs text-muted mb-1" style="text-transform:uppercase;letter-spacing:.06em;">Selección directa</div>
           <select class="form-control" id="mesa-category-select">
@@ -216,7 +356,11 @@
             <div class="text-center p-4"><span class="spinner"></span></div>
           </div>
         </div>
+      </div>
+    </div>
 
+    <!-- Llaves asignadas y tablas inferiores (ancho completo) -->
+    <div class="mt-3">
         <div class="mt-3">
           <h3 class="text-sm text-muted mb-2" style="text-transform:uppercase;letter-spacing:.06em;">
             Llaves asignadas a este tatami
@@ -226,7 +370,6 @@
           </div>
         </div>
       </div>
-    </div>
 
     <!-- Combates completados hoy -->
     <div class="mt-4">
@@ -308,34 +451,35 @@
             <button class="btn btn-sm" id="btn-timer-start" style="background:#16a34a;color:#fff;border:none;" onclick="timerStart()">▶ Iniciar</button>
             <button class="btn btn-sm" id="btn-timer-pause" style="background:#d97706;color:#fff;border:none;display:none;" onclick="timerPause()">⏸ Pausar</button>
             <button class="btn btn-sm" style="background:#475569;color:#fff;border:none;" onclick="timerReset()">🔄 Reset</button>
+            <button class="btn btn-sm" id="btn-ping-judges" style="background:#0ea5a4;color:#fff;border:none;">📶 Ping</button>
           </div>
         </div>
 
         <!-- Marcador principal -->
         <div style="display:grid;grid-template-columns:1fr auto 1fr;background:#1a1a2e;color:#fff;">
 
-          <!-- LADO AO (Azul) -->
-          <div id="kumite-side-a" style="background:#1565c0;padding:1rem;text-align:center;cursor:pointer;transition:opacity .15s;"
-               onclick="kumiteSelectWinner('a')">
+           <!-- LADO AO (Azul) -->
+           <div id="kumite-side-a" style="background:#1565c0;padding:1rem;text-align:center;cursor:pointer;transition:opacity .15s;"
+              onclick="kumiteSelectWinner('a')">
             <div style="font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;opacity:.8;margin-bottom:.25rem;">AO · Competidor A</div>
             <div id="kumite-name-a" style="font-size:1rem;font-weight:700;margin-bottom:.25rem;">—</div>
             <div id="kumite-club-a" style="font-size:.75rem;opacity:.75;margin-bottom:.5rem;"></div>
             <div id="kumite-score-a" style="font-size:3.5rem;font-weight:900;line-height:1;">0</div>
             <div class="flex gap-1 justify-center mt-2 flex-wrap">
               <button class="btn btn-sm" style="background:rgba(255,255,255,.18);color:#fff;border:none;font-size:.75rem;"
-                      onclick="kumiteAddPoint('a','yuko',event)">+1 Yuko</button>
+                  onclick="kumiteAddPoint('a','yuko',event)">+1 Yuko</button>
               <button class="btn btn-sm" style="background:rgba(255,255,255,.18);color:#fff;border:none;font-size:.75rem;"
-                      onclick="kumiteAddPoint('a','wazaari',event)">+2 Waza-ari</button>
+                  onclick="kumiteAddPoint('a','wazaari',event)">+2 Waza-ari</button>
               <button class="btn btn-sm" style="background:rgba(255,255,255,.18);color:#fff;border:none;font-size:.75rem;"
-                      onclick="kumiteAddPoint('a','ippon',event)">+3 Ippon</button>
+                  onclick="kumiteAddPoint('a','ippon',event)">+3 Ippon</button>
             </div>
             <div class="flex gap-1 justify-center mt-1 flex-wrap">
               <button class="btn btn-sm" style="background:rgba(220,120,0,.7);color:#fff;border:none;font-size:.68rem;"
-                      onclick="kumiteWarn('a','c1',event)" title="Falta C1 (Contacto)">⚠C1 Contacto</button>
+                  onclick="kumiteWarn('a','c1',event)" title="Falta C1 (Contacto)">⚠C1 Contacto</button>
               <button class="btn btn-sm" style="background:rgba(220,100,0,.7);color:#fff;border:none;font-size:.68rem;"
-                      onclick="kumiteWarn('a','c2',event)" title="Falta C2 (Técnica/Jogai)">⚠C2 Técnica</button>
+                  onclick="kumiteWarn('a','c2',event)" title="Falta C2 (Técnica/Jogai)">⚠C2 Técnica</button>
               <button class="btn btn-sm" style="background:rgba(255,255,255,.1);color:#fff;border:none;font-size:.7rem;"
-                      onclick="kumiteUndo('a',event)">↩ Deshacer</button>
+                  onclick="kumiteUndo('a',event)">↩ Deshacer</button>
             </div>
             <!-- Indicador de advertencias (lado AO) -->
             <div style="margin-top:.4rem;font-size:.65rem;opacity:.85;" id="warn-display-a">C1: ○○○○ &nbsp; C2: ○○○○</div>
@@ -358,21 +502,21 @@
             <div id="kumite-score-b" style="font-size:3.5rem;font-weight:900;line-height:1;">0</div>
             <div class="flex gap-1 justify-center mt-2 flex-wrap">
               <button class="btn btn-sm" style="background:rgba(255,255,255,.18);color:#fff;border:none;font-size:.75rem;"
-                      onclick="kumiteAddPoint('b','yuko',event)">+1 Yuko</button>
+                  onclick="kumiteAddPoint('b','yuko',event)">+1 Yuko</button>
               <button class="btn btn-sm" style="background:rgba(255,255,255,.18);color:#fff;border:none;font-size:.75rem;"
-                      onclick="kumiteAddPoint('b','wazaari',event)">+2 Waza-ari</button>
+                  onclick="kumiteAddPoint('b','wazaari',event)">+2 Waza-ari</button>
               <button class="btn btn-sm" style="background:rgba(255,255,255,.18);color:#fff;border:none;font-size:.75rem;"
-                      onclick="kumiteAddPoint('b','ippon',event)">+3 Ippon</button>
+                  onclick="kumiteAddPoint('b','ippon',event)">+3 Ippon</button>
             </div>
             <div class="flex gap-1 justify-center mt-1 flex-wrap">
               <button class="btn btn-sm" style="background:rgba(220,120,0,.7);color:#fff;border:none;font-size:.68rem;"
-                      onclick="kumiteWarn('b','c1',event)" title="Falta C1 (Contacto)">⚠C1 Contacto</button>
+                  onclick="kumiteWarn('b','c1',event)" title="Falta C1 (Contacto)">⚠C1 Contacto</button>
               <button class="btn btn-sm" style="background:rgba(220,100,0,.7);color:#fff;border:none;font-size:.68rem;"
-                      onclick="kumiteWarn('b','c2',event)" title="Falta C2 (Técnica/Jogai)">⚠C2 Técnica</button>
+                  onclick="kumiteWarn('b','c2',event)" title="Falta C2 (Técnica/Jogai)">⚠C2 Técnica</button>
               <button class="btn btn-sm" style="background:rgba(255,255,255,.1);color:#fff;border:none;font-size:.7rem;"
-                      onclick="kumiteUndo('b',event)">↩ Deshacer</button>
+                  onclick="kumiteUndo('b',event)">↩ Deshacer</button>
             </div>
-            <div style="margin-top:.4rem;font-size:.65rem;opacity:.85;" id="warn-display-b">C1: ○○○○ &nbsp; C2: ○○○○</div>
+              <div style="margin-top:.4rem;font-size:.65rem;opacity:.85;" id="warn-display-b">C1: ○○○○ &nbsp; C2: ○○○○</div>
           </div>
         </div>
 
@@ -450,6 +594,9 @@
             <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:#7c3aed;margin-bottom:.2rem;">Puntaje Final WKF · descarta mayor y menor y suma los 3 restantes</div>
             <div id="kata-total" style="font-size:2.8rem;font-weight:900;color:#7c3aed;line-height:1;">—</div>
             <div id="kata-detail" style="font-size:.7rem;color:#6d28d9;margin-top:.2rem;"></div>
+            <div id="kata-flag-resolution" style="display:none;margin-top:.75rem;padding-top:.75rem;border-top:1px solid #ddd6fe;">
+              <button class="btn btn-primary btn-sm btn-block" id="btn-resolve-flags">🚩 Resolver por Banderas</button>
+            </div>
           </div>
 
           <div class="form-group mt-2 mb-0">
@@ -477,6 +624,7 @@
 <script src="../js/bracket.js"></script>
 <script src="../js/matches.js?v=20260421c"></script>
 <script src="../js/display.js"></script>
+<script src="../js/vendor/qrious.min.js"></script>
 <script>
 (function () {
   /* ---- Sesión ---- */
@@ -504,6 +652,7 @@
     projectionWindow: null,
     projectionLiveActive: false,
     projectionModeOverride: null,
+    genericModeActive: false,
     referee: {
       name:  savedReferee.name || '',
       code:  String(session.codeId || session.userId || 'REF-LOCAL'),
@@ -523,6 +672,8 @@
   _buildKataScoreOptions();
   _syncRefereeBadges();
   _renderSyncHistory();
+  _syncGenericModeFields();
+  _setGenericStatus('Modo inactivo.', 'muted');
 
   function _persistRefereeProfile() {
     localStorage.setItem(REFEREE_STORAGE_KEY, JSON.stringify({
@@ -538,7 +689,7 @@
     document.getElementById('select-tatami').value = String(state.tatami);
     document.getElementById('view-select-tatami').style.display = 'none';
     document.getElementById('view-referee-panel').style.display = 'block';
-    document.getElementById('judge-station-card').style.display = 'none';
+    document.getElementById('judge-station-card').style.display = 'block';
     document.getElementById('header-tatami').textContent = state.tatami;
     document.getElementById('nav-tatami-badge').textContent = `Tatami ${state.tatami}`;
     _syncRefereeBadges();
@@ -588,6 +739,224 @@
     input.setAttribute('min', '0');
     input.setAttribute('max', '9.99');
     input.setAttribute('step', '0.01');
+  }
+
+  function _setGenericStatus(text, tone = 'muted') {
+    const el = document.getElementById('generic-status');
+    if (!el) return;
+    const colorByTone = {
+      muted: '#64748b',
+      ok: '#166534',
+      warn: '#92400e',
+      error: '#b91c1c',
+    };
+    el.style.color = colorByTone[tone] || colorByTone.muted;
+    el.textContent = text || 'Modo inactivo.';
+  }
+
+  function _syncGenericModeFields() {
+    const mode = document.getElementById('generic-mode')?.value || 'kata';
+    const kataFields = document.getElementById('generic-kata-fields');
+    const kumiteFields = document.getElementById('generic-kumite-fields');
+    if (kataFields) kataFields.style.display = mode === 'kata' ? 'block' : 'none';
+    if (kumiteFields) kumiteFields.style.display = mode === 'kumite' ? 'block' : 'none';
+    if (mode === 'kata') _refreshGenericKataScoreFromJudges();
+  }
+
+  function _collectGenericKataJudgeScores() {
+    const ids = [
+      'generic-kata-judge-1',
+      'generic-kata-judge-2',
+      'generic-kata-judge-3',
+      'generic-kata-judge-4',
+      'generic-kata-judge-5',
+    ];
+    return ids.map((id) => {
+      const raw = String(document.getElementById(id)?.value || '').replace(',', '.').trim();
+      if (!raw) return null;
+      const num = Number(raw);
+      return Number.isFinite(num) ? Number(num.toFixed(2)) : null;
+    });
+  }
+
+  function _computeGenericKataWkfScore(judgeScores = []) {
+    const valid = (Array.isArray(judgeScores) ? judgeScores : [])
+      .map((n) => Number(n))
+      .filter((n) => Number.isFinite(n));
+    if (!valid.length) return null;
+    if (valid.length < 5) {
+      const total = valid.reduce((sum, n) => sum + n, 0);
+      return Number(total.toFixed(2));
+    }
+    const ordered = [...valid].sort((a, b) => a - b);
+    const middle = ordered.slice(1, -1);
+    if (!middle.length) return null;
+    const total = middle.reduce((sum, n) => sum + n, 0);
+    return Number(total.toFixed(2));
+  }
+
+  function _refreshGenericKataScoreFromJudges() {
+    const scoreEl = document.getElementById('generic-kata-score');
+    if (!scoreEl) return;
+    const judgeScores = _collectGenericKataJudgeScores();
+    const wkfScore = _computeGenericKataWkfScore(judgeScores);
+    if (!Number.isFinite(wkfScore)) return;
+    scoreEl.value = Number(wkfScore).toFixed(2);
+  }
+
+  function _applyGenericPreset(type) {
+    const modeEl = document.getElementById('generic-mode');
+    if (!modeEl) return;
+
+    if (type === 'kumite') {
+      modeEl.value = 'kumite';
+      _syncGenericModeFields();
+      const t = document.getElementById('generic-title');
+      const na = document.getElementById('generic-kumite-name-a');
+      const nb = document.getElementById('generic-kumite-name-b');
+      const sa = document.getElementById('generic-kumite-score-a');
+      const sb = document.getElementById('generic-kumite-score-b');
+      const ts = document.getElementById('generic-kumite-time-seconds');
+      const ac1 = document.getElementById('generic-kumite-warn-a-c1');
+      const ac2 = document.getElementById('generic-kumite-warn-a-c2');
+      const bc1 = document.getElementById('generic-kumite-warn-b-c1');
+      const bc2 = document.getElementById('generic-kumite-warn-b-c2');
+      if (t) t.value = t.value || 'Kumite estandar';
+      if (na) na.value = na.value || 'AO';
+      if (nb) nb.value = nb.value || 'AKA';
+      if (sa) sa.value = sa.value || '0';
+      if (sb) sb.value = sb.value || '0';
+      if (ts) ts.value = ts.value || '180';
+      if (ac1) ac1.value = ac1.value || '0';
+      if (ac2) ac2.value = ac2.value || '0';
+      if (bc1) bc1.value = bc1.value || '0';
+      if (bc2) bc2.value = bc2.value || '0';
+      _setGenericStatus('Preset Kumite cargado. Edita y publica.', 'muted');
+      return;
+    }
+
+    modeEl.value = 'kata';
+    _syncGenericModeFields();
+    const t = document.getElementById('generic-title');
+    const nk = document.getElementById('generic-kata-name');
+    const sk = document.getElementById('generic-kata-score');
+    const j1 = document.getElementById('generic-kata-judge-1');
+    const j2 = document.getElementById('generic-kata-judge-2');
+    const j3 = document.getElementById('generic-kata-judge-3');
+    const j4 = document.getElementById('generic-kata-judge-4');
+    const j5 = document.getElementById('generic-kata-judge-5');
+    if (t) t.value = t.value || 'Kata individual';
+    if (nk) nk.value = nk.value || 'Competidor Kata';
+    if (sk) sk.value = sk.value || '0.00';
+    if (j1) j1.value = j1.value || '0.00';
+    if (j2) j2.value = j2.value || '0.00';
+    if (j3) j3.value = j3.value || '0.00';
+    if (j4) j4.value = j4.value || '0.00';
+    if (j5) j5.value = j5.value || '0.00';
+    _refreshGenericKataScoreFromJudges();
+    _setGenericStatus('Preset Kata cargado. Edita y publica.', 'muted');
+  }
+
+  function _buildGenericProjectionPayload() {
+    const mode = document.getElementById('generic-mode')?.value === 'kumite' ? 'kumite' : 'kata';
+    const title = (document.getElementById('generic-title')?.value || '').trim();
+    const base = {
+      mode: 'generic_board',
+      boardType: mode,
+      tournamentId: state.tournamentId || null,
+      tatami: state.tatami || null,
+      updatedAt: new Date().toISOString(),
+      title: title || null,
+    };
+
+    if (mode === 'kata') {
+      const name = (document.getElementById('generic-kata-name')?.value || '').trim();
+      const judgeScores = _collectGenericKataJudgeScores();
+      const scoreRaw = String(document.getElementById('generic-kata-score')?.value || '').replace(',', '.').trim();
+      const scoreNum = Number(scoreRaw);
+      const scoreFromJudges = _computeGenericKataWkfScore(judgeScores);
+      const resolvedScore = Number.isFinite(scoreFromJudges) ? scoreFromJudges : scoreNum;
+      return {
+        ...base,
+        kata: {
+          name: name || 'Competidor Kata',
+          score: Number.isFinite(resolvedScore) ? Number(resolvedScore.toFixed(2)) : null,
+          judgeScores,
+        },
+      };
+    }
+
+    const nameA = (document.getElementById('generic-kumite-name-a')?.value || '').trim();
+    const nameB = (document.getElementById('generic-kumite-name-b')?.value || '').trim();
+    const scoreA = Number.parseInt(document.getElementById('generic-kumite-score-a')?.value || '0', 10);
+    const scoreB = Number.parseInt(document.getElementById('generic-kumite-score-b')?.value || '0', 10);
+    const assignedSecondsRaw = Number.parseInt(document.getElementById('generic-kumite-time-seconds')?.value || '180', 10);
+    const assignedSeconds = Number.isFinite(assignedSecondsRaw) ? Math.max(10, assignedSecondsRaw) : 180;
+    const warnAC1 = Math.min(4, Math.max(0, Number.parseInt(document.getElementById('generic-kumite-warn-a-c1')?.value || '0', 10) || 0));
+    const warnAC2 = Math.min(4, Math.max(0, Number.parseInt(document.getElementById('generic-kumite-warn-a-c2')?.value || '0', 10) || 0));
+    const warnBC1 = Math.min(4, Math.max(0, Number.parseInt(document.getElementById('generic-kumite-warn-b-c1')?.value || '0', 10) || 0));
+    const warnBC2 = Math.min(4, Math.max(0, Number.parseInt(document.getElementById('generic-kumite-warn-b-c2')?.value || '0', 10) || 0));
+    return {
+      ...base,
+      kumite: {
+        competitorAName: nameA || 'AO',
+        competitorBName: nameB || 'AKA',
+        scoreA: Number.isFinite(scoreA) ? Math.max(0, scoreA) : 0,
+        scoreB: Number.isFinite(scoreB) ? Math.max(0, scoreB) : 0,
+        assignedSeconds,
+        warnA: { c1: warnAC1, c2: warnAC2 },
+        warnB: { c1: warnBC1, c2: warnBC2 },
+      },
+    };
+  }
+
+  function _publishGenericProjection() {
+    const key = _getProjectionLiveKey();
+    if (!key) throw new Error('Selecciona un tatami para usar la pantalla generica.');
+    const payload = _buildGenericProjectionPayload();
+    localStorage.setItem(key, JSON.stringify(payload));
+    state.projectionModeOverride = 'generic_board';
+    state.genericModeActive = true;
+    _persistProjectionTarget();
+    _setGenericStatus('Modo generico activo en pantalla extendida.', 'ok');
+  }
+
+  function _clearGenericFields() {
+    const ids = [
+      'generic-title',
+      'generic-kata-name',
+      'generic-kata-score',
+      'generic-kata-judge-1',
+      'generic-kata-judge-2',
+      'generic-kata-judge-3',
+      'generic-kata-judge-4',
+      'generic-kata-judge-5',
+      'generic-kumite-name-a',
+      'generic-kumite-name-b',
+      'generic-kumite-score-a',
+      'generic-kumite-score-b',
+      'generic-kumite-time-seconds',
+      'generic-kumite-warn-a-c1',
+      'generic-kumite-warn-a-c2',
+      'generic-kumite-warn-b-c1',
+      'generic-kumite-warn-b-c2',
+    ];
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+  }
+
+  function _exitGenericProjection(showToast = true) {
+    const key = _getProjectionLiveKey();
+    state.genericModeActive = false;
+    if (state.projectionModeOverride === 'generic_board') state.projectionModeOverride = null;
+    if (key) {
+      try { localStorage.removeItem(key); } catch (_) {}
+    }
+    _syncProjectionWindow();
+    _setGenericStatus('Modo inactivo.', 'muted');
+    if (showToast) Display.toast('Pantalla generica desactivada.', 'info');
   }
 
   function _buildKataOverrideGrid(scores = {}) {
@@ -714,6 +1083,7 @@
       tournament: state.tournamentId || '',
       tatami: state.tatami || '',
       display: 'mesa',
+      v: '20260426f',
     });
     return `../views/public.html?${params.toString()}`;
   }
@@ -773,7 +1143,7 @@
   function _persistProjectionLiveState() {
     const key = _getProjectionLiveKey();
     if (!key) return;
-    if (state.projectionModeOverride === 'category_awards') return;
+    if (state.projectionModeOverride === 'category_awards' || state.projectionModeOverride === 'generic_board') return;
     const match = state.currentMatch;
     if (!match?.id) {
       try { localStorage.removeItem(key); } catch (_) {}
@@ -1237,6 +1607,10 @@
       try { state.projectionWindow.close(); } catch (_) {}
     }
     state.projectionWindow = null;
+    state.genericModeActive = false;
+    if (state.projectionModeOverride === 'generic_board') {
+      _setGenericStatus('Modo inactivo.', 'muted');
+    }
     state.projectionModeOverride = null;
     _clearProjectionTarget();
     const liveKey = _getProjectionLiveKey();
@@ -1286,7 +1660,16 @@
       const active = !!ref?.active;
       const status = active ? '🟢 Activo' : (ref ? '🟡 Inactivo' : '⚪ Inactivo');
       const name = ref?.name ? ` · ${ref.name}` : '';
-      return `<div style="padding:.35rem 0;border-bottom:1px solid #dbeafe;"><strong>${entry.seat}</strong> · ${entry.code} <span style="font-size:.72rem;color:${active ? '#15803d' : (ref ? '#b45309' : '#64748b')};">${status}${name}</span></div>`;
+      const pending = state.currentMatch ? (Matches.getKumiteSummary(state.currentMatch).pending || []) : [];
+      const pendingCount = pending.filter(p => String(p.seat || '') === String(entry.seat)).length;
+      const pendingLabel = pendingCount ? ` <span style="font-size:.78rem;color:#ef4444;margin-left:.35rem">📨${pendingCount}</span>` : '';
+      const encodedUrl = encodeURIComponent(entry.url || '');
+      const encodedCode = encodeURIComponent(entry.code || '');
+      return `
+        <div style="padding:.35rem 0;border-bottom:1px solid #dbeafe;display:flex;justify-content:space-between;gap:.4rem;align-items:center;">
+          <div><strong>${entry.seat}</strong> · ${entry.code} <span style="font-size:.72rem;color:${active ? '#15803d' : (ref ? '#b45309' : '#64748b')};">${status}${name}${pendingLabel}</span></div>
+          <button class="btn btn-outline btn-sm" type="button" onclick="showJudgeQr('${encodedUrl}','${encodedCode}','${entry.seat}')">QR</button>
+        </div>`;
     }).join('');
   }
 
@@ -1307,6 +1690,64 @@
     } catch (_) {
       Display.toast('No se pudo copiar los códigos.', 'warning');
     }
+  };
+
+  window.showJudgeQr = async function(encodedUrl, encodedCode, seat) {
+    const qrViewer = document.getElementById('judge-qr-viewer');
+    const qrCanvas = document.getElementById('judge-qr-canvas');
+    const qrTitle = document.getElementById('judge-qr-title');
+    const qrCode = document.getElementById('judge-qr-code');
+    if (!qrViewer || !qrCanvas) return;
+
+    const judgeUrl = decodeURIComponent(encodedUrl || '');
+    const judgeCode = decodeURIComponent(encodedCode || '');
+    const qrPayload = judgeUrl || judgeCode;
+    if (!qrPayload) return;
+
+    if (qrTitle) qrTitle.textContent = `QR ${seat || ''} · ${judgeCode || 'Acceso de juez'}`;
+    if (qrCode) qrCode.textContent = judgeCode || qrPayload;
+
+    try {
+      if (typeof QRious !== 'function') {
+        throw new Error('QRious no disponible');
+      }
+      // Generate a dataURL with QRious and draw it into the existing canvas.
+      const qrObj = new QRious({
+        value: qrPayload,
+        size: 220,
+        level: 'M',
+        foreground: '#0f172a',
+        background: '#ffffff',
+      });
+      const dataUrl = qrObj.toDataURL();
+      const img = new Image();
+      img.onload = function () {
+        try {
+          const ctx = qrCanvas.getContext && qrCanvas.getContext('2d');
+          if (ctx) {
+            ctx.clearRect(0, 0, qrCanvas.width, qrCanvas.height);
+            ctx.drawImage(img, 0, 0, qrCanvas.width, qrCanvas.height);
+          } else {
+            // fallback: replace canvas with the image
+            qrCanvas.style.display = 'none';
+            const parent = qrCanvas.parentElement;
+            if (parent) parent.appendChild(img);
+          }
+          qrViewer.style.display = 'block';
+        } catch (e) {
+          Display.toast('Error al dibujar el QR.', 'warning');
+        }
+      };
+      img.onerror = function () { Display.toast('No se pudo cargar la imagen del QR.', 'warning'); };
+      img.src = dataUrl;
+    } catch (e) {
+      Display.toast('No se pudo generar el QR de acceso.', 'warning');
+    }
+  };
+
+  window.closeJudgeQr = function() {
+    const qrViewer = document.getElementById('judge-qr-viewer');
+    if (qrViewer) qrViewer.style.display = 'none';
   };
 
   function _syncRefereeBadges(discipline = null) {
@@ -1479,7 +1920,7 @@
     _updateJudgeSideButtons();
     document.getElementById('view-select-tatami').style.display = 'none';
     document.getElementById('view-referee-panel').style.display = 'block';
-    document.getElementById('judge-station-card').style.display = 'none';
+    document.getElementById('judge-station-card').style.display = 'block';
     document.getElementById('header-tatami').textContent = tatami;
     document.getElementById('nav-tatami-badge').textContent = `Tatami ${tatami}`;
     _init();
@@ -1491,6 +1932,7 @@
       try { supabase.removeChannel(state.realtimeSub); } catch(_){}
     }
     if (state.pollingInterval) { clearInterval(state.pollingInterval); state.pollingInterval = null; }
+    try { if (state.pingInterval) clearInterval(state.pingInterval); state.pingInterval = null; } catch(_){}
     _closeProjectionWindow();
     document.getElementById('view-referee-panel').style.display = 'none';
     document.getElementById('view-select-tatami').style.display = 'block';
@@ -1520,6 +1962,13 @@
       _loadQueue();
       _refreshCurrentMatch();
     }, 60000);
+    // Start periodic ping to judges to maintain connection checks
+    try { if (state.pingInterval) clearInterval(state.pingInterval); } catch(_){}
+    state.pingInterval = setInterval(async () => {
+      try {
+        if (state.currentMatch?.id) await Matches.pingMatch(state.currentMatch.id);
+      } catch (_) {}
+    }, 15000);
   }
 
   async function _loadAssignedBrackets() {
@@ -1982,7 +2431,7 @@
     }
 
     _syncMatchActionState(match);
-    document.getElementById('judge-station-card').style.display = 'none';
+    document.getElementById('judge-station-card').style.display = 'block';
     document.getElementById('judges-live-board').style.display = 'none';
     _renderLiveJudging(match);
   }
@@ -2017,7 +2466,7 @@
   function _renderLiveJudging(match) {
     if (!match) return;
     const isKata = _isKataMatch(match);
-    document.getElementById('judge-station-card').style.display = 'none';
+    document.getElementById('judge-station-card').style.display = 'block';
     document.getElementById('judges-live-board').style.display = 'none';
 
     if (isKata) {
@@ -2028,6 +2477,29 @@
         : (match.score_a != null ? Number(match.score_a).toFixed(2) : '—');
       if (scoreEl) scoreEl.textContent = kataTotal;
       _persistProjectionLiveState();
+      
+      // Banderas UI
+      const flagBoard = document.getElementById('judge-flag-board');
+      if (flagBoard) {
+        const isFlagMode = match.category?.rules?.kata_mode === 'flag' || match.category?.kata_mode === 'flag';
+        flagBoard.style.display = isFlagMode ? 'block' : 'none';
+        if (isFlagMode) {
+          const flagSummary = Matches.getFlagSummary(match);
+          const contentEl = document.getElementById('judge-flag-content');
+          const summaryEl = document.getElementById('judge-flag-summary');
+          if (contentEl) {
+            contentEl.innerHTML = flagSummary.judges.map(j => `
+              <div style="font-size:.7rem;color:#111827;">
+                <div style="font-weight:700;">${j.seat}</div>
+                <div style="width:20px;height:20px;margin:2px auto;border-radius:3px;background:${j.vote === 'a' ? '#1565 la' : (j.vote === 'b' ? '#c62828' : '#cbd5e1')}"></div>
+              </div>
+            `).join('');
+          }
+          if (summaryEl) {
+            summaryEl.textContent = `AO: ${flagSummary.a} 🚩 | AKA: ${flagSummary.b} 🚩`;
+          }
+        }
+      }
     } else {
       const summary = Matches.getKumiteSummary(match);
       _kumite = {
@@ -2075,7 +2547,7 @@
       </div>
     `;
     document.getElementById('match-actions').style.display = 'none';
-    document.getElementById('judge-station-card').style.display = 'none';
+    document.getElementById('judge-station-card').style.display = 'block';
     document.getElementById('judges-live-board').style.display = 'none';
     _setFinalResultStatus(null);
     _setSyncIndicator('idle', 'Sin cambios pendientes.');
@@ -2134,6 +2606,11 @@
       const overrideSummary = _populateKataOverride(m);
       document.getElementById('btn-save-result').disabled = !overrideSummary.ready;
       state.selectedWinnerId = m.competitor_a_id;
+
+      // Banderas resolution button visibility
+      const isFlagMode = m.category?.rules?.kata_mode === 'flag' || m.category?.kata_mode === 'flag';
+      const resolveBtn = document.getElementById('btn-resolve-flags');
+      if (resolveBtn) resolveBtn.style.display = isFlagMode ? 'block' : 'none';
     } else {
       document.getElementById('modal-result-title').textContent = 'Resultado del Combate';
       document.getElementById('panel-kumite-result').style.display = 'block';
@@ -2528,6 +3005,20 @@
     if (v >= 10) { _timer.seconds = v; timerReset(); }
   };
 
+  // Ping judges button
+  const pingBtn = document.getElementById('btn-ping-judges');
+  if (pingBtn) {
+    pingBtn.addEventListener('click', async () => {
+      if (!state.currentMatch?.id) { Display.toast('No hay combate activo para hacer ping.', 'warning'); return; }
+      try {
+        await Matches.pingMatch(state.currentMatch.id);
+        Display.toast('Ping enviado a jueces.', 'success');
+      } catch (e) {
+        Display.toast(e.message || 'Error al enviar ping.', 'error');
+      }
+    });
+  }
+
   /* ---- Panel individual del juez ---- */
   window.judgePreviewKataScore = function(value) {
     const preview = document.getElementById('judge-kata-preview');
@@ -2624,7 +3115,23 @@
     }
   });
 
+  document.getElementById('btn-resolve-flags')?.addEventListener('click', async () => {
+    if (!state.currentMatch) return;
+    try {
+      const winnerSide = await Matches.resolveKataByFlags(state.currentMatch.id);
+      if (!winnerSide) { Display.toast('No hay un ganador claro por banderas.', 'warning'); return; }
+      
+      state.selectedWinnerId = winnerSide === 'a' ? state.currentMatch.competitor_a_id : state.currentMatch.competitor_b_id;
+      document.getElementById('btn-save-result').disabled = false;
+      Display.toast(`Ganador resuelto por banderas: ${winnerSide === 'a' ? 'AO' : 'AKA'}.`, 'success');
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  });
+
   document.getElementById('btn-enable-projection').addEventListener('click', () => {
+    state.genericModeActive = false;
+    _setGenericStatus('Modo inactivo.', 'muted');
     state.projectionModeOverride = null;
     _syncProjectionWindow();
     _openProjectionWindow();
@@ -2649,8 +3156,91 @@
 
   document.getElementById('btn-disable-projection').addEventListener('click', () => {
     _closeProjectionWindow();
+    _setGenericStatus('Modo inactivo.', 'muted');
     Display.toast('Segunda pantalla deshabilitada.', 'info');
   });
+
+  const genericModeSelect = document.getElementById('generic-mode');
+  if (genericModeSelect) {
+    genericModeSelect.addEventListener('change', () => {
+      _syncGenericModeFields();
+    });
+  }
+
+  const genericKataJudgeInputs = [
+    'generic-kata-judge-1',
+    'generic-kata-judge-2',
+    'generic-kata-judge-3',
+    'generic-kata-judge-4',
+    'generic-kata-judge-5',
+  ]
+    .map((id) => document.getElementById(id))
+    .filter(Boolean);
+
+  genericKataJudgeInputs.forEach((input) => {
+    input.addEventListener('input', () => {
+      _refreshGenericKataScoreFromJudges();
+    });
+  });
+
+  const genericPresetKataBtn = document.getElementById('btn-generic-preset-kata');
+  if (genericPresetKataBtn) {
+    genericPresetKataBtn.addEventListener('click', () => {
+      _applyGenericPreset('kata');
+      Display.toast('Preset Kata cargado.', 'info');
+    });
+  }
+
+  const genericPresetKumiteBtn = document.getElementById('btn-generic-preset-kumite');
+  if (genericPresetKumiteBtn) {
+    genericPresetKumiteBtn.addEventListener('click', () => {
+      _applyGenericPreset('kumite');
+      Display.toast('Preset Kumite cargado.', 'info');
+    });
+  }
+
+  const genericOpenBtn = document.getElementById('btn-generic-open');
+  if (genericOpenBtn) {
+    genericOpenBtn.addEventListener('click', () => {
+      try {
+        _publishGenericProjection();
+        _openProjectionWindow();
+        Display.toast('Pantalla generica enviada a pantalla extendida.', 'success');
+      } catch (e) {
+        _setGenericStatus(e.message || 'No se pudo activar el modo generico.', 'error');
+        Display.toast(e.message || 'No se pudo activar el modo generico.', 'error');
+      }
+    });
+  }
+
+  const genericUpdateBtn = document.getElementById('btn-generic-update');
+  if (genericUpdateBtn) {
+    genericUpdateBtn.addEventListener('click', () => {
+      try {
+        _publishGenericProjection();
+        Display.toast('Pantalla generica actualizada.', 'success');
+      } catch (e) {
+        _setGenericStatus(e.message || 'No se pudo actualizar el modo generico.', 'error');
+        Display.toast(e.message || 'No se pudo actualizar el modo generico.', 'error');
+      }
+    });
+  }
+
+  const genericClearBtn = document.getElementById('btn-generic-clear');
+  if (genericClearBtn) {
+    genericClearBtn.addEventListener('click', () => {
+      _clearGenericFields();
+      _setGenericStatus('Campos limpios.', 'muted');
+      Display.toast('Campos de pantalla generica limpiados.', 'info');
+    });
+  }
+
+  const genericExitBtn = document.getElementById('btn-generic-exit');
+  if (genericExitBtn) {
+    genericExitBtn.addEventListener('click', () => {
+      _exitGenericProjection(true);
+    });
+  }
 
   document.getElementById('btn-save-result').addEventListener('click', async () => {
     const m = state.currentMatch;
@@ -2784,6 +3374,23 @@
 
   /* ---- Actualizar manualmente ---- */
   document.getElementById('btn-refresh').addEventListener('click', () => _loadQueue());
+
+  const openGenericPanelBtn = document.getElementById('btn-open-generic-panel');
+  if (openGenericPanelBtn) {
+    openGenericPanelBtn.addEventListener('click', () => {
+      const genericCard = document.getElementById('generic-panel-card');
+      if (!genericCard) return;
+      genericCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const previousShadow = genericCard.style.boxShadow;
+      const previousBorder = genericCard.style.border;
+      genericCard.style.border = '2px solid #3b82f6';
+      genericCard.style.boxShadow = '0 0 0 3px rgba(59,130,246,.18)';
+      setTimeout(() => {
+        genericCard.style.border = previousBorder;
+        genericCard.style.boxShadow = previousShadow;
+      }, 1200);
+    });
+  }
 
   /* ---- Realtime: se actualiza la cola en tiempo real ---- */
   function _subscribeRealtime() {
