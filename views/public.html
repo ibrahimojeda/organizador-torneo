@@ -594,10 +594,24 @@
   }
 
   /* ---- Cargar torneo específico ---- */
+  function _applyDisplayModeFallback(id) {
+    // Crear objeto torneo mínimo desde datos de localStorage
+    const projectionLive = _readProjectionLive();
+    const tournamentName = projectionLive?.categoryName
+      ? (projectionLive.categoryName + ' — Torneo')
+      : 'Torneo Karate';
+    state.tournament = { id: id, name: tournamentName, status: 'ongoing' };
+    document.getElementById('view-tournament').style.display = 'block';
+    document.getElementById('tournament-hero').style.display = 'none';
+    _loadLiveBoard(id);
+    _subscribeRealtime(id);
+  }
+
   async function _loadTournament(id) {
     try {
       const t = await Tournament.getById(id);
       if (!t || t.status === 'draft') {
+        if (state.displayMode) { _applyDisplayModeFallback(id); return; }
         document.getElementById('view-not-found').style.display = 'block';
         return;
       }
@@ -615,6 +629,7 @@
       if (!state.displayMode) _loadResults();
       _subscribeRealtime(id);
     } catch (e) {
+      if (state.displayMode) { _applyDisplayModeFallback(id); return; }
       document.getElementById('view-not-found').style.display = 'block';
     }
   }
@@ -986,7 +1001,13 @@
     const content = document.getElementById('live-technical-content');
     if (!wrap || !content) return;
     try {
-      const matches = await Matches.listByTournament(tid);
+      let matches = [];
+      try {
+        matches = await Matches.listByTournament(tid);
+      } catch (_) {
+        // Si la consulta a Supabase falla (RLS, red, etc.), continuar con array vacío.
+        // Los datos del combate actual se obtienen de localStorage (projectionLive).
+      }
       const scopedMatches = state.displayTatami
         ? matches.filter(m => String(m.tatami || m.category?.tatami || '') === String(state.displayTatami))
         : matches;
@@ -1015,6 +1036,25 @@
         ? (scopedMatches.find(m => String(m.id) === String(projectionLive.matchId))
           || matches.find(m => String(m.id) === String(projectionLive.matchId)))
         : null;
+      // Si no se encontró el match en la DB pero hay datos en projectionLive, crear un objeto virtual
+      const virtualFromProjection = (!mirroredMatch && projectionLive?.matchId && projectionLive?.competitorAName)
+        ? {
+            id: projectionLive.matchId,
+            category_id: projectionLive.categoryId || null,
+            category: { name: projectionLive.categoryName || '', discipline: projectionLive.discipline || 'kumite' },
+            round_label: projectionLive.roundLabel || '',
+            status: projectionLive.status || 'pending',
+            tatami: projectionLive.tatami || state.displayTatami,
+            competitor_a_id: null,
+            competitor_b_id: null,
+            competitor_a: { competitors: { full_name: projectionLive.competitorAName, club: projectionLive.clubA || '' }, full_name: projectionLive.competitorAName, club: projectionLive.clubA || '' },
+            competitor_b: { competitors: { full_name: projectionLive.competitorBName || 'Competidor B', club: projectionLive.clubB || '' }, full_name: projectionLive.competitorBName || 'Competidor B', club: projectionLive.clubB || '' },
+            score_a: projectionLive.kumite?.scoreA ?? projectionLive.kata?.total ?? null,
+            score_b: projectionLive.kumite?.scoreB ?? null,
+            bracket_type: projectionLive.discipline === 'kata' ? 'kata_round' : 'single_elimination',
+            _fromProjection: true,
+          }
+        : null;
       const recentResultMatches = [...scopedMatches]
         .filter((m) => m.status === MATCH_STATUS.FINISHED && (m.winner_id || m.score_a != null || m.score_b != null))
         .sort((a, b) => {
@@ -1028,6 +1068,7 @@
       const liveMatch = state.displayMode
         ? (selectedMatch
           || mirroredMatch
+          || virtualFromProjection
           || ongoingMatch
           || latestFinished
           || pendingMatches[0]
@@ -1082,6 +1123,68 @@
 
       if (state.displayMode) {
         if (isKata) {
+          // --- KATA POR DUELOS: dos contendientes con sus notas de jueces ---
+          const isDuel = !!projectionLive?.kataDuel || !!liveMatch?.competitor_b_id;
+          if (isDuel) {
+            const duel = projectionLive?.kataDuel || {
+              winner: liveMatch.winner_id === liveMatch.competitor_a_id ? 'a' : (liveMatch.winner_id === liveMatch.competitor_b_id ? 'b' : null),
+              scoreA: 0, scoreB: 0, ready: false,
+              totalA: liveMatch.score_a != null ? Number(liveMatch.score_a) : null,
+              totalB: liveMatch.score_b != null ? Number(liveMatch.score_b) : null,
+              judgesA: projectionLive?.kata?.judges || [],
+              judgesB: [],
+            };
+            const nameA2 = nameA;
+            const nameB2 = nameB;
+            const clubA2 = clubA;
+            const clubB2 = projectionLive?.clubB || liveMatch.competitor_b?.competitors?.club || liveMatch.competitor_b?.club || '';
+            const totalA = duel.totalA != null ? Number(duel.totalA).toFixed(2) : '—';
+            const totalB = duel.totalB != null ? Number(duel.totalB).toFixed(2) : '—';
+            const winnerLabel = duel.winner ? (duel.winner === 'a' ? 'AO' : 'AKA') : null;
+            const judgesA = Array.isArray(duel.judgesA) ? duel.judgesA : [];
+            const judgesB = Array.isArray(duel.judgesB) ? duel.judgesB : [];
+            const seats = ['J1','J2','J3','J4','J5'];
+            const renderJudgeRow = (judges) => `
+              <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:.4rem;margin-top:.5rem;">
+                ${seats.map(seat => {
+                  const j = judges.find(jj => jj?.seat === seat) || {};
+                  const score = Number.isFinite(Number(j.score)) ? Number(j.score).toFixed(2) : '—';
+                  return `<div style="text-align:center;background:rgba(255,255,255,.08);border-radius:8px;padding:.35rem;">
+                    <div style="font-size:.65rem;opacity:.7;">${seat}</div>
+                    <div style="font-size:1rem;font-weight:800;">${score}</div>
+                  </div>`;
+                }).join('')}
+              </div>`;
+            content.innerHTML = `
+              ${heading()}
+              <div class="match-display" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:24px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.35);">
+                <div class="match-header" style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:1rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);">
+                  <span>${liveMatch.category?.name || '—'}</span>
+                  <span>🥋 Duelo de Kata · ${liveMatch.round_label || 'Ronda ' + liveMatch.round}</span>
+                </div>
+                <div class="match-body" style="display:grid;grid-template-columns:1fr auto 1fr;padding:1.5rem;align-items:stretch;">
+                  <div class="match-fighter" style="background:linear-gradient(135deg,#1565c0,#0f3ea8);border-radius:24px;padding:1.5rem;text-align:center;${winnerLabel === 'AKA' ? 'opacity:.7;' : ''}">
+                    <div class="match-fighter-name" style="font-size:clamp(1.6rem,3vw,2.6rem);font-weight:900;line-height:1;">${nameA2}</div>
+                    <div class="match-fighter-info" style="margin-top:.45rem;font-size:.95rem;opacity:.82;">AO · ${clubA2}</div>
+                    <div class="match-fighter-score" style="font-size:clamp(3.5rem,6vw,5rem);font-weight:900;line-height:1;margin-top:1rem;">${totalA}</div>
+                    ${winnerLabel === 'AO' ? '<div style="margin-top:.5rem;font-size:1rem;font-weight:800;color:#facc15;">🏆 GANADOR</div>' : ''}
+                    ${renderJudgeRow(judgesA)}
+                  </div>
+                  <div class="match-vs" style="display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;opacity:.72;padding:0 1rem;">VS</div>
+                  <div class="match-fighter" style="background:linear-gradient(135deg,#c62828,#991b1b);border-radius:24px;padding:1.5rem;text-align:center;${winnerLabel === 'AO' ? 'opacity:.7;' : ''}">
+                    <div class="match-fighter-name" style="font-size:clamp(1.6rem,3vw,2.6rem);font-weight:900;line-height:1;">${nameB2}</div>
+                    <div class="match-fighter-info" style="margin-top:.45rem;font-size:.95rem;opacity:.82;">AKA · ${clubB2}</div>
+                    <div class="match-fighter-score" style="font-size:clamp(3.5rem,6vw,5rem);font-weight:900;line-height:1;margin-top:1rem;">${totalB}</div>
+                    ${winnerLabel === 'AKA' ? '<div style="margin-top:.5rem;font-size:1rem;font-weight:800;color:#facc15;">🏆 GANADOR</div>' : ''}
+                    ${renderJudgeRow(judgesB)}
+                  </div>
+                </div>
+              </div>
+              <div style="margin-top:1rem;text-align:center;font-size:1.2rem;font-weight:800;color:#facc15;">
+                ${winnerLabel ? `🏆 Ganador: ${nameA2} (AO) ${duel.scoreA}-${duel.scoreB} ${nameB2} (AKA)` : 'Esperando notas de ambos contendientes...'}
+              </div>`;
+            return;
+          }
           const summary = mirrorForLiveMatch?.discipline === 'kata' && mirrorForLiveMatch?.kata
             ? {
                 total: mirrorForLiveMatch.kata.total,
@@ -1319,8 +1422,17 @@
             <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:.55rem;margin-top:.8rem;max-height:170px;overflow:auto;color:#111827;">${recent}</div>`;
         }
       }
-    } catch (_) {
-      wrap.style.display = 'none';
+    } catch (e) {
+      if (state.displayMode) {
+        wrap.style.display = 'block';
+        content.innerHTML = `<div style="min-height:60vh;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#f87171;font-size:1.5rem;font-weight:800;text-align:center;padding:2rem;">
+          <div style="font-size:3rem;margin-bottom:1rem;">⚠️</div>
+          <div>Error al cargar datos del marcador</div>
+          <div style="font-size:.85rem;color:#94a3b8;margin-top:.5rem;font-weight:400;">${e.message || 'Reintentando automáticamente...'}</div>
+        </div>`;
+      } else {
+        wrap.style.display = 'none';
+      }
     }
   }
 

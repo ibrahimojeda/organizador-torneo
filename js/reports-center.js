@@ -113,9 +113,12 @@
     if (!sel) return;
     try {
       const list = await (Auth.isSuperAdmin() ? Tournament.listAll() : Tournament.listMine());
-      const current = await getCurrentTournamentId();
+      // Preseleccionar: primero lo que ya está en el selector (si existe), luego localStorage
+      const saved = localStorage.getItem('ot_active_tournament_id');
+      const current = sel.value || saved || '';
       sel.innerHTML = '<option value="">— Selecciona un torneo —</option>' +
         list.map(t => `<option value="${t.id}" ${t.id === current ? 'selected' : ''}>${escapeHtml(t.name || 'Torneo')}</option>`).join('');
+      if (current) sel.value = current;
       sel.onchange = () => {
         if (sel.value) localStorage.setItem('ot_active_tournament_id', sel.value);
       };

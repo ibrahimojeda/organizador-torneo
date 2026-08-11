@@ -70,7 +70,69 @@ const Reports = (() => {
   async function printSchedule(tournamentId) {
     const cats = await Categories.listByTournament(tournamentId);
     const tournament = await Tournament.getById(tournamentId);
-    
+
+    // Replica la lógica de cálculo de horarios de admin.html
+    const startTime = (tournament.time_start || '09:00').slice(0, 5);
+    function _addMinutes(time, mins) {
+      if (!time) return '—';
+      const [h, m] = time.split(':').map(Number);
+      const total = h * 60 + m + (mins || 0);
+      const nh = Math.floor(total / 60) % 24;
+      const nm = total % 60;
+      return `${String(nh).padStart(2, '0')}:${String(nm).padStart(2, '0')}`;
+    }
+
+    // Obtener combates reales para calcular duración
+    let matchesByCategory = {};
+    try {
+      const allMatches = await Matches.listByTournament(tournamentId);
+      allMatches.forEach(m => {
+        if (m.status === 'bye') return;
+        if (!m.category_id) return;
+        if (!matchesByCategory[m.category_id]) matchesByCategory[m.category_id] = { total: 0, kata: 0, kumite: 0 };
+        matchesByCategory[m.category_id].total++;
+        if (m.bracket_type === 'kata_round') matchesByCategory[m.category_id].kata++;
+        else matchesByCategory[m.category_id].kumite++;
+      });
+    } catch (_) {}
+
+    // Agrupar por tatami y calcular horas
+    const byTatami = {};
+    cats.forEach(cat => {
+      const t = cat.tatami || 1;
+      if (!byTatami[t]) byTatami[t] = [];
+      byTatami[t].push(cat);
+    });
+
+    const scheduleRows = [];
+    Object.keys(byTatami).map(Number).sort((a, b) => a - b).forEach(tNum => {
+      let cursor = startTime;
+      byTatami[tNum].forEach(cat => {
+        const regCount = cat.registrations?.[0]?.count ?? cat.registrations_count ?? 0;
+        const catData = matchesByCategory[cat.id];
+        const hasMatches = catData && catData.total > 0;
+        let minutes = 0;
+        if (cat.discipline === 'kata') {
+          minutes = hasMatches ? catData.total * 3 : regCount * 3;
+        } else {
+          if (hasMatches) minutes = catData.kumite * 5;
+          else minutes = Math.max(0, regCount - 1) * 5;
+        }
+        const catStart = cursor;
+        const catEnd = _addMinutes(cursor, minutes);
+        cursor = catEnd;
+        scheduleRows.push({
+          category: cat.name || '—',
+          discipline: cat.discipline || '—',
+          gender: cat.gender || '—',
+          tatami: tNum,
+          start: catStart,
+          end: catEnd,
+          minutes,
+        });
+      });
+    });
+
     let html = `
       <html><head><title>Programación del Torneo</title>
       <style>
@@ -79,22 +141,26 @@ const Reports = (() => {
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background: #f3f4f6; }
         .header { text-align: center; margin-bottom: 30px; }
+        .time-cell { font-weight: bold; white-space: nowrap; }
       </style>
       </head><body>
       <div class="header">
         <h1>Programación de Tatamis</h1>
-        <p>${escape(tournament.name)} - ${escape(tournament.date_start || '')}</p>
+        <p>${escape(tournament.name)} - ${escape(tournament.date_start || '')} · Inicio: ${startTime}</p>
       </div>
       <table>
         <thead>
-          <tr><th>Categoría</th><th>Disciplina</th><th>Género</th><th>Tatami</th></tr>
+          <tr><th>Hora Inicio</th><th>Hora Fin</th><th>Duración</th><th>Categoría</th><th>Disciplina</th><th>Género</th><th>Tatami</th></tr>
         </thead>
         <tbody>
-          ${cats.map(c => `<tr>
-            <td>${escape(c.name)}</td>
-            <td>${escape(c.discipline)}</td>
-            <td>${escape(c.gender)}</td>
-            <td>${escape(String(c.tatami))}</td>
+          ${scheduleRows.map(r => `<tr>
+            <td class="time-cell">${r.start}</td>
+            <td class="time-cell">${r.end}</td>
+            <td>${r.minutes} min</td>
+            <td>${escape(r.category)}</td>
+            <td>${escape(r.discipline)}</td>
+            <td>${escape(r.gender)}</td>
+            <td>Tatami ${r.tatami}</td>
           </tr>`).join('')}
         </tbody>
       </table>

@@ -13,3 +13,26 @@ desktop.ini
 
 # SQL (solo para referencia local, no exponer)
 *.csv
+
+# Dependencias
+node_modules/
+
+# Proyecto Android (no se sirve en GitHub Pages)
+android/
+
+# Copia de Capacitor (duplicada)
+www/
+
+# Binarios
+*.apk
+
+# Logs
+*.log
+hs_err_*
+replay_pid*
+
+# Archivos temporales / notas
+0
+admin_backup.txt
+admin_original.txt
+Cargar en la nube.txt

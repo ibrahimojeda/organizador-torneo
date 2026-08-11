@@ -1,6 +1,3 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Mesa Técnica — Torneo Karate</title>
@@ -409,9 +406,16 @@
     </div>
 
     <div class="mt-4">
-      <h3 class="text-sm text-muted mb-2" style="text-transform:uppercase;letter-spacing:.06em;">
-        Bitácora resumida del tatami
-      </h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem;">
+        <h3 class="text-sm text-muted mb-0" style="text-transform:uppercase;letter-spacing:.06em;">
+          Bitácora resumida del tatami
+        </h3>
+        <div class="flex gap-1 flex-wrap">
+          <button class="btn btn-outline btn-sm" id="btn-export-csv" type="button">📥 Exportar CSV</button>
+          <button class="btn btn-outline btn-sm" id="btn-export-pdf" type="button">📄 Exportar PDF</button>
+          <button class="btn btn-outline btn-sm" id="btn-export-full-csv" type="button">📦 CSV Torneo Completo</button>
+        </div>
+      </div>
       <div class="card" id="bitacora-list" style="padding:0;color:#111827;">
         <div class="text-center p-3"><span class="spinner"></span></div>
       </div>
@@ -574,6 +578,29 @@
         </div>
 
         <div style="padding:1rem;background:#faf5ff;">
+          <div id="kata-duel-panel" style="display:none;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem;">
+              <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:.6rem;">
+                <div style="font-size:.8rem;font-weight:800;color:#1565c0;margin-bottom:.3rem;">🔵 AO — <span id="kata-duel-name-a">Competidor A</span></div>
+                <div id="kata-judge-grid-a" style="display:grid;grid-template-columns:repeat(5,1fr);gap:.4rem;"></div>
+                <div id="kata-duel-total-a" class="text-center mt-2" style="font-size:1.4rem;font-weight:900;color:#1565c0;">—</div>
+              </div>
+              <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:.6rem;">
+                <div style="font-size:.8rem;font-weight:800;color:#c62828;margin-bottom:.3rem;">🔴 AKA — <span id="kata-duel-name-b">Competidor B</span></div>
+                <div id="kata-judge-grid-b" style="display:grid;grid-template-columns:repeat(5,1fr);gap:.4rem;"></div>
+                <div id="kata-duel-total-b" class="text-center mt-2" style="font-size:1.4rem;font-weight:900;color:#c62828;">—</div>
+              </div>
+            </div>
+            <div id="kata-duel-summary" style="background:#ede9fe;border-radius:8px;padding:.75rem;text-align:center;margin-bottom:.75rem;">
+              <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:#7c3aed;margin-bottom:.2rem;">Resultado del Duelo</div>
+              <div id="kata-duel-winner" style="font-size:1.2rem;font-weight:900;color:#6d28d9;line-height:1.2;">Esperando notas de ambos contendientes...</div>
+            </div>
+          </div>
+
+          <div class="form-group" id="kata-name-group">
+            <label class="form-label" style="font-size:.75rem;">Nombre de la Kata</label>
+            <input type="text" class="form-control form-control-sm" id="kata-name" placeholder="Ej: Gojushiho Sho, Unsu, Kanku Dai..." />
+          </div>
           <div id="kata-judge-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:.5rem;margin-bottom:.75rem;"></div>
 
           <div style="background:#fff;border:1px solid #ddd6fe;border-radius:8px;padding:.75rem;margin-bottom:.75rem;color:#111827;">
@@ -1143,7 +1170,9 @@
   function _persistProjectionLiveState() {
     const key = _getProjectionLiveKey();
     if (!key) return;
-    if (state.projectionModeOverride === 'category_awards' || state.projectionModeOverride === 'generic_board') return;
+    // Solo bloquear si el modo genérico está realmente activo (no basta el override flag)
+    if (state.genericModeActive && state.projectionModeOverride === 'generic_board') return;
+    if (state.projectionModeOverride === 'category_awards') return;
     const match = state.currentMatch;
     if (!match?.id) {
       try { localStorage.removeItem(key); } catch (_) {}
@@ -1151,7 +1180,9 @@
     }
 
     const isKata = _isKataMatch(match);
+    const isDuel = isKata && !!match.competitor_b_id;
     let kataSummary = isKata ? Matches.getKataSummary(match) : null;
+    let kataDuelSummary = null;
     if (isKata) {
       const manualInputs = Array.from(document.querySelectorAll('.kata-manual-input'));
       if (manualInputs.length) {
@@ -1165,6 +1196,19 @@
             seat: j.seat,
             score: j.score,
           })),
+        };
+      }
+      if (isDuel) {
+        const duelInputs = _getKataDuelSummaryFromInputs();
+        kataDuelSummary = {
+          winner: duelInputs.winner,
+          scoreA: duelInputs.scoreA,
+          scoreB: duelInputs.scoreB,
+          ready: duelInputs.ready,
+          totalA: duelInputs.summaryA?.total ?? null,
+          totalB: duelInputs.summaryB?.total ?? null,
+          judgesA: duelInputs.summaryA?.judges || [],
+          judgesB: duelInputs.summaryB?.judges || [],
         };
       }
     }
@@ -1200,6 +1244,7 @@
         submitted: Number.isFinite(Number(kataSummary?.submitted)) ? Number(kataSummary.submitted) : null,
         ready: !!kataSummary?.ready,
       } : null,
+      kataDuel: isDuel ? kataDuelSummary : null,
     };
     try {
       localStorage.setItem(key, JSON.stringify(payload));
@@ -1829,6 +1874,7 @@
       const changedTatami = changedMatch?.tatami ?? changedMatch?.category?.tatami ?? null;
       if (state.tatami && String(changedTatami || '') !== String(state.tatami)) return;
 
+      // Si es el mismo combate que ya tenemos, solo refrescamos UI.
       if (state.currentMatch?.id && String(state.currentMatch.id) === String(changedMatch.id)) {
         state.currentMatch = changedMatch;
         _renderCurrentMatch(changedMatch);
@@ -1836,12 +1882,10 @@
         return;
       }
 
-      // Si otro panel inició un combate en este tatami, lo adoptamos en Mesa automáticamente.
-      if (changedMatch?.status === MATCH_STATUS.ONGOING && changedMatch?.id) {
-        state.currentMatch = changedMatch;
-        _renderCurrentMatch(changedMatch);
-        _syncProjectionWindow();
-      }
+      // NO adoptamos automáticamente otro combate si ya hay uno en pantalla.
+      // Solo se cambia de combate mediante clic explícito del usuario en la cola
+      // o cuando se limpia el combate actual (ClearCurrentMatch).
+      if (state.currentMatch?.id) return;
     } catch (_) {}
   }
 
@@ -2247,10 +2291,13 @@
         </div>`;
       }).join('');
 
-      const preferred = filteredPending.find(m => m.id === state.currentMatch?.id) || filteredPending.find(m => m.status === MATCH_STATUS.ONGOING) || filteredPending[0];
-      const keepLockedCurrent = !!(state.currentMatch && _isResultLocked(state.currentMatch));
-      if (preferred?.id && (!state.currentMatch || (state.currentMatch.id !== preferred.id && !keepLockedCurrent))) {
-        callMatch(preferred.id);
+      // Solo auto-seleccionamos el primer combate si NO hay ninguno en pantalla.
+      // Si ya hay un combate (aunque no esté bloqueado), respetamos la selección del usuario.
+      if (!state.currentMatch) {
+        const preferred = filteredPending.find(m => m.status === MATCH_STATUS.ONGOING) || filteredPending[0];
+        if (preferred?.id) {
+          callMatch(preferred.id);
+        }
       }
     } catch (e) {
       queueEl.innerHTML = `<div class="alert alert-danger m-2">${e.message}</div>`;
@@ -2262,7 +2309,12 @@
     try {
       const match = await Matches.getById(matchId);
       state.currentMatch = match;
-      if (!state.projectionLiveActive && match?.status === MATCH_STATUS.ONGOING) {
+      // Al llamar un combate, limpiamos override para que la pantalla extendida lo muestre
+      if (state.projectionModeOverride === 'generic_board' || state.projectionModeOverride === 'category_awards') {
+        state.projectionModeOverride = null;
+        state.genericModeActive = false;
+      }
+      if (!state.projectionLiveActive && match?.id) {
         state.projectionLiveActive = true;
       }
       _renderCurrentMatch(state.currentMatch);
@@ -2371,30 +2423,65 @@
     }
 
     /* -- Renderizar combate en el panel izquierdo -- */
+    const isKataDuel = isKata && !!match.competitor_b_id;
     if (isKata) {
-      const kataSummaryLive = Matches.getKataSummary(match);
-      const kataScore = match.score_a != null
-        ? Number(match.score_a).toFixed(2)
-        : (kataSummaryLive?.total != null ? Number(kataSummaryLive.total).toFixed(2) : '—');
-      const kataResultNote = isLocked
-        ? `<div style="margin-top:.9rem;padding:.55rem .7rem;border-radius:10px;background:#f59e0b;color:#111827;font-weight:800;text-align:center;">✅ Este participante ya ejecuto su kata · Nota final: ${kataScore}</div>`
-        : '';
-      document.getElementById('current-match-display').innerHTML = `
-        <div class="match-display">
-          <div class="match-header">
-            <span>${match.category?.name || '—'}</span>
-            <span>🥋 ${match.round_label || 'Ronda ' + match.round}</span>
-          </div>
-          <div class="match-body" style="justify-content:center;">
-            <div class="match-fighter" id="fighter-a" style="flex:unset;min-width:260px;text-align:center;">
-              <div class="match-fighter-name">${nameA}</div>
-              <div class="match-fighter-info">${clubA}</div>
-              <div class="match-fighter-score" id="score-a">—</div>
+      if (isKataDuel) {
+        const nameB = match.competitor_b?.competitors?.full_name || match.competitor_b?.full_name || 'Competidor B';
+        const clubB = match.competitor_b?.competitors?.club || match.competitor_b?.club || '';
+        const duelSummary = Matches.getKataDuelSummary(match);
+        const scoreA = isLocked && match.score_a != null ? Number(match.score_a).toFixed(2) : '—';
+        const scoreB = isLocked && match.score_b != null ? Number(match.score_b).toFixed(2) : '—';
+        const winnerSide = match.winner_id === match.competitor_a_id ? 'a' : (match.winner_id === match.competitor_b_id ? 'b' : null);
+        const kataResultNote = isLocked
+          ? `<div style="margin-top:.9rem;padding:.55rem .7rem;border-radius:10px;background:#16a34a;color:#fff;font-weight:800;text-align:center;">✅ Duelo terminado · Ganador: ${winnerSide === 'a' ? (nameA + ' (AO)') : (nameB + ' (AKA)')} · Jueces: ${duelSummary.scoreA}-${duelSummary.scoreB}</div>`
+          : '';
+        document.getElementById('current-match-display').innerHTML = `
+          <div class="match-display">
+            <div class="match-header">
+              <span>${match.category?.name || '—'}</span>
+              <span>🥋 ${match.round_label || 'Ronda ' + match.round}</span>
             </div>
+            <div class="match-body" style="display:grid;grid-template-columns:1fr auto 1fr;padding:1rem;align-items:stretch;">
+              <div class="match-fighter" id="fighter-a" style="background:linear-gradient(135deg,#1565c0,#0f3ea8);color:#fff;">
+                <div class="match-fighter-name">${nameA}</div>
+                <div class="match-fighter-info">AO · ${clubA}</div>
+                <div class="match-fighter-score" id="score-a">${scoreA}</div>
+              </div>
+              <div class="match-vs">VS</div>
+              <div class="match-fighter" id="fighter-b" style="background:linear-gradient(135deg,#c62828,#991b1b);color:#fff;">
+                <div class="match-fighter-name">${nameB}</div>
+                <div class="match-fighter-info">AKA · ${clubB}</div>
+                <div class="match-fighter-score" id="score-b">${scoreB}</div>
+              </div>
+            </div>
+            ${kataResultNote}
           </div>
-          ${kataResultNote}
-        </div>
-      `;
+        `;
+      } else {
+        const kataSummaryLive = Matches.getKataSummary(match);
+        const kataScore = match.score_a != null
+          ? Number(match.score_a).toFixed(2)
+          : (kataSummaryLive?.total != null ? Number(kataSummaryLive.total).toFixed(2) : '—');
+        const kataResultNote = isLocked
+          ? `<div style="margin-top:.9rem;padding:.55rem .7rem;border-radius:10px;background:#f59e0b;color:#111827;font-weight:800;text-align:center;">✅ Este participante ya ejecuto su kata · Nota final: ${kataScore}</div>`
+          : '';
+        document.getElementById('current-match-display').innerHTML = `
+          <div class="match-display">
+            <div class="match-header">
+              <span>${match.category?.name || '—'}</span>
+              <span>🥋 ${match.round_label || 'Ronda ' + match.round}</span>
+            </div>
+            <div class="match-body" style="justify-content:center;">
+              <div class="match-fighter" id="fighter-a" style="flex:unset;min-width:260px;text-align:center;">
+                <div class="match-fighter-name">${nameA}</div>
+                <div class="match-fighter-info">${clubA}</div>
+                <div class="match-fighter-score" id="score-a">—</div>
+              </div>
+            </div>
+            ${kataResultNote}
+          </div>
+        `;
+      }
     } else {
       const nameB = match.competitor_b?.competitors?.full_name || match.competitor_b?.full_name || 'Competidor B';
       const clubB = match.competitor_b?.competitors?.club || match.competitor_b?.club || '';
@@ -2463,9 +2550,130 @@
     return summary;
   }
 
+  function _renderKataDuelGrid(match) {
+    if (!match) return;
+    const duelPanel = document.getElementById('kata-duel-panel');
+    const nameGroup = document.getElementById('kata-name-group');
+    const individualGrid = document.getElementById('kata-judge-grid');
+    if (!duelPanel) return;
+
+    // Mostrar panel de duelo y ocultar el individual
+    duelPanel.style.display = 'block';
+    if (nameGroup) nameGroup.style.display = 'none';
+    if (individualGrid) individualGrid.style.display = 'none';
+
+    const nameA = match.competitor_a?.competitors?.full_name || match.competitor_a?.full_name || 'Competidor A';
+    const nameB = match.competitor_b?.competitors?.full_name || match.competitor_b?.full_name || 'Competidor B';
+    document.getElementById('kata-duel-name-a').textContent = nameA;
+    document.getElementById('kata-duel-name-b').textContent = nameB;
+
+    const seats = ['J1', 'J2', 'J3', 'J4', 'J5'];
+    const summary = Matches.getKataDuelSummary(match);
+
+    const buildSideGrid = (containerId, side) => {
+      const grid = document.getElementById(containerId);
+      if (!grid) return;
+      const judges = side === 'a' ? summary.summaryA.judges : summary.summaryB.judges;
+      grid.innerHTML = seats.map(seat => {
+        const j = judges.find(judge => judge.seat === seat) || { score: null };
+        const scoreValue = Number.isFinite(Number(j.score)) ? Number(j.score).toFixed(2) : '';
+        return `
+          <div style="text-align:center;">
+            <div style="font-size:.62rem;text-transform:uppercase;opacity:.7;">${seat}</div>
+            <input type="number" class="form-control text-center kata-duel-input" data-side="${side}" data-seat="${seat}" min="0" max="9.99" step="0.01" value="${scoreValue}" oninput="calcKataDuelTotal()" style="font-size:1rem;font-weight:800;" placeholder="0.00" />
+          </div>`;
+      }).join('');
+    };
+
+    buildSideGrid('kata-judge-grid-a', 'a');
+    buildSideGrid('kata-judge-grid-b', 'b');
+
+    // Actualizar totales y resumen
+    _updateKataDuelTotals(summary);
+  }
+
+  function _getKataDuelScoresFromInputs() {
+    const scoresA = {};
+    const scoresB = {};
+    document.querySelectorAll('.kata-duel-input').forEach(input => {
+      const side = input.dataset.side;
+      const seat = input.dataset.seat;
+      const rawValue = String(input.value || '').replace(',', '.').trim();
+      const value = Number(rawValue);
+      const valid = /^\d(?:\.\d{1,2})?$/.test(rawValue) && Number.isFinite(value) && value >= 0 && value <= 9.99;
+      const target = side === 'b' ? scoresB : scoresA;
+      target[seat] = valid ? Number(value.toFixed(2)) : null;
+    });
+    return { scoresA, scoresB };
+  }
+
+  function _getKataDuelSummaryFromInputs() {
+    const { scoresA, scoresB } = _getKataDuelScoresFromInputs();
+    const summaryA = _getKataSummaryFromScores(scoresA);
+    const summaryB = _getKataSummaryFromScores(scoresB);
+    const ready = summaryA.ready && summaryB.ready;
+
+    let scoreA = 0, scoreB = 0;
+    const seats = ['J1','J2','J3','J4','J5'];
+    seats.forEach(seat => {
+      const sa = Number(scoresA[seat]);
+      const sb = Number(scoresB[seat]);
+      if (Number.isFinite(sa) && Number.isFinite(sb)) {
+        if (sa > sb) scoreA++;
+        else if (sb > sa) scoreB++;
+      }
+    });
+
+    let winner = null;
+    if (ready) {
+      if (scoreA > scoreB) winner = 'a';
+      else if (scoreB > scoreA) winner = 'b';
+      else if (summaryA.total != null && summaryB.total != null) {
+        if (summaryA.total > summaryB.total) winner = 'a';
+        else if (summaryB.total > summaryA.total) winner = 'b';
+      }
+    }
+
+    return { summaryA, summaryB, ready, scoreA, scoreB, winner };
+  }
+
+  function _updateKataDuelTotals(summary) {
+    const totalAEl = document.getElementById('kata-duel-total-a');
+    const totalBEl = document.getElementById('kata-duel-total-b');
+    const winnerEl = document.getElementById('kata-duel-winner');
+    if (totalAEl) totalAEl.textContent = summary.summaryA?.total != null ? Number(summary.summaryA.total).toFixed(2) : '—';
+    if (totalBEl) totalBEl.textContent = summary.summaryB?.total != null ? Number(summary.summaryB.total).toFixed(2) : '—';
+    if (winnerEl) {
+      if (summary.ready) {
+        if (summary.winner) {
+          const name = summary.winner === 'a' ? (document.getElementById('kata-duel-name-a')?.textContent || 'AO') : (document.getElementById('kata-duel-name-b')?.textContent || 'AKA');
+          winnerEl.textContent = `🏆 Ganador: ${name} (${summary.winner === 'a' ? 'AO' : 'AKA'}) · Jueces ${summary.scoreA}-${summary.scoreB}`;
+        } else {
+          winnerEl.textContent = 'Empate en jueces y total. Decidir manualmente.';
+        }
+      } else {
+        winnerEl.textContent = 'Completa las 5 notas de ambos contendientes...';
+      }
+    }
+    document.getElementById('btn-save-result').disabled = !summary.ready;
+  }
+
+  window.calcKataDuelTotal = function() {
+    const summary = _getKataDuelSummaryFromInputs();
+    _updateKataDuelTotals(summary);
+  };
+
   function _renderLiveJudging(match) {
     if (!match) return;
     const isKata = _isKataMatch(match);
+    const isDuel = isKata && !!match.competitor_b_id;
+    if (isDuel) {
+      _renderKataDuelGrid(match);
+      const summary = Matches.getKataDuelSummary(match);
+      _updateKataDuelTotals(summary);
+      _persistProjectionLiveState();
+      return;
+    }
     document.getElementById('judge-station-card').style.display = 'block';
     document.getElementById('judges-live-board').style.display = 'none';
 
@@ -2596,16 +2804,28 @@
     document.getElementById('result-notes').value    = '';
 
     if (isKata) {
-      document.getElementById('modal-result-title').textContent = '🥋 Puntaje de Kata';
+      const isDuel = !!m.competitor_b_id;
+      document.getElementById('modal-result-title').textContent = isDuel ? '🥋 Duelo de Kata' : '🥋 Puntaje de Kata';
       document.getElementById('panel-kumite-result').style.display = 'none';
       document.getElementById('panel-kata-result').style.display  = 'block';
       document.getElementById('kata-athlete-name').textContent = nameA;
       document.getElementById('kata-athlete-club').textContent = m.competitor_a?.competitors?.club || m.competitor_a?.club || '';
       document.getElementById('kata-notes').value = '';
-      _renderKataJudgeGrid(m);
-      const overrideSummary = _populateKataOverride(m);
-      document.getElementById('btn-save-result').disabled = !overrideSummary.ready;
-      state.selectedWinnerId = m.competitor_a_id;
+
+      if (isDuel) {
+        // --- Modo duelo: dos grids de 5 jueces (A y B) ---
+        _renderKataDuelGrid(m);
+        const duelSummary = Matches.getKataDuelSummary(m);
+        const readyBoth = duelSummary.ready;
+        document.getElementById('btn-save-result').disabled = !readyBoth;
+        // El ganador se calcula automáticamente al completar ambos lados
+        state.selectedWinnerId = null;
+      } else {
+        _renderKataJudgeGrid(m);
+        const overrideSummary = _populateKataOverride(m);
+        document.getElementById('btn-save-result').disabled = !overrideSummary.ready;
+        state.selectedWinnerId = m.competitor_a_id;
+      }
 
       // Banderas resolution button visibility
       const isFlagMode = m.category?.rules?.kata_mode === 'flag' || m.category?.kata_mode === 'flag';
@@ -2844,9 +3064,10 @@
   window.kumiteSelectWinner = async function(side) {
     _pushKumiteUndo(side);
     _kumite.winner = side;
-    state.manualKumiteTouched = true;
+    // NO se marca manualKumiteTouched aquí — solo se marca por acciones reales
+    // de combate (puntos, faltas, o que el timer termine).
     state.selectedWinnerId = side === 'a' ? state.currentMatch?.competitor_a_id : state.currentMatch?.competitor_b_id;
-    document.getElementById('btn-save-result').disabled = false;
+    document.getElementById('btn-save-result').disabled = !(state.selectedWinnerId && state.manualKumiteTouched);
     _updateKumiteUI();
     if (state.currentMatch?.id) {
       try {
@@ -2938,6 +3159,9 @@
       Display.toast('\u23F1\uFE0F ¡Tiempo!', 'warning');
       return;
     }
+
+    // El timer agotarse cuenta como actividad real de combate.
+    state.manualKumiteTouched = true;
 
     // Regla 1: mayor puntaje gana automáticamente.
     if (_kumite.a !== _kumite.b) {
@@ -3139,6 +3363,23 @@
   });
 
   document.getElementById('btn-open-scoreboard').addEventListener('click', async () => {
+    // Siempre mostrar el combate actual en curso primero
+    if (state.currentMatch?.id) {
+      state.projectionModeOverride = null;
+      state.genericModeActive = false;
+      // Forzar persistencia del estado del combate en localStorage
+      _persistProjectionLiveState();
+      _persistProjectionTarget();
+      // Si la ventana ya está abierta, cerrarla y reabrirla para que tome los datos nuevos
+      if (state.projectionWindow && !state.projectionWindow.closed) {
+        try { state.projectionWindow.close(); } catch (_) {}
+        state.projectionWindow = null;
+      }
+      _openProjectionWindow();
+      Display.toast('Pantalla extendida del marcador abierta.', 'success');
+      return;
+    }
+    // Si no hay combate activo pero hay categoría seleccionada, intentar premiación
     const categoryId = state.selectedCategoryId || null;
     if (categoryId) {
       const projection = await _publishCategoryAwardsProjection(categoryId);
@@ -3252,23 +3493,63 @@
     const isKata = _isKataMatch(m);
 
     let result;
+    const isDuel = isKata && !!m.competitor_b_id;
     if (isKata) {
-      const summary = await _applyKataOverride(m, false);
-      if (!summary.ready) { Display.toast('La mesa debe completar las 5 notas de kata.', 'warning'); return; }
-      await _refreshCurrentMatch();
-      const liveMatch = state.currentMatch?.id === m.id ? state.currentMatch : m;
-      const kNotes = document.getElementById('kata-notes').value || '';
-      result = {
-        winner_id: m.competitor_a_id,
-        score_a:   summary.total,
-        score_b:   null,
-        notes: {
-          text: kNotes || null,
-          live: Matches.getLiveState(liveMatch),
-          judge_summary: { type: 'kata', total: summary.total, judges: summary.judges },
-        },
-      };
-      state.selectedWinnerId = m.competitor_a_id;
+      if (isDuel) {
+        // --- Duelo de kata: guardar notas de ambos lados y ganador ---
+        const { scoresA, scoresB } = _getKataDuelScoresFromInputs();
+        const duelSummary = _getKataDuelSummaryFromInputs();
+        if (!duelSummary.ready) { Display.toast('La mesa debe completar las 5 notas de ambos contendientes.', 'warning'); return; }
+        if (!duelSummary.winner) { Display.toast('Empate de jueces y total. Selecciona un ganador manualmente.', 'warning'); return; }
+
+        _setSyncIndicator('syncing', `Sincronizando notas duelo kata... ${_syncTimeStamp()}`);
+        try {
+          await Matches.applyMesaKataDuelOverride(m.id, scoresA, scoresB, {
+            name: 'Mesa Tecnica',
+            code: state.referee.code,
+            tatami: state.tatami,
+          });
+        } catch (err) {
+          _setSyncIndicator('error', `Error al sincronizar notas duelo kata ${_syncTimeStamp()}`);
+          Display.toast(err.message, 'error');
+          return;
+        }
+        _setSyncIndicator('ok', `Notas duelo kata sincronizadas ${_syncTimeStamp()}`);
+
+        await _refreshCurrentMatch();
+        const liveMatch = state.currentMatch?.id === m.id ? state.currentMatch : m;
+        const winnerId = duelSummary.winner === 'a' ? m.competitor_a_id : m.competitor_b_id;
+        result = {
+          winner_id: winnerId,
+          score_a:   duelSummary.summaryA.total,
+          score_b:   duelSummary.summaryB.total,
+          notes: {
+            kata_name: document.getElementById('kata-name')?.value?.trim() || null,
+            live: Matches.getLiveState(liveMatch),
+            judge_summary: { type: 'kata_duel', scoreA: duelSummary.summaryA.total, scoreB: duelSummary.summaryB.total, winner: duelSummary.winner, judgesA: duelSummary.summaryA.judges, judgesB: duelSummary.summaryB.judges },
+          },
+        };
+        state.selectedWinnerId = winnerId;
+      } else {
+        const summary = await _applyKataOverride(m, false);
+        if (!summary.ready) { Display.toast('La mesa debe completar las 5 notas de kata.', 'warning'); return; }
+        await _refreshCurrentMatch();
+        const liveMatch = state.currentMatch?.id === m.id ? state.currentMatch : m;
+        const kNotes = document.getElementById('kata-notes').value || '';
+        const kataName = document.getElementById('kata-name')?.value?.trim() || '';
+        result = {
+          winner_id: m.competitor_a_id,
+          score_a:   summary.total,
+          score_b:   null,
+          notes: {
+            text: kNotes || null,
+            kata_name: kataName || null,
+            live: Matches.getLiveState(liveMatch),
+            judge_summary: { type: 'kata', total: summary.total, judges: summary.judges },
+          },
+        };
+        state.selectedWinnerId = m.competitor_a_id;
+      }
     } else {
       if (!state.selectedWinnerId && _kumite.a !== _kumite.b) {
         _kumite.winner = _kumite.a > _kumite.b ? 'a' : 'b';
@@ -3422,6 +3703,180 @@
     const v = document.getElementById(id).value;
     return v !== '' ? parseInt(v, 10) : null;
   }
+
+  /* ---- Exportación de bitácora ---- */
+  let _cachedBitacoraEntries = [];
+
+  async function _refreshBitacoraCache() {
+    if (!state.tournamentId || !state.tatami) { _cachedBitacoraEntries = []; return; }
+    try {
+      const matches = await Matches.listByTournament(state.tournamentId);
+      const tatamiMatches = (matches || []).filter(
+        m => String(m.tatami ?? m.category?.tatami ?? '') === String(state.tatami)
+      );
+      const filtered = state.selectedCategoryId
+        ? tatamiMatches.filter(m => String(m.category_id || m.category?.id || '') === String(state.selectedCategoryId))
+        : tatamiMatches;
+      _cachedBitacoraEntries = Matches.buildTournamentBitacora(filtered);
+    } catch (_) {
+      _cachedBitacoraEntries = [];
+    }
+  }
+
+  async function _exportBitacoraCSV() {
+    await _refreshBitacoraCache();
+    if (!_cachedBitacoraEntries.length) {
+      Display.toast('No hay eventos en la bitácora para exportar.', 'warning');
+      return;
+    }
+    const csv = Matches.exportBitacoraCSV(_cachedBitacoraEntries);
+    const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    Matches.downloadBlob(csv, `bitacora_tatami_${state.tatami}_${ts}.csv`, 'text/csv;charset=utf-8');
+    Display.toast('Bitácora exportada como CSV.', 'success');
+  }
+
+  async function _exportBitacoraJSON() {
+    await _refreshBitacoraCache();
+    if (!_cachedBitacoraEntries.length) {
+      Display.toast('No hay eventos en la bitácora para exportar.', 'warning');
+      return;
+    }
+    const json = Matches.exportBitacoraJSON(_cachedBitacoraEntries);
+    const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    Matches.downloadBlob(json, `bitacora_tatami_${state.tatami}_${ts}.json`, 'application/json;charset=utf-8');
+    Display.toast('Bitácora exportada como JSON.', 'success');
+  }
+
+  async function _exportFullTournamentCSV() {
+    if (!state.tournamentId) return;
+    try {
+      const matches = await Matches.listByTournament(state.tournamentId);
+      const entries = Matches.buildTournamentBitacora(matches);
+      if (!entries.length) {
+        Display.toast('No hay eventos en el torneo para exportar.', 'warning');
+        return;
+      }
+      const csv = Matches.exportBitacoraCSV(entries);
+      const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      Matches.downloadBlob(csv, `bitacora_torneo_completo_${ts}.csv`, 'text/csv;charset=utf-8');
+      Display.toast('Bitácora completa del torneo exportada como CSV.', 'success');
+    } catch (e) {
+      Display.toast('Error al exportar: ' + (e.message || 'desconocido'), 'error');
+    }
+  }
+
+  async function _exportBitacoraPDF() {
+    await _refreshBitacoraCache();
+    if (!_cachedBitacoraEntries.length) {
+      Display.toast('No hay eventos en la bitácora para exportar.', 'warning');
+      return;
+    }
+    const orderedEntries = Matches.buildTournamentBitacoraOrdered(
+      await Matches.listByTournament(state.tournamentId).then(matches =>
+        (matches || []).filter(m => String(m.tatami ?? m.category?.tatami ?? '') === String(state.tatami))
+      ).catch(() => [])
+    );
+    const title = `Bitácora Tatami ${state.tatami}`;
+    const html = Matches.exportBitacoraPDF(orderedEntries.length ? orderedEntries : _cachedBitacoraEntries, title);
+    const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    Matches.downloadBlob(html, `bitacora_tatami_${state.tatami}_${ts}.html`, 'text/html;charset=utf-8');
+    Display.toast('Bitácora exportada como PDF (imprimible).', 'success');
+  }
+
+  document.getElementById('btn-export-csv').addEventListener('click', _exportBitacoraCSV);
+  document.getElementById('btn-export-pdf').addEventListener('click', _exportBitacoraPDF);
+  document.getElementById('btn-export-full-csv').addEventListener('click', _exportFullTournamentCSV);
+
+  /* ---- Panel de jueces en vivo ---- */
+  function _renderJudgesLiveBoard(match) {
+    const board = document.getElementById('judges-live-board');
+    const content = document.getElementById('judges-live-content');
+    if (!board || !content || !match) return;
+
+    board.style.display = 'block';
+    const isKata = _isKataMatch(match);
+    const discipline = isKata ? 'kata' : 'kumite';
+    const maxSeats = isKata ? 5 : 4;
+    const seats = Array.from({ length: maxSeats }, (_, i) => 'J' + (i + 1));
+    const presence = Matches.getRefereePresence(match, discipline);
+
+    if (isKata) {
+      const summary = Matches.getKataSummary(match);
+      const judgeMap = Object.fromEntries(summary.judges.map(j => [j.seat, j]));
+      content.innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(${maxSeats},1fr);gap:.5rem;">
+          ${seats.map(seat => {
+            const ref = presence[seat];
+            const judge = judgeMap[seat] || {};
+            const active = ref?.active;
+            const name = ref?.name || judge.judge_name || '—';
+            const score = Number.isFinite(Number(judge.score)) ? Number(judge.score).toFixed(2) : '—';
+            const statusColor = active ? '#16a34a' : (ref ? '#b45309' : '#64748b');
+            const statusLabel = active ? '🟢 Conectado' : (ref ? '🟡 Inactivo' : '⚪ Sin conexión');
+            return `
+              <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:.55rem;text-align:center;color:#111827;">
+                <div style="font-size:.7rem;font-weight:800;color:#7c3aed;margin-bottom:.2rem;">${seat}</div>
+                <div style="font-size:.72rem;font-weight:600;margin-bottom:.15rem;">${name}</div>
+                <div style="font-size:.65rem;color:${statusColor};margin-bottom:.3rem;">${statusLabel}</div>
+                <div style="font-size:1.3rem;font-weight:900;color:#6d28d9;">${score}</div>
+              </div>`;
+          }).join('')}
+        </div>
+        <div class="text-xs text-muted mt-2" style="text-align:center;">
+          ${summary.ready ? '✅ Las 5 notas están completas.' : `⏳ ${summary.submitted}/5 jueces han registrado su nota.`}
+        </div>`;
+    } else {
+      const summary = Matches.getKumiteSummary(match);
+      const pending = Array.isArray(summary.pending) ? summary.pending : [];
+      content.innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(${maxSeats},1fr);gap:.5rem;">
+          ${seats.map(seat => {
+            const ref = presence[seat];
+            const active = ref?.active;
+            const name = ref?.name || '—';
+            const statusColor = active ? '#16a34a' : (ref ? '#b45309' : '#64748b');
+            const statusLabel = active ? '🟢 Conectado' : (ref ? '🟡 Inactivo' : '⚪ Sin conexión');
+            const judgePending = pending.filter(p => String(p.seat || '') === String(seat));
+            const lastSignal = judgePending.length ? judgePending[judgePending.length - 1] : null;
+            const sideLabel = lastSignal?.side === 'b' ? 'AKA' : (lastSignal?.side === 'a' ? 'AO' : '');
+            const actionLabel = lastSignal ? (lastSignal.category || lastSignal.action || '').toUpperCase() : '';
+            const signalColor = lastSignal?.kind === 'penalty' ? '#d97706' : '#16a34a';
+            return `
+              <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:.55rem;text-align:center;color:#111827;">
+                <div style="font-size:.7rem;font-weight:800;color:#1565c0;margin-bottom:.2rem;">${seat}</div>
+                <div style="font-size:.72rem;font-weight:600;margin-bottom:.15rem;">${name}</div>
+                <div style="font-size:.65rem;color:${statusColor};margin-bottom:.3rem;">${statusLabel}</div>
+                ${lastSignal ? `
+                  <div style="font-size:.75rem;font-weight:700;color:${signalColor};margin-bottom:.15rem;">
+                    ${sideLabel} ${actionLabel}
+                  </div>
+                  <div class="text-xs text-muted">${judgePending.length} señal(es)</div>
+                ` : `
+                  <div class="text-xs text-muted">Sin señales</div>
+                `}
+              </div>`;
+          }).join('')}
+        </div>
+        <div class="text-xs text-muted mt-2" style="text-align:center;">
+          ${pending.length ? `📨 ${pending.length} señal(es) pendiente(s) de confirmación por Mesa.` : 'Sin señales pendientes.'}
+        </div>`;
+    }
+  }
+
+  // Override _renderLiveJudging to also show the live board
+  const _originalRenderLiveJudging = _renderLiveJudging;
+  _renderLiveJudging = function(match) {
+    _originalRenderLiveJudging(match);
+    if (match) _renderJudgesLiveBoard(match);
+  };
+
+  // Override _clearCurrentMatch to hide the live board
+  const _originalClearCurrentMatch = _clearCurrentMatch;
+  _clearCurrentMatch = function() {
+    _originalClearCurrentMatch();
+    const board = document.getElementById('judges-live-board');
+    if (board) board.style.display = 'none';
+  };
 
 })();
 </script>

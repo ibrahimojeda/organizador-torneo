@@ -89,19 +89,6 @@ const Bracket = (() => {
 
     const system = _resolveSystem(category.bracket_system, competitors.length);
 
-    // --- KATA: todos compiten en una sola ronda, sin emparejamiento ---
-    if (category.discipline === 'kata' && system !== 'round_robin') {
-      const matches = _buildKataElimination(competitors, category);
-      const saved = Auth.isDevMode()
-        ? _devInsertMatches(matches)
-        : await (async () => {
-            const { data, error } = await supabase.from('matches').insert(matches).select();
-            if (error) throw error;
-            return data;
-          })();
-      return { matches: saved, warnings: [] };
-    }
-
     // --- Separar por club (evita mismo dojo en R1) ---
     const separated = _separateByClub(competitors);
 
@@ -119,6 +106,7 @@ const Bracket = (() => {
 
     let matches;
     switch (system) {
+      case 'kata_individual':     matches = _buildKataElimination(competitors, category); break;
       case 'round_robin':         matches = _buildRoundRobin(separated, category, true); break;
       case 'single_elimination':  matches = _buildSingleElimination(separated, category, true); break;
       case 'repechage':           matches = _buildRepechage(separated, category, true); break;
@@ -255,6 +243,9 @@ const Bracket = (() => {
     if (system === 'auto') {
       return count <= 3 ? 'round_robin' : 'single_elimination';
     }
+    // Kata individual y kata por duelos se manejan en generate()
+    if (system === 'kata_individual') return 'kata_individual';
+    if (system === 'kata_duels') return 'kata_duels';
     return system;
   }
 
@@ -499,6 +490,7 @@ const Bracket = (() => {
   /* ---- Helpers privados ---- */
 
   function _buildMatch(data) {
+    const isKata = data.category?.discipline === 'kata';
     return {
       tournament_id:    data.category.tournament_id,
       category_id:      data.category.id,
@@ -511,7 +503,7 @@ const Bracket = (() => {
       score_a:          null,
       score_b:          null,
       status:           data.status || MATCH_STATUS.PENDING,
-      bracket_type:     data.bracket_type || 'single_elimination',
+      bracket_type:     isKata ? 'kata_round' : (data.bracket_type || 'single_elimination'),
       notes:            data.notes || null,
       tatami:           data.tatami ?? data.category?.tatami ?? null,
       scheduled_time:   null,
@@ -761,15 +753,39 @@ const Bracket = (() => {
       let positions = [];
 
       if (category.discipline === 'kata') {
-        // Mayor puntaje en la última ronda de kata
-        const kataMatches = allMatches.filter(m => m.bracket_type === 'kata_round');
-        const maxRound    = Math.max(...kataMatches.map(m => m.round));
-        const finalRound  = kataMatches.filter(m => m.round === maxRound && m.status === MATCH_STATUS.FINISHED);
-        const sorted      = [...finalRound].sort((a, b) => (b.score_a || 0) - (a.score_a || 0));
-        positions = sorted.slice(0, 3).map((m, i) => ({
-          position: i + 1,
-          registration_id: m.competitor_a_id,
-        }));
+        // Detectar si es kata individual (solo competitor_a) o kata por duelos (competitor_a + competitor_b)
+        const isKataDuel = allMatches.some(m => m.competitor_b_id);
+
+        if (!isKataDuel) {
+          // Kata individual (WKF): todos compiten en una sola ronda, se ordenan por puntaje
+          const kataMatches = allMatches.filter(m => m.status === MATCH_STATUS.FINISHED && Number.isFinite(Number(m.score_a)));
+          const sorted = [...kataMatches].sort((a, b) => {
+            if ((Number(b.score_a) || 0) !== (Number(a.score_a) || 0)) return (Number(b.score_a) || 0) - (Number(a.score_a) || 0);
+            const ta = a.finished_at ? Date.parse(a.finished_at) : 0;
+            const tb = b.finished_at ? Date.parse(b.finished_at) : 0;
+            return (Number.isFinite(ta) ? ta : 0) - (Number.isFinite(tb) ? tb : 0);
+          });
+          positions = sorted.slice(0, 3).map((m, i) => ({ position: i + 1, registration_id: m.competitor_a_id }));
+        } else {
+          // Kata por duelos: eliminación (ganador final = 1°, perdedor = 2°, semis = 3°)
+          const maxRound    = Math.max(...finished.map(m => m.round));
+          const finalMatch  = finished.filter(m => m.round === maxRound);
+          if (finalMatch.length === 1) {
+            const f      = finalMatch[0];
+            const loser  = f.winner_id === f.competitor_a_id ? f.competitor_b_id : f.competitor_a_id;
+            positions    = [
+              { position: 1, registration_id: f.winner_id },
+              { position: 2, registration_id: loser },
+            ];
+            if (maxRound > 1) {
+              const semis = finished.filter(m => m.round === maxRound - 1);
+              semis.forEach(s => {
+                const bronze = s.winner_id === s.competitor_a_id ? s.competitor_b_id : s.competitor_a_id;
+                if (bronze) positions.push({ position: 3, registration_id: bronze });
+              });
+            }
+          }
+        }
 
       } else if (allMatches.some(m => m.bracket_type === 'round_robin')) {
         // Round-robin: clasificación por victorias

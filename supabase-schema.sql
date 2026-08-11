@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   id          UUID         PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   full_name   TEXT         NOT NULL,
   role        TEXT         NOT NULL DEFAULT 'organizer'
-                           CHECK (role IN ('organizer', 'referee', 'public')),
+                           CHECK (role IN ('organizer', 'referee', 'public', 'super_admin')),
   created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS tournaments (
   date_end        DATE,
   description     TEXT,
   bracket_system  TEXT         NOT NULL DEFAULT 'auto'
-                               CHECK (bracket_system IN ('auto','single_elimination','repechage','round_robin','double_elimination')),
+                                CHECK (bracket_system IN ('auto','single_elimination','repechage','round_robin','double_elimination','kata_individual','kata_duels')),
   disciplines     JSONB        NOT NULL DEFAULT '["kumite","kata"]',
   status          TEXT         NOT NULL DEFAULT 'draft'
                                CHECK (status IN ('draft','open','closed','ongoing','finished','cancelled')),
@@ -126,7 +126,7 @@ CREATE TABLE IF NOT EXISTS categories (
   weight_class_id TEXT,               -- ID de la clase de peso (ej: 'm67')
   belt_group_id   TEXT,               -- ID del grupo de cinturón (ej: 'principiante')
   bracket_system  TEXT         NOT NULL DEFAULT 'auto'
-                               CHECK (bracket_system IN ('auto','single_elimination','repechage','round_robin','double_elimination')),
+                               CHECK (bracket_system IN ('auto','single_elimination','repechage','round_robin','double_elimination','kata_individual','kata_duels')),
   tatami          TEXT,               -- Tatami/área asignada a esta categoría
   created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
@@ -163,12 +163,12 @@ CREATE TABLE IF NOT EXISTS matches (
   round_label       TEXT,                          -- Etiqueta legible ('Cuartos de Final', 'Semifinal', etc.)
   position          INTEGER      NOT NULL,          -- Posición dentro de la ronda (1-based)
   bracket_type      TEXT         DEFAULT 'winner'
-                                 CHECK (bracket_type IN ('winner','loser','grand_final','repechage_bronze','round_robin')),
+                                 CHECK (bracket_type IN ('winner','loser','grand_final','repechage_bronze','round_robin','single_elimination','double_winner','double_loser','double_final','repechage_main','kata_round')),
   competitor_a_id   UUID         REFERENCES registrations(id) ON DELETE SET NULL,
   competitor_b_id   UUID         REFERENCES registrations(id) ON DELETE SET NULL,
   winner_id         UUID         REFERENCES registrations(id) ON DELETE SET NULL,
-  score_a           INTEGER,
-  score_b           INTEGER,
+  score_a           NUMERIC(6,2),
+  score_b           NUMERIC(6,2),
   status            TEXT         NOT NULL DEFAULT 'pending'
                                  CHECK (status IN ('pending','in_progress','finished','bye')),
   tatami            TEXT,                          -- Tatami donde se disputa
@@ -286,15 +286,22 @@ CREATE POLICY "tournaments: eliminar propios" ON tournaments
   FOR DELETE USING (organizer_id = auth.uid());
 
 -- ---- tournament_codes ----
-DROP POLICY IF EXISTS "codes: ver por organizador" ON tournament_codes;
-CREATE POLICY "codes: ver por organizador" ON tournament_codes
-  FOR SELECT USING (
-    tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
-    OR auth.role() = 'anon'   -- lectura anónima para validar código
-  );
+-- Anon code validation via SECURITY DEFINER RPC to prevent table enumeration.
+-- Anonymous users call validate_tournament_code(p_code) instead of reading the table directly.
+DROP POLICY IF EXISTS "codes: ver por organizador o autenticado" ON tournament_codes;
+CREATE POLICY "codes: ver por organizador o autenticado" ON tournament_codes
+  FOR SELECT USING (auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "codes: insertar por autenticado" ON tournament_codes;
+CREATE POLICY "codes: insertar por autenticado" ON tournament_codes
+  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 DROP POLICY IF EXISTS "codes: gestionar por organizador" ON tournament_codes;
 CREATE POLICY "codes: gestionar por organizador" ON tournament_codes
-  FOR ALL USING (
+  FOR UPDATE USING (
+    tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
+  );
+DROP POLICY IF EXISTS "codes: eliminar por organizador" ON tournament_codes;
+CREATE POLICY "codes: eliminar por organizador" ON tournament_codes
+  FOR DELETE USING (
     tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
   );
 
@@ -328,13 +335,19 @@ CREATE POLICY "associations: ver todos" ON associations
   FOR SELECT USING (TRUE);
 DROP POLICY IF EXISTS "associations: crear super_admin" ON associations;
 CREATE POLICY "associations: crear super_admin" ON associations
-  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'super_admin')
+  );
 DROP POLICY IF EXISTS "associations: editar super_admin" ON associations;
 CREATE POLICY "associations: editar super_admin" ON associations
-  FOR UPDATE USING (auth.role() = 'authenticated');
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'super_admin')
+  );
 DROP POLICY IF EXISTS "associations: eliminar super_admin" ON associations;
 CREATE POLICY "associations: eliminar super_admin" ON associations
-  FOR DELETE USING (auth.role() = 'authenticated');
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'super_admin')
+  );
 
 -- ---- registrations ----
 DROP POLICY IF EXISTS "registrations: ver autenticados" ON registrations;
@@ -410,3 +423,42 @@ ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending'
 CHECK (status IN ('pending', 'accepted', 'denied'));
 
 CREATE INDEX IF NOT EXISTS idx_registrations_status ON registrations(status);
+
+-- =====================================================
+-- RPC: validate_tournament_code
+-- SECURITY DEFINER function that looks up a tournament
+-- code and returns the associated tournament info.
+-- Callable by anonymous users without exposing
+-- tournament_codes rows via RLS.
+-- =====================================================
+CREATE OR REPLACE FUNCTION validate_tournament_code(p_code TEXT)
+RETURNS TABLE (
+  code_id       UUID,
+  tournament_id UUID,
+  code_role     TEXT,
+  tournament_name TEXT,
+  tournament_status TEXT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    tc.id            AS code_id,
+    tc.tournament_id AS tournament_id,
+    tc.role          AS code_role,
+    t.name           AS tournament_name,
+    t.status         AS tournament_status
+  FROM tournament_codes tc
+  JOIN tournaments t ON t.id = tc.tournament_id
+  WHERE tc.code = p_code
+    AND tc.active = TRUE
+  ORDER BY tc.created_at DESC
+  LIMIT 1;
+END;
+$$;
+
+-- Allow anonymous and authenticated users to call the RPC
+GRANT EXECUTE ON FUNCTION validate_tournament_code(TEXT) TO anon, authenticated;

@@ -298,9 +298,10 @@ const Competitors = (() => {
       );
       _devSaveR(regs);
       if (newStatus === REG_STATUS.DENIED && tournamentId) {
-        // En dev mode, re-generate brackets for affected categories
+        // En dev mode, remove from matches then re-generate brackets
         const reg = regs.find(r => r.id === registrationId);
         if (reg) {
+          await _removeFromMatches(registrationId, reg.category_id);
           await Bracket.regenerate(reg.category_id).catch(() => {});
         }
       }
@@ -485,19 +486,14 @@ const Competitors = (() => {
   async function detectDuplicates(tournamentId) {
     const comps = await listByTournament(tournamentId);
     const byDoc = {};
-    const dupes = [];
     comps.forEach(c => {
       if (c.document_id) {
-        if (byDoc[c.document_id]) {
-          if (!dupes.find(d => d.id === c.id) && !dupes.find(d => d.id === byDoc[c.document_id].id)) {
-            dupes.push(byDoc[c.document_id], c);
-          }
-        } else {
-          byDoc[c.document_id] = c;
-        }
+        if (!byDoc[c.document_id]) byDoc[c.document_id] = [];
+        byDoc[c.document_id].push(c);
       }
     });
-    return dupes;
+    const groups = Object.values(byDoc);
+    return groups.filter(g => g.length >= 2).flat();
   }
 
   /* ---- Eliminar competidor ---- */

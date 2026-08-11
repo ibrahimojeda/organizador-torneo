@@ -928,6 +928,173 @@ const Matches = (() => {
     });
   }
 
+  function _normalizeDuelSide(side) {
+    return String(side || '').toLowerCase() === 'b' ? 'b' : 'a';
+  }
+
+  async function saveKataDuelJudgeScore(matchId, judgeInfo = {}, score, side) {
+    const normalizedScore = _normalizeKataScore(score);
+    const normSide = _normalizeDuelSide(side);
+    return updateLiveState(matchId, (live) => {
+      const seat = judgeInfo.seat || 'J1';
+      live.kata = live.kata || {};
+      live.kata.duel = live.kata.duel || {};
+      live.kata.duel[normSide] = live.kata.duel[normSide] || {};
+      live.kata.duel[normSide].judges = {
+        ...(live.kata.duel[normSide].judges || {}),
+        [seat]: {
+          seat,
+          side: normSide,
+          judge_name: judgeInfo.name || 'Árbitro',
+          code: judgeInfo.code || null,
+          tatami: judgeInfo.tatami || null,
+          score: normalizedScore,
+          submitted_at: new Date().toISOString(),
+        },
+      };
+      return live;
+    }, {
+      logEntry: {
+        type: 'kata_score',
+        label: 'Nota de kata (duelo)',
+        seat: judgeInfo.seat || 'J1',
+        side: normSide,
+        actor: judgeInfo.name || 'Juez',
+        message: `${judgeInfo.name || 'Juez'} registró ${normalizedScore.toFixed(2)} en ${(judgeInfo.seat || 'J1')} (${normSide === 'a' ? 'AO' : 'AKA'}).`,
+      },
+    });
+  }
+
+  async function applyMesaKataDuelOverride(matchId, scoresA = {}, scoresB = {}, mesaInfo = {}) {
+    const seats = ['J1', 'J2', 'J3', 'J4', 'J5'];
+    const normalizeAll = (scores) => {
+      const normalized = {};
+      for (const seat of seats) {
+        normalized[seat] = _normalizeKataScore(scores?.[seat]);
+        if (!Number.isFinite(normalized[seat])) {
+          throw new Error('La mesa debe completar las 5 notas de kata en ambos lados.');
+        }
+      }
+      return normalized;
+    };
+    const normA = normalizeAll(scoresA);
+    const normB = normalizeAll(scoresB);
+
+    return updateLiveState(matchId, (live) => {
+      const stamp = new Date().toISOString();
+      const mesaJudgeName = mesaInfo.name || 'Mesa Tecnica';
+      live.kata = live.kata || {};
+      live.kata.duel = live.kata.duel || {};
+      live.kata.duel.a = {
+        ...(live.kata.duel.a || {}),
+        judges: Object.fromEntries(seats.map(seat => [seat, {
+          seat,
+          side: 'a',
+          judge_name: mesaJudgeName,
+          score: normA[seat],
+          submitted_at: stamp,
+        }])),
+      };
+      live.kata.duel.b = {
+        ...(live.kata.duel.b || {}),
+        judges: Object.fromEntries(seats.map(seat => [seat, {
+          seat,
+          side: 'b',
+          judge_name: mesaJudgeName,
+          score: normB[seat],
+          submitted_at: stamp,
+        }])),
+      };
+      return live;
+    }, {
+      logEntry: {
+        type: 'kata_score',
+        label: 'Ajuste de Mesa en Kata (duelo)',
+        actor: mesaInfo.name || 'Mesa Tecnica',
+        message: 'Mesa Tecnica actualizó manualmente las 5 notas de kata de ambos contendientes.',
+      },
+    });
+  }
+
+  function getKataDuelSummary(matchOrNotes) {
+    const live = getLiveState(matchOrNotes);
+    const duel = live.kata?.duel || {};
+    const seats = ['J1', 'J2', 'J3', 'J4', 'J5'];
+
+    const buildSide = (side) => {
+      const judgesMap = Object.fromEntries(
+        seats.map((seat) => {
+          const info = duel?.[side]?.judges?.[seat] || {};
+          return [seat, {
+            score: Number.isFinite(Number(info?.score)) ? Number(info.score) : null,
+            judge_name: info?.judge_name || 'Pendiente',
+            submitted_at: info?.submitted_at || null,
+          }];
+        })
+      );
+      const summary = _buildKataSummaryFromScores(
+        Object.fromEntries(seats.map((seat) => [seat, judgesMap[seat].score])),
+        {
+          judgeNameBySeat: Object.fromEntries(seats.map((seat) => [seat, judgesMap[seat].judge_name])),
+          submittedAt: null,
+        }
+      );
+      summary.judges = summary.judges.map((judge) => ({
+        ...judge,
+        submitted_at: judgesMap?.[judge.seat]?.submitted_at || null,
+        judge_name: judgesMap?.[judge.seat]?.judge_name || judge.judge_name,
+      }));
+      return summary;
+    };
+
+    const summaryA = buildSide('a');
+    const summaryB = buildSide('b');
+
+    // Cada juez otorga 1 punto al competidor con mayor puntaje
+    let scoreA = 0;
+    let scoreB = 0;
+    let tieCourt = 0;
+    const judgeResults = [];
+    seats.forEach((seat) => {
+      const judgeA = summaryA.judges.find((j) => j.seat === seat);
+      const judgeB = summaryB.judges.find((j) => j.seat === seat);
+      const sa = Number.isFinite(Number(judgeA?.score)) ? Number(judgeA.score) : null;
+      const sb = Number.isFinite(Number(judgeB?.score)) ? Number(judgeB.score) : null;
+      if (sa != null && sb != null) {
+        if (sa > sb) { scoreA += 1; judgeResults.push({ seat, winner: 'a', diff: sa - sb }); }
+        else if (sb > sa) { scoreB += 1; judgeResults.push({ seat, winner: 'b', diff: sb - sa }); }
+        else { tieCourt += 1; judgeResults.push({ seat, winner: 'tie', diff: 0 }); }
+      } else {
+        judgeResults.push({ seat, winner: null, diff: null });
+      }
+    });
+
+    const ready = summaryA.ready && summaryB.ready;
+    let winner = null;
+    if (ready) {
+      if (scoreA > scoreB) winner = 'a';
+      else if (scoreB > scoreA) winner = 'b';
+      // Si empate de jueces, gana quien tenga mayor total (tras descartar alta/baja)
+      else if (summaryA.total != null && summaryB.total != null) {
+        if (summaryA.total > summaryB.total) winner = 'a';
+        else if (summaryB.total > summaryA.total) winner = 'b';
+      }
+    }
+
+    return {
+      winner,
+      scoreA,
+      scoreB,
+      tieCourt,
+      judgeResults,
+      ready,
+      summaryA,
+      summaryB,
+      totalA: summaryA.total,
+      totalB: summaryB.total,
+    };
+  }
+
   async function pushKumiteSignal(matchId, signal = {}) {
     return updateLiveState(matchId, (live) => {
       const evt = {
@@ -1258,8 +1425,132 @@ const Matches = (() => {
         category_name: match.category?.name || 'Categoría',
         tatami: match.tatami || match.category?.tatami || null,
         match_label: fightLabel,
+        discipline: match.bracket_type === 'kata_round' || match.category?.discipline === 'kata' ? 'kata' : 'kumite',
+        round: match.round || null,
+        round_label: match.round_label || null,
+        finished_at: match.finished_at || null,
       }));
     }).sort((a, b) => new Date(b.at || 0) - new Date(a.at || 0));
+  }
+
+  function buildTournamentBitacoraOrdered(matches = []) {
+    const entries = buildTournamentBitacora(matches);
+    // Ordenar por combate/kata: agrupar por match_id, luego por tiempo dentro de cada grupo
+    const byMatch = {};
+    entries.forEach(entry => {
+      const key = entry.match_id || 'unknown';
+      if (!byMatch[key]) byMatch[key] = { match: entry, entries: [] };
+      byMatch[key].entries.push(entry);
+    });
+    // Ordenar grupos: kata primero, luego kumite; dentro de cada disciplina por finished_at
+    const groups = Object.values(byMatch);
+    groups.sort((a, b) => {
+      const aIsKata = a.match.discipline === 'kata' ? 0 : 1;
+      const bIsKata = b.match.discipline === 'kata' ? 0 : 1;
+      if (aIsKata !== bIsKata) return aIsKata - bIsKata;
+      const ta = a.match.finished_at ? new Date(a.match.finished_at).getTime() : 0;
+      const tb = b.match.finished_at ? new Date(b.match.finished_at).getTime() : 0;
+      return tb - ta;
+    });
+    // Aplanar: dentro de cada grupo, ordenar por tiempo ascendente
+    return groups.flatMap(g => {
+      g.entries.sort((a, b) => new Date(a.at || 0).getTime() - new Date(b.at || 0).getTime());
+      return g.entries;
+    });
+  }
+
+  function exportBitacoraCSV(entries = []) {
+    const headers = ['Fecha', 'Hora', 'Tipo', 'Etiqueta', 'Mensaje', 'Juez', 'Puesto', 'Lado', 'Acción', 'Categoría', 'Combate', 'Tatami', 'Match ID'];
+    const rows = entries.map(e => [
+      e.at ? new Date(e.at).toLocaleDateString('es-ES') : '',
+      e.at ? new Date(e.at).toLocaleTimeString('es-ES') : '',
+      e.type || '',
+      e.label || '',
+      (e.message || '').replace(/"/g, '""'),
+      e.actor || '',
+      e.seat || '',
+      e.side || '',
+      e.action || '',
+      e.category_name || '',
+      e.match_label || '',
+      e.tatami || '',
+      e.match_id || '',
+    ]);
+    const csv = [headers.join(','), ...rows.map(r => '"' + r.join('","') + '"')].join('\n');
+    return '\uFEFF' + csv; // BOM for Excel UTF-8
+  }
+
+  function exportBitacoraJSON(entries = []) {
+    return JSON.stringify(entries, null, 2);
+  }
+
+  function exportBitacoraPDF(entries = [], title = 'Bitácora del Torneo') {
+    const now = new Date().toLocaleString('es-ES');
+    const rows = entries.map((e, i) => {
+      const time = e.at ? new Date(e.at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '—';
+      const date = e.at ? new Date(e.at).toLocaleDateString('es-ES') : '—';
+      const discipline = e.discipline === 'kata' ? '🥋 KATA' : '🥊 KUMITE';
+      return `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${date}</td>
+          <td>${time}</td>
+          <td>${discipline}</td>
+          <td>${e.category_name || '—'}</td>
+          <td>${e.match_label || '—'}</td>
+          <td>${e.label || 'Evento'}</td>
+          <td>${e.message || ''}</td>
+          <td>${e.seat || '—'}</td>
+          <td>${e.actor || '—'}</td>
+        </tr>`;
+    }).join('');
+
+    const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>${title}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:Arial,sans-serif;font-size:10px;color:#000;background:#fff;padding:12px;}
+    h1{font-size:16px;font-weight:700;margin-bottom:2px;}
+    p.subtitle{font-size:10px;color:#555;margin-bottom:10px;}
+    table{width:100%;border-collapse:collapse;margin-bottom:10px;}
+    th,td{border:1px solid #999;padding:4px 6px;text-align:left;font-size:9px;}
+    th{background:#eee;font-weight:700;}
+    tr:nth-child(even){background:#f9f9f9;}
+    .footer{margin-top:12px;font-size:8px;color:#888;text-align:center;border-top:1px solid #ddd;padding-top:6px;}
+    @media print{body{padding:0;}}
+  </style>
+</head>
+<body>
+  <h1>${title}</h1>
+  <p class="subtitle">Generado: ${now} · ${entries.length} evento(s)</p>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th><th>Fecha</th><th>Hora</th><th>Disciplina</th><th>Categoría</th><th>Combate</th><th>Evento</th><th>Mensaje</th><th>Puesto</th><th>Juez</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div class="footer">Organizador de Torneo · ${now}</div>
+  <script>window.onload=()=>{window.print();window.onafterprint=()=>window.close();}<\/script>
+</body>
+</html>`;
+    return html;
+  }
+
+  function downloadBlob(content, filename, mimeType = 'text/plain;charset=utf-8') {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   function getKumiteSummary(matchOrNotes) {
@@ -1402,6 +1693,9 @@ const Matches = (() => {
     saveKataJudgeScore,
     saveKataJudgeScores,
     applyMesaKataOverride,
+    saveKataDuelJudgeScore,
+    applyMesaKataDuelOverride,
+    getKataDuelSummary,
     pushKumiteSignal,
     submitJudgeSignal,
     clearJudgeSignals,
@@ -1422,6 +1716,11 @@ const Matches = (() => {
     getFlagSummary,
     resolveKataByFlags,
     buildTournamentBitacora,
+    buildTournamentBitacoraOrdered,
+    exportBitacoraCSV,
+    exportBitacoraJSON,
+    exportBitacoraPDF,
+    downloadBlob,
     getRoundRobinStandings,
   };
 })();

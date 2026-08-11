@@ -148,7 +148,14 @@
             <h3 class="card-title" style="margin:0;">📝 Bitácora resumida</h3>
             <div class="text-xs text-muted">Eventos de jueces, mesa técnica y resultados oficiales.</div>
           </div>
-          <button class="btn btn-outline btn-sm" onclick="window.switchPanel('dashboard')">Actualizar</button>
+          <div class="flex gap-1 flex-wrap" style="align-items:center;">
+            <select class="form-control form-control-sm" id="dashboard-tatami-filter" style="max-width:140px;" onchange="_loadTournamentBitacora()">
+              <option value="">Todos los tatamis</option>
+            </select>
+            <button class="btn btn-outline btn-sm" id="btn-dash-export-csv" type="button">📥 CSV</button>
+            <button class="btn btn-outline btn-sm" id="btn-dash-export-pdf" type="button">📄 PDF</button>
+            <button class="btn btn-outline btn-sm" onclick="window.switchPanel('dashboard')">Actualizar</button>
+          </div>
         </div>
         <div id="dashboard-bitacora-list">
           <div class="text-center p-3"><span class="spinner"></span></div>
@@ -336,12 +343,14 @@
             <!-- Selector de sistema de llave -->
             <div class="flex items-center justify-between mb-3" id="bracket-system-selector" style="display:none!important;">
               <label class="form-label mb-0">Sistema de llave:</label>
-              <select class="form-control" id="select-bracket-system" style="max-width:280px;">
+              <select class="form-control" id="select-bracket-system" style="max-width:300px;">
                 <option value="auto">⚡ Automático</option>
                 <option value="single_elimination">⚔️ Eliminación Simple</option>
                 <option value="repechage">🏅 Eliminación + Repesca (WKF)</option>
                 <option value="round_robin">🔄 Round-Robin</option>
                 <option value="double_elimination">🔁 Doble Eliminación</option>
+                <option value="kata_individual">🥋 Kata Individual (WKF)</option>
+                <option value="kata_duels">🥋 Kata por Duelos</option>
               </select>
             </div>
             <div id="bracket-display">
@@ -539,23 +548,25 @@
       <!-- Cambiar contraseña propia (visible para todos) -->
       <div class="card container-md mb-3">
         <h3 class="card-title mb-3">🔑 Mi contraseña</h3>
-        <div class="alert alert-info mb-2" id="password-policy-change">
-          <strong>Requisitos para la contraseña:</strong><br>
-          - Mínimo 12 caracteres<br>
-          - Debe incluir mayúsculas, minúsculas, números y símbolos<br>
-          - No uses contraseñas comunes o fáciles de adivinar
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Nueva contraseña</label>
-            <input type="password" class="form-control" id="change-pass-new" placeholder="Mínimo 6 caracteres" autocomplete="new-password" />
+        <form id="form-change-pass" novalidate>
+          <div class="alert alert-info mb-2" id="password-policy-change">
+            <strong>Requisitos para la contraseña:</strong><br>
+            - Mínimo 12 caracteres<br>
+            - Debe incluir mayúsculas, minúsculas, números y símbolos<br>
+            - No uses contraseñas comunes o fáciles de adivinar
           </div>
-          <div class="form-group">
-            <label class="form-label">Confirmar nueva contraseña</label>
-            <input type="password" class="form-control" id="change-pass-new2" placeholder="Repite la contraseña" autocomplete="new-password" />
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Nueva contraseña</label>
+              <input type="password" class="form-control" id="change-pass-new" placeholder="Mínimo 6 caracteres" autocomplete="new-password" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Confirmar nueva contraseña</label>
+              <input type="password" class="form-control" id="change-pass-new2" placeholder="Repite la contraseña" autocomplete="new-password" />
+            </div>
           </div>
-        </div>
-        <button class="btn btn-outline" id="btn-change-pass">🔑 Cambiar contraseña</button>
+          <button class="btn btn-outline" id="btn-change-pass">🔑 Cambiar contraseña</button>
+        </form>
         <div id="change-pass-result" class="mt-2"></div>
       </div>
 
@@ -1194,29 +1205,85 @@
     await _loadTournamentBitacora();
   }
 
+  let _dashboardBitacoraCache = [];
+
   async function _loadTournamentBitacora() {
     const listEl = document.getElementById('dashboard-bitacora-list');
     if (!listEl || !state.activeTournament?.id) return;
     try {
       const matches = await Matches.listByTournament(state.activeTournament.id);
-      const entries = Matches.buildTournamentBitacora(matches).slice(0, 20);
+      // Populate tatami filter
+      const tatamiFilter = document.getElementById('dashboard-tatami-filter');
+      if (tatamiFilter && tatamiFilter.options.length <= 1) {
+        const tatamis = [...new Set(matches.map(m => String(m.tatami ?? m.category?.tatami ?? '')))]
+          .filter(t => t)
+          .sort((a, b) => Number(a) - Number(b));
+        tatamis.forEach(t => {
+          const opt = document.createElement('option');
+          opt.value = t;
+          opt.textContent = `Tatami ${t}`;
+          tatamiFilter.appendChild(opt);
+        });
+      }
+      const selectedTatami = tatamiFilter?.value || '';
+      const filteredMatches = selectedTatami
+        ? matches.filter(m => String(m.tatami ?? m.category?.tatami ?? '') === selectedTatami)
+        : matches;
+      _dashboardBitacoraCache = Matches.buildTournamentBitacora(filteredMatches);
+      const entries = _dashboardBitacoraCache.slice(0, 20);
       if (!entries.length) {
         listEl.innerHTML = '<div class="text-center text-muted p-3">Sin eventos registrados todavía.</div>';
         return;
       }
       listEl.innerHTML = entries.map(entry => {
         const time = entry.at ? new Date(entry.at).toLocaleString('es-ES', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—';
+        const tatamiLabel = entry.tatami ? ` · Tatami ${entry.tatami}` : '';
         return `
           <div style="padding:.75rem 1rem;border-bottom:1px solid var(--border);">
             <div style="font-size:.9rem;font-weight:700;">${entry.label || 'Evento'}</div>
             <div style="font-size:.88rem;margin-top:.15rem;">${entry.message || 'Actualización registrada.'}</div>
-            <div class="text-xs text-muted" style="margin-top:.2rem;">${time} · ${entry.category_name || 'Categoría'}${entry.match_label ? ' · ' + entry.match_label : ''}</div>
+            <div class="text-xs text-muted" style="margin-top:.2rem;">${time}${tatamiLabel} · ${entry.category_name || 'Categoría'}${entry.match_label ? ' · ' + entry.match_label : ''}</div>
           </div>`;
       }).join('');
     } catch (e) {
       listEl.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
     }
   }
+
+  async function _exportDashboardCSV() {
+    if (!_dashboardBitacoraCache.length) {
+      await _loadTournamentBitacora();
+    }
+    if (!_dashboardBitacoraCache.length) {
+      Display.toast('No hay eventos en la bitácora para exportar.', 'warning');
+      return;
+    }
+    const csv = Matches.exportBitacoraCSV(_dashboardBitacoraCache);
+    const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    Matches.downloadBlob(csv, `bitacora_torneo_${ts}.csv`, 'text/csv;charset=utf-8');
+    Display.toast('Bitácora exportada como CSV.', 'success');
+  }
+
+  async function _exportDashboardPDF() {
+    if (!_dashboardBitacoraCache.length) {
+      await _loadTournamentBitacora();
+    }
+    if (!_dashboardBitacoraCache.length) {
+      Display.toast('No hay eventos en la bitácora para exportar.', 'warning');
+      return;
+    }
+    const orderedEntries = Matches.buildTournamentBitacoraOrdered(
+      await Matches.listByTournament(state.activeTournament.id).catch(() => [])
+    );
+    const title = state.activeTournament?.name ? `Bitácora — ${state.activeTournament.name}` : 'Bitácora del Torneo';
+    const html = Matches.exportBitacoraPDF(orderedEntries.length ? orderedEntries : _dashboardBitacoraCache, title);
+    const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    Matches.downloadBlob(html, `bitacora_torneo_${ts}.html`, 'text/html;charset=utf-8');
+    Display.toast('Bitácora exportada como PDF (imprimible).', 'success');
+  }
+
+  document.getElementById('btn-dash-export-csv').addEventListener('click', _exportDashboardCSV);
+  document.getElementById('btn-dash-export-pdf').addEventListener('click', _exportDashboardPDF);
 
   /* ---- Acciones por panel ---- */
   async function _onPanelLoad(panelId) {

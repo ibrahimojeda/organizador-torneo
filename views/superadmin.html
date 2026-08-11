@@ -9,7 +9,17 @@
     window.onerror = function(msg, url, line, col, error) {
       const alertDiv = document.createElement('div');
       alertDiv.style = 'position:fixed;top:20px;right:20px;z-index:9999;background:#ef4444;color:white;padding:1rem;border-radius:8px;font-family:monospace;box-shadow:0 4px 12px rgba(0,0,0,0.3);max-width:400px;border:2px solid white;';
-      alertDiv.innerHTML = `<strong>🚨 ERROR CRÍTICO</strong><br><small>${msg}</small><br>Línea: ${line}, Col: ${col}`;
+      const heading = document.createElement('strong');
+      heading.textContent = '🚨 ERROR CRÍTICO';
+      const msgEl = document.createElement('small');
+      msgEl.textContent = String(msg);
+      const locEl = document.createElement('span');
+      locEl.textContent = 'Línea: ' + line + ', Col: ' + col;
+      alertDiv.appendChild(heading);
+      alertDiv.appendChild(document.createElement('br'));
+      alertDiv.appendChild(msgEl);
+      alertDiv.appendChild(document.createElement('br'));
+      alertDiv.appendChild(locEl);
       document.body.appendChild(alertDiv);
       setTimeout(() => alertDiv.remove(), 10000);
       return false;
@@ -17,7 +27,13 @@
     window.onunhandledrejection = function(event) {
       const alertDiv = document.createElement('div');
       alertDiv.style = 'position:fixed;top:20px;right:20px;z-index:9999;background:#f59e0b;color:white;padding:1rem;border-radius:8px;font-family:monospace;box-shadow:0 4px 12px rgba(0,0,0,0.3);max-width:400px;border:2px solid white;';
-      alertDiv.innerHTML = `<strong>⚠️ PROMESA RECHAZADA</strong><br><small>${event.reason}</small>`;
+      const heading = document.createElement('strong');
+      heading.textContent = '⚠️ PROMESA RECHAZADA';
+      const reasonEl = document.createElement('small');
+      reasonEl.textContent = String(event.reason);
+      alertDiv.appendChild(heading);
+      alertDiv.appendChild(document.createElement('br'));
+      alertDiv.appendChild(reasonEl);
       document.body.appendChild(alertDiv);
       setTimeout(() => alertDiv.remove(), 10000);
     };

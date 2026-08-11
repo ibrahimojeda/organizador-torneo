@@ -293,27 +293,46 @@ const Auth = (() => {
     }
     let data, error;
     try {
+      // Try server-side RPC first (works for anon users without exposing table rows)
       const response = await supabase
-        .from('tournament_codes')
-        .select('*, tournaments(id, name, status)')
-        .eq('code', normalizedCode)
-        .eq('active', true)
-        .order('created_at', { ascending: false })
-        .limit(1);
+        .rpc('validate_tournament_code', { p_code: normalizedCode });
       data = Array.isArray(response.data) ? response.data[0] : null;
       error = response.error;
+      // Fallback: if RPC is not deployed yet, try direct query (works for authenticated users)
+      if (error || !data) {
+        const fallback = await supabase
+          .from('tournament_codes')
+          .select('id, tournament_id, role, tournaments(id, name, status)')
+          .eq('code', normalizedCode)
+          .eq('active', true)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        const row = Array.isArray(fallback.data) ? fallback.data[0] : null;
+        if (row) {
+          data = {
+            code_id: row.id,
+            tournament_id: row.tournament_id,
+            code_role: row.role,
+            tournament_name: row.tournaments?.name,
+            tournament_status: row.tournaments?.status,
+          };
+          error = null;
+        } else {
+          error = fallback.error || error;
+        }
+      }
     } catch (fetchErr) {
       throw new Error(ERR_NETWORK);
     }
 
     if (error || !data) throw new Error('Código inválido o expirado.');
 
-    if (parsedJudgeCode && !_isJudgeCodeAllowedForStatus(data.tournaments?.status)) {
+    if (parsedJudgeCode && !_isJudgeCodeAllowedForStatus(data.tournament_status)) {
       await deleteJudgeCodesForTournament(data.tournament_id).catch(() => {});
       throw new Error('El torneo ya no admite accesos de jueces. Los códigos fueron desactivados.');
     }
 
-    const effectiveRole = parsedJudgeCode ? USER_ROLES.JUDGE : data.role;
+    const effectiveRole = parsedJudgeCode ? USER_ROLES.JUDGE : data.code_role;
     const judgeMeta = effectiveRole === USER_ROLES.JUDGE ? {
       judgeTatami: parsedJudgeCode?.tatami || null,
       judgeDiscipline: parsedJudgeCode?.discipline || 'kumite',
@@ -324,9 +343,9 @@ const Auth = (() => {
       userId:         null,
       email:          null,
       role:           effectiveRole,
-      codeId:         data.id,
+      codeId:         data.code_id,
       tournamentId:   data.tournament_id,
-      tournamentName: data.tournaments?.name,
+      tournamentName: data.tournament_name,
       token:          null,
       ...judgeMeta,
     };

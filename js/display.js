@@ -24,7 +24,14 @@ const Display = (() => {
     if (bracketType === 'round_robin') {
       _renderRoundRobin(container, matches, category, options);
     } else if (bracketType === 'kata_round') {
-      _renderKataList(container, matches, category, options);
+      // Kata individual (sin competitor_b) usa tabla; kata por duelos usa bracket
+      const isIndividual = matches.length > 0 && matches[0].competitor_b_id == null
+        && !matches.some(m => m.competitor_b_id != null);
+      if (isIndividual) {
+        _renderKataList(container, matches, category, options);
+      } else {
+        _renderEliminationBracket(container, matches, category, options);
+      }
     } else {
       _renderEliminationBracket(container, matches, category, options);
     }
@@ -168,9 +175,10 @@ const Display = (() => {
     const clubB = match.competitor_b?.competitors?.club || match.competitor_b?.club || '';
     const competitorAId = match.competitor_a?.id || match.competitor_a_id || null;
     const competitorBId = match.competitor_b?.id || match.competitor_b_id || null;
-    const isWinnerA = match.winner_id && competitorAId === match.winner_id;
-    const isWinnerB = match.winner_id && competitorBId === match.winner_id;
     const isBye     = match.status === MATCH_STATUS.BYE;
+    // BYE no cuenta como victoria: no mostrar estilo de ganador para matches BYE
+    const isWinnerA = !isBye && match.winner_id && competitorAId === match.winner_id;
+    const isWinnerB = !isBye && match.winner_id && competitorBId === match.winner_id;
 
     card.innerHTML = `
       <div class="bracket-competitor ${isWinnerA ? 'winner' : ''} ${!isWinnerA && match.winner_id ? 'loser' : ''}">
