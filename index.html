@@ -3,248 +3,209 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Organizador de Torneo de Karate</title>
+  <title>APK Juez - Torneo Karate</title>
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
-
 <div class="login-page">
-  <div class="login-card">
-
-    <!-- Logo -->
+  <div class="login-card" style="max-width:520px;">
     <div class="login-logo">
-      <div class="logo-big">🥋</div>
-      <h1>Torneo Karate</h1>
-      <p>Sistema de organización y llaves</p>
+      <div class="logo-big">⚖️</div>
+      <h1>Acceso de Juez</h1>
+      <p>APK exclusivo para jueces</p>
     </div>
 
-    <!-- Alerta de estado -->
     <div id="alert-box" style="display:none;"></div>
 
-    <!-- Vista 1: Login con email/contraseña (organizador) -->
-    <div id="view-login">
-      <form id="form-login" autocomplete="on" novalidate>
-        <div class="form-group">
-          <label class="form-label" for="email">Correo electrónico</label>
-          <input id="email" type="email" class="form-control" placeholder="organizador@ejemplo.com" required autocomplete="email" />
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="password">Contraseña</label>
-          <input id="password" type="password" class="form-control" placeholder="••••••••" required autocomplete="current-password" />
-        </div>
-        <button type="submit" class="btn btn-primary btn-block btn-lg" id="btn-login">
-          Ingresar como Organizador
-        </button>
-      </form>
+    <form id="form-judge-code" novalidate>
+      <div class="form-group">
+        <label class="form-label" for="access-code">Codigo de acceso del juez</label>
+        <input
+          id="access-code"
+          type="text"
+          class="form-control"
+          placeholder="Ej: JZ-XXXX-T1-K-J1"
+          style="text-transform:uppercase;letter-spacing:.08em;"
+          autocomplete="off"
+          required
+        />
+        <p class="form-hint">Ingresa el codigo que te comparte la Mesa Tecnica.</p>
+      </div>
+      <button id="btn-enter-judge" type="submit" class="btn btn-primary btn-block btn-lg">Entrar al panel de juez</button>
+    </form>
 
-      <div class="divider-text mt-3"><span>o acceso rápido</span></div>
+    <button id="btn-open-qr-scanner" class="btn btn-outline btn-block mt-2" type="button">Escanear QR de Mesa Tecnica</button>
 
-      <!-- Acceso por código (árbitros) -->
-      <form id="form-code" novalidate>
-        <div class="form-group">
-          <label class="form-label" for="access-code">Código de acceso</label>
-          <input id="access-code" type="text" class="form-control"
-                 placeholder="Ej: KAR-2026"
-                 maxlength="10"
-                 style="text-transform:uppercase;letter-spacing:.1em;"
-                 autocomplete="off" />
-          <p class="form-hint">Para árbitros: ingresa el código que te dio el organizador.</p>
-        </div>
-        <button type="submit" class="btn btn-outline btn-block">
-          Ingresar con Código
-        </button>
-      </form>
-
-      <div class="divider-text mt-3"><span>o</span></div>
-
-      <!-- Acceso público -->
-      <button class="btn btn-ghost btn-block" id="btn-public">
-        👁 Ver torneos públicamente
-      </button>
+    <div id="qr-scanner-wrap" style="display:none;margin-top:.75rem;background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:.7rem;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap;">
+        <div style="font-size:.85rem;font-weight:800;color:#0f172a;">Escaner QR</div>
+        <button id="btn-close-qr-scanner" class="btn btn-outline btn-sm" type="button">Cerrar</button>
+      </div>
+      <div id="qr-reader" style="margin-top:.55rem;border-radius:8px;overflow:hidden;"></div>
+      <div class="text-xs text-muted" style="margin-top:.45rem;">Apunta al QR mostrado por Mesa Tecnica para completar el codigo automaticamente.</div>
     </div>
 
-    <!-- Vista 2: Selector de torneo público -->
-    <div id="view-public-selector" style="display:none;">
-      <div class="flex items-center gap-2 mb-3">
-        <button class="btn btn-ghost btn-sm btn-icon" id="btn-back-public">←</button>
-        <h3 style="font-size:1rem;">Torneos disponibles</h3>
-      </div>
-      <div id="public-tournament-list">
-        <div class="text-center p-3"><span class="spinner"></span></div>
-      </div>
-    </div>
-
-    <!-- Vista 3: Acceso por código — elegir rol visible -->
-    <div id="view-code-success" style="display:none;">
-      <div class="text-center mb-3">
-        <div style="font-size:2rem;">✅</div>
-        <h3 id="code-tournament-name" style="margin-top:.5rem;"></h3>
-        <p class="text-muted text-sm" id="code-role-label"></p>
-      </div>
-      <button class="btn btn-primary btn-block btn-lg" id="btn-enter-with-code">
-        Entrar al torneo
-      </button>
-      <button class="btn btn-ghost btn-block mt-2" id="btn-back-code">← Volver</button>
-    </div>
-
+    <button id="btn-clear-session" class="btn btn-ghost btn-block mt-2" type="button">Cerrar sesion guardada</button>
   </div>
 </div>
 
-<!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
+<script src="js/vendor/html5-qrcode.min.js"></script>
 <script src="js/config.js?v=20260424a"></script>
 <script src="js/auth.js?v=20260424a"></script>
 <script>
 (function () {
-  const $ = id => document.getElementById(id);
+  const $ = (id) => document.getElementById(id);
+  let qrScanner = null;
+  let qrRunning = false;
 
-  /* ---- Helpers UI ---- */
   function showAlert(message, type = 'danger') {
     const box = $('alert-box');
     box.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
     box.style.display = 'block';
   }
+
   function hideAlert() {
     $('alert-box').style.display = 'none';
   }
-  function setLoading(btn, loading) {
+
+  function setLoading(loading) {
+    const btn = $('btn-enter-judge');
     btn.disabled = loading;
-    btn.dataset.original = btn.dataset.original || btn.textContent;
-    btn.innerHTML = loading ? '<span class="spinner"></span> Entrando...' : btn.dataset.original;
+    btn.textContent = loading ? 'Validando...' : 'Entrar al panel de juez';
   }
-  function showView(id) {
-    ['view-login','view-public-selector','view-code-success'].forEach(v => {
-      $(v).style.display = v === id ? 'block' : 'none';
-    });
+
+  function extractJudgeCode(payload) {
+    const raw = String(payload || '').trim();
+    if (!raw) return '';
+
+    const direct = raw.match(/(JZ-[A-Z0-9\-]+)/i);
+    if (direct && direct[1]) return direct[1].toUpperCase();
+
+    try {
+      const parsed = new URL(raw);
+      const access = parsed.searchParams.get('access') || parsed.searchParams.get('code');
+      if (access) return String(access).toUpperCase();
+    } catch (_) {}
+
+    return raw.toUpperCase();
+  }
+
+  async function stopQrScanner() {
+    if (!qrScanner || !qrRunning) return;
+    try {
+      await qrScanner.stop();
+      await qrScanner.clear();
+    } catch (_) {}
+    qrRunning = false;
+  }
+
+  async function openQrScanner() {
     hideAlert();
-  }
+    const wrap = $('qr-scanner-wrap');
+    const isNativeApp = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    const nativeScanner = window.Capacitor?.Plugins?.CapacitorBarcodeScanner;
 
-  /* ---- Si ya hay sesión activa, redirige ---- */
-  const session = Auth.loadSession();
-  if (session) {
-    const role = session.role;
-    if (role === USER_ROLES.SUPER_ADMIN) window.location.href = 'views/superadmin.html';
-    else if (role === USER_ROLES.ORGANIZER) window.location.href = 'views/admin.html';
-    else if (role === USER_ROLES.REFEREE) window.location.href = 'views/referee.html';
-    else window.location.href = 'views/public.html';
-  }
+    if (isNativeApp && nativeScanner && typeof nativeScanner.scanBarcode === 'function') {
+      try {
+        const nativeResult = await nativeScanner.scanBarcode({
+          hint: 17,
+          scanInstructions: 'Apunta al QR de Mesa Tecnica',
+          scanButton: false,
+          scanText: 'Escanear',
+        });
+        const payload = nativeResult?.ScanResult || '';
+        const code = extractJudgeCode(payload);
+        if (!code) {
+          showAlert('No se detecto un codigo valido en el QR.');
+          return;
+        }
+        $('access-code').value = code;
+        $('form-judge-code').requestSubmit();
+        return;
+      } catch (err) {
+        showAlert(err?.message || 'No se pudo abrir el escaner nativo. Intentando modo web...');
+      }
+    }
 
-  /* ---- Login con email/contraseña ---- */
-  $('form-login').addEventListener('submit', async e => {
-    e.preventDefault();
-    hideAlert();
-    const btn   = $('btn-login');
-    const email = $('email').value.trim();
-    const pass  = $('password').value;
-    setLoading(btn, true);
+    if (wrap) wrap.style.display = 'block';
 
-    /* -- Cuenta de desarrollo local (sin Supabase) -- */
-    if (email === 'ibra@ibra.com' && pass === '123456') {
-      Auth._saveDevSession({ userId: '00000000-0000-0000-0000-000000000001', email, role: USER_ROLES.ORGANIZER, token: 'dev' });
-      window.location.href = 'views/admin.html';
+    if (typeof Html5Qrcode !== 'function') {
+      showAlert('No se pudo cargar el escaner QR en este dispositivo.');
       return;
     }
 
-    try {
-      const session = await Auth.login(email, pass);
-      if (session.role === USER_ROLES.SUPER_ADMIN) {
-        window.location.href = 'views/superadmin.html';
-      } else if (session.role === USER_ROLES.ORGANIZER) {
-        window.location.href = 'views/admin.html';
-      } else {
-        window.location.href = 'views/referee.html';
-      }
-    } catch (err) {
-      const msg = (err.message && err.message.includes('No se pudo conectar al servidor'))
-        ? 'No se pudo conectar al servidor. Verifica tu conexión a internet o que el proyecto Supabase esté activo.'
-        : (err.message || 'Correo o contraseña incorrectos.');
-      showAlert(msg);
-    } finally {
-      setLoading(btn, false);
+    if (!qrScanner) {
+      qrScanner = new Html5Qrcode('qr-reader');
     }
-  });
+    if (qrRunning) return;
 
-  /* ---- Login con código ---- */
-  $('form-code').addEventListener('submit', async e => {
+    try {
+      await qrScanner.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 240, height: 240 } },
+        async (decodedText) => {
+          const code = extractJudgeCode(decodedText);
+          if (!code) return;
+          $('access-code').value = code;
+          await stopQrScanner();
+          if (wrap) wrap.style.display = 'none';
+          $('form-judge-code').requestSubmit();
+        },
+        () => {}
+      );
+      qrRunning = true;
+    } catch (err) {
+      showAlert(err?.message || 'No se pudo iniciar la camara para escanear QR. Revisa permisos de camara en Android.');
+    }
+  }
+
+  const current = Auth.getSession();
+  if (current?.role === USER_ROLES.JUDGE && current?.judgeAccessCode) {
+    window.location.href = 'views/judge.html';
+    return;
+  }
+
+  $('form-judge-code').addEventListener('submit', async (e) => {
     e.preventDefault();
     hideAlert();
-    const code = $('access-code').value.trim();
-    if (!code) { showAlert('Ingresa el código de acceso.'); return; }
+    const code = String($('access-code').value || '').trim();
+    if (!code) {
+      showAlert('Ingresa el codigo de acceso del juez.');
+      return;
+    }
+
+    setLoading(true);
     try {
       const session = await Auth.loginWithCode(code);
-      $('code-tournament-name').textContent = session.tournamentName || 'Torneo';
-      const roleLabels = {
-        referee: '⚖️ Acceso como Árbitro',
-        public:  '👁 Acceso como Espectador',
-      };
-      $('code-role-label').textContent = roleLabels[session.role] || session.role;
-      showView('view-code-success');
+      if (session?.role !== USER_ROLES.JUDGE) {
+        throw new Error('Este APK solo permite acceso de juez.');
+      }
+      window.location.href = 'views/judge.html';
     } catch (err) {
-      showAlert(err.message || 'Código inválido.');
+      showAlert(err?.message || 'No se pudo validar el codigo de juez.');
+    } finally {
+      setLoading(false);
     }
   });
 
-  /* ---- Entrar con código ---- */
-  $('btn-enter-with-code').addEventListener('click', () => {
-    const session = Auth.getSession();
-    if (session?.role === USER_ROLES.REFEREE) window.location.href = 'views/referee.html';
-    else window.location.href = 'views/public.html';
+  $('btn-clear-session').addEventListener('click', () => {
+    try { Auth.logout(); } catch (_) {}
+    try { localStorage.removeItem('ot_session'); } catch (_) {}
+    $('access-code').value = '';
+    hideAlert();
+    showAlert('Sesion local limpiada.', 'success');
   });
 
-  $('btn-back-code').addEventListener('click', () => showView('view-login'));
-
-  /* ---- Vista pública ---- */
-  $('btn-public').addEventListener('click', async () => {
-    showView('view-public-selector');
-    await _loadPublicTournaments();
+  $('btn-open-qr-scanner').addEventListener('click', () => {
+    openQrScanner();
   });
 
-  $('btn-back-public').addEventListener('click', () => showView('view-login'));
-
-  async function _loadPublicTournaments() {
-    const listEl = $('public-tournament-list');
-    try {
-      // Inicializa Supabase solo para lectura
-      if (SUPABASE_URL && SUPABASE_ANON_KEY && typeof supabase.from !== 'function') {
-        window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      }
-      const tournaments = await Tournament.listPublic();
-      if (!tournaments.length) {
-        listEl.innerHTML = '<p class="text-muted text-center p-3">No hay torneos públicos disponibles.</p>';
-        return;
-      }
-      listEl.innerHTML = tournaments.map(t => `
-        <div class="card mb-2" style="cursor:pointer;" onclick="enterPublic('${t.id}')">
-          <div class="flex justify-between items-center">
-            <div>
-              <strong>${t.name}</strong>
-              <div class="text-muted text-sm mt-1">📍 ${t.location || 'Sin ubicación'} · 📅 ${formatDate(t.date_start)}</div>
-            </div>
-            <span class="badge badge-${_statusColor(t.status)}">${t.status}</span>
-          </div>
-        </div>
-      `).join('');
-    } catch (err) {
-      listEl.innerHTML = `<p class="text-danger text-sm p-2">${err.message}</p>`;
-    }
-  }
-
-  window.enterPublic = function(tournamentId) {
-    Auth.loginAsPublic(tournamentId);
-    window.location.href = 'views/public.html';
-  };
-
-  function _statusColor(status) {
-    const map = { open: 'gold', ongoing: 'green', finished: 'muted', draft: 'blue' };
-    return map[status] || 'muted';
-  }
-
-  /* ---- Formateo ---- */
-  function formatDate(iso) {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleDateString('es-ES', { day:'2-digit', month:'short', year:'numeric' });
-  }
-
+  $('btn-close-qr-scanner').addEventListener('click', async () => {
+    const wrap = $('qr-scanner-wrap');
+    await stopQrScanner();
+    if (wrap) wrap.style.display = 'none';
+  });
 })();
 </script>
 </body>
