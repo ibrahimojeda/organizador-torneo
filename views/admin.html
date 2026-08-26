@@ -239,11 +239,12 @@
                 <th>Cinturón</th>
                 <th>Club</th>
                 <th>Categorías</th>
+                <th>Estado</th>
                 <th></th>
               </tr>
             </thead>
             <tbody id="competitors-table-body">
-              <tr><td colspan="9" class="text-center text-muted p-4">Cargando...</td></tr>
+              <tr><td colspan="10" class="text-center text-muted p-4">Cargando...</td></tr>
             </tbody>
           </table>
         </div>
@@ -358,6 +359,18 @@
                 <div class="empty-icon">⚔️</div>
                 <h3>Sin categoría seleccionada</h3>
                 <p>Elige una categoría de la izquierda para ver o generar sus llaves.</p>
+              </div>
+            </div>
+            <!-- Gestión de competidores de la categoría (antes de generar llaves) -->
+            <div id="bracket-competitors-manager" style="display:none;" class="mt-3">
+              <div class="card">
+                <div class="flex items-center justify-between mb-2" style="padding:.75rem 1rem;border-bottom:1px solid var(--border);">
+                  <h3 class="card-title" style="margin:0;">👤 Competidores de la categoría</h3>
+                  <button class="btn btn-outline btn-sm" id="btn-add-competitor-category">➕ Añadir competidor</button>
+                </div>
+                <div id="bracket-competitors-list" style="max-height:220px;overflow-y:auto;">
+                  <div class="text-center text-muted text-sm p-3">Sin competidores aceptados en esta categoría.</div>
+                </div>
               </div>
             </div>
             <!-- Avanzar ronda kata (solo visible en kata) -->
@@ -883,6 +896,29 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="Display.closeModal('modal-result-readonly')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Añadir competidor a categoría -->
+<div class="modal-overlay" id="modal-add-competitor-cat">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <h3 class="modal-title">➕ Añadir competidor a categoría</h3>
+      <button class="btn btn-ghost btn-icon" onclick="Display.closeModal('modal-add-competitor-cat')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="text-sm text-muted mb-3">Selecciona un competidor aceptado para añadirlo a esta categoría.</p>
+      <div class="form-group">
+        <label class="form-label">Competidor:</label>
+        <select class="form-control" id="add-competitor-cat-select">
+          <option value="">— Selecciona un competidor —</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="Display.closeModal('modal-add-competitor-cat')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirm-add-competitor-cat">Añadir</button>
     </div>
   </div>
 </div>
@@ -1442,8 +1478,8 @@
       const safeId    = (c.id || '').replace(/'/g, '');
       const safeRegId = (c.registration_id || '').replace(/'/g, '');
       const safeName  = (c.full_name || '').replace(/'/g, '\\x27');
-      return `<tr>
-        <td><input type="checkbox" class="chk-competitor" data-reg-id="${safeRegId}" data-comp-id="${safeId}" data-name="${safeName}" onchange="_updateBulkToolbar()" /></td>
+      return `<tr${regStatus === 'denied' ? ' style="opacity:.55;"' : ''}>
+        <td><input type="checkbox" class="chk-competitor" data-reg-id="${safeRegId}" data-comp-id="${safeId}" data-name="${safeName}" data-status="${regStatus}" onchange="_updateBulkToolbar()" /></td>
         <td><strong>${c.full_name}</strong></td>
         <td>${c.gender === 'M' ? '♂ Masc.' : '♀ Fem.'}</td>
         <td>${age} años</td>
@@ -1455,6 +1491,14 @@
         </td>
         <td class="text-muted">${c.club || '—'}</td>
         <td class="text-muted text-xs">${c.category_id ? '1 categoría' : '—'}</td>
+        <td>
+          <select class="form-control form-control-sm" style="font-size:.75rem;padding:.15rem .3rem;min-width:100px;"
+            onchange="changeRegistrationStatus(this,'${safeRegId}','${state.activeTournament.id}')">
+            <option value="pending"${regStatus === 'pending' ? ' selected' : ''}>⏳ Pendiente</option>
+            <option value="accepted"${regStatus === 'accepted' ? ' selected' : ''}>✅ Aceptado</option>
+            <option value="denied"${regStatus === 'denied' ? ' selected' : ''}>❌ Negado</option>
+          </select>
+        </td>
         <td class="flex gap-1">
           <button class="btn btn-ghost btn-sm btn-icon" title="Editar" onclick="openEditCompetitor('${safeId}','${safeRegId}')">✏️</button>
           <button class="btn btn-ghost btn-sm btn-icon" title="Eliminar" onclick="removeCompetitor('${safeRegId}')">🗑</button>
@@ -1865,6 +1909,9 @@
       } else {
         podioDisplayEl.style.display = 'none';
       }
+
+      // ---- Competidores de la categoría (gestión) ----
+      _loadBracketCompetitors(category);
     } catch (e) {
       displayEl.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
     }
@@ -1942,6 +1989,103 @@
       Display.closeModal('modal-move-category');
       Display.toast('Competidor movido exitosamente.', 'success');
       await _loadBracketPanel();
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  });
+
+  /* ---- Gestión de competidores en el panel de llaves ---- */
+  async function _loadBracketCompetitors(category) {
+    const container = document.getElementById('bracket-competitors-manager');
+    const listEl = document.getElementById('bracket-competitors-list');
+    if (!container || !listEl) return;
+    container.style.display = 'block';
+    try {
+      const allComps = await Competitors.listByCategory(category.id);
+      // Filtrar solo aceptados (listByCategory ya filtra denied, pero reforzamos)
+      const accepted = allComps.filter(c => c.status !== 'denied');
+      if (!accepted.length) {
+        listEl.innerHTML = '<div class="text-center text-muted text-sm p-3">Sin competidores aceptados en esta categoría.</div>';
+        return;
+      }
+      const hasMatches = await _categoryHasMatches(category.id);
+      listEl.innerHTML = accepted.map(c => {
+        const safeRegId = (c.registration_id || '').replace(/'/g, '');
+        const safeName = (c.full_name || '').replace(/'/g, '\\x27');
+        const statusBadge = c.status === 'accepted' ? '🟢' : '⏳';
+        return `<div class="flex items-center justify-between px-3 py-2" style="border-bottom:1px solid var(--border);">
+          <div>
+            <span class="text-sm font-semibold">${statusBadge} ${c.full_name}</span>
+            <span class="text-xs text-muted ml-2">${c.club || '—'}</span>
+          </div>
+          <div class="flex gap-1">
+            <button class="btn btn-ghost btn-sm btn-icon" title="Mover a otra categoría"
+              onclick="_openMoveCategoryModal('${safeRegId}','${safeName}')">📦</button>
+            ${!hasMatches ? `<button class="btn btn-ghost btn-sm btn-icon text-danger" title="Quitar de esta categoría"
+              onclick="_removeFromCategory('${safeRegId}','${safeName}')">✕</button>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+    } catch (e) {
+      listEl.innerHTML = `<div class="text-center text-danger text-sm p-3">${e.message}</div>`;
+    }
+  }
+
+  async function _categoryHasMatches(categoryId) {
+    try {
+      const matches = await Bracket.getByCategoryId(categoryId);
+      return matches.some(m => m.status === 'finished' || m.status === 'in_progress');
+    } catch (_) { return false; }
+  }
+
+  window._removeFromCategory = async function(registrationId, competitorName) {
+    if (!confirm(`¿Quitar a "${competitorName}" de esta categoría? No se eliminará del torneo.`)) return;
+    try {
+      await Competitors.unregister(registrationId);
+      Display.toast(`${competitorName} quitado de la categoría.`, 'success');
+      if (state.activeCategory) await _loadBracket(state.activeCategory);
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  };
+
+  // ---- Añadir competidor a categoría desde el panel de llaves ----
+  document.getElementById('btn-add-competitor-category')?.addEventListener('click', async () => {
+    if (!state.activeCategory || !state.activeTournament) return;
+    const sel = document.getElementById('add-competitor-cat-select');
+    sel.innerHTML = '<option value="">Cargando...</option>';
+    try {
+      // Obtener todos los competidores del torneo que estén aceptados
+      const allComps = await Competitors.listByTournament(state.activeTournament.id);
+      const accepted = allComps.filter(c => {
+        if (c.status === 'denied') return false;
+        // Mismo género que la categoría
+        if (state.activeCategory.gender && c.gender !== state.activeCategory.gender) return false;
+        // No debe estar ya en esta categoría
+        if (c.category_id === state.activeCategory.id) return false;
+        return true;
+      });
+      if (!accepted.length) {
+        sel.innerHTML = '<option value="">No hay competidores disponibles</option>';
+        Display.openModal('modal-add-competitor-cat');
+        return;
+      }
+      sel.innerHTML = '<option value="">— Selecciona un competidor —</option>'
+        + accepted.map(c => `<option value="${c.registration_id}">${c.full_name} (${c.club || 'sin club'})</option>`).join('');
+      Display.openModal('modal-add-competitor-cat');
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  });
+
+  document.getElementById('btn-confirm-add-competitor-cat')?.addEventListener('click', async () => {
+    const regId = document.getElementById('add-competitor-cat-select').value;
+    if (!regId || !state.activeCategory) { Display.toast('Selecciona un competidor.', 'warning'); return; }
+    try {
+      await Competitors.moveCategory(regId, state.activeCategory.id);
+      Display.closeModal('modal-add-competitor-cat');
+      Display.toast('Competidor añadido a la categoría.', 'success');
+      await _loadBracket(state.activeCategory);
     } catch (e) {
       Display.toast(e.message, 'error');
     }
