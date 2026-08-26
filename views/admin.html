@@ -1469,7 +1469,7 @@
         : `${list.length} de ${_competitorsList.length} competidor(es)`;
 
     if (!list.length) {
-      tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted p-3">Sin resultados para los filtros aplicados.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="10" class="text-center text-muted p-3">Sin resultados para los filtros aplicados.</td></tr>`;
       return;
     }
     tbody.innerHTML = list.map(c => {
@@ -1478,6 +1478,7 @@
       const safeId    = (c.id || '').replace(/'/g, '');
       const safeRegId = (c.registration_id || '').replace(/'/g, '');
       const safeName  = (c.full_name || '').replace(/'/g, '\\x27');
+      const regStatus = c.status || 'pending';
       return `<tr${regStatus === 'denied' ? ' style="opacity:.55;"' : ''}>
         <td><input type="checkbox" class="chk-competitor" data-reg-id="${safeRegId}" data-comp-id="${safeId}" data-name="${safeName}" data-status="${regStatus}" onchange="_updateBulkToolbar()" /></td>
         <td><strong>${c.full_name}</strong></td>
