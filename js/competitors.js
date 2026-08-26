@@ -33,7 +33,7 @@ const Competitors = (() => {
     return _devRegList().some(r => r.competitor_id === competitorId && r.tournament_id === tournamentId);
   }
   function _devCreateReg(competitorId, tournamentId, categoryId) {
-    const r = { id: generateId(), competitor_id: competitorId, tournament_id: tournamentId, category_id: categoryId, seed: null, registered_at: new Date().toISOString() };
+    const r = { id: generateId(), competitor_id: competitorId, tournament_id: tournamentId, category_id: categoryId, status: 'pending', seed: null, registered_at: new Date().toISOString() };
     const list = _devRegList(); list.push(r); _devSaveR(list); return r;
   }
   function _devListByTournament(tournamentId) {
@@ -133,7 +133,7 @@ const Competitors = (() => {
   -------------------------------------------------------- */
   async function listByTournament(tournamentId) {
     if (Auth.isDevMode()) return _devListByTournament(tournamentId);
-    const { data, error } = await supabase
+    let query = supabase
       .from(TABLE_REG)
       .select(`
         id,
@@ -147,7 +147,34 @@ const Competitors = (() => {
       `)
       .eq('tournament_id', tournamentId)
       .order('registered_at');
-    if (error) throw error;
+    const { data, error } = await query;
+    if (error) {
+      // Si falla por la columna status, reintentar sin ella
+      if (error.message && error.message.includes('status')) {
+        const { data: d2, error: e2 } = await supabase
+          .from(TABLE_REG)
+          .select(`
+            id,
+            category_id,
+            seed,
+            competitors (
+              id, full_name, document_id, gender, dob, weight,
+              belt_id, club, country, photo_url, discipline
+            )
+          `)
+          .eq('tournament_id', tournamentId)
+          .order('registered_at');
+        if (e2) throw e2;
+        return (d2 || []).map(r => ({
+          ...r.competitors,
+          registration_id: r.id,
+          category_id: r.category_id,
+          seed: r.seed,
+          status: 'pending',
+        }));
+      }
+      throw error;
+    }
     return (data || []).map(r => ({ ...r.competitors, registration_id: r.id, category_id: r.category_id, seed: r.seed, status: r.status || 'pending' }));
   }
 
@@ -441,7 +468,7 @@ const Competitors = (() => {
     if (existing) return existing;
     const { data, error } = await supabase
       .from(TABLE_REG)
-      .insert({ competitor_id: competitorId, tournament_id: tournamentId, category_id: categoryId })
+      .insert({ competitor_id: competitorId, tournament_id: tournamentId, category_id: categoryId, status: 'pending' })
       .select()
       .single();
     if (error) {
