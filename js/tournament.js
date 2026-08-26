@@ -51,6 +51,7 @@ if (!window.Tournament) {
       time_start:     data.time_start || '09:00:00',
       category_mode:  data.category_mode || 'age_belt',
       status:         TOURNAMENT_STATUS.DRAFT.id,
+      is_public:      true,
       organizer_id:   Auth.getUserId(),
     };
     if (Auth.isDevMode()) return _devCreate(payload);
