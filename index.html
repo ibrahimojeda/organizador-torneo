@@ -126,6 +126,7 @@
     if (role === USER_ROLES.SUPER_ADMIN) window.location.href = 'views/superadmin.html';
     else if (role === USER_ROLES.ORGANIZER) window.location.href = 'views/admin.html';
     else if (role === USER_ROLES.REFEREE) window.location.href = 'views/referee.html';
+    else if (session.tournamentId) window.location.href = 'views/public.html?t=' + session.tournamentId;
     else window.location.href = 'views/public.html';
   }
 
@@ -188,6 +189,7 @@
   $('btn-enter-with-code').addEventListener('click', () => {
     const session = Auth.getSession();
     if (session?.role === USER_ROLES.REFEREE) window.location.href = 'views/referee.html';
+    else if (session?.tournamentId) window.location.href = 'views/public.html?t=' + session.tournamentId;
     else window.location.href = 'views/public.html';
   });
 
@@ -231,7 +233,7 @@
 
   window.enterPublic = function(tournamentId) {
     Auth.loginAsPublic(tournamentId);
-    window.location.href = 'views/public.html';
+    window.location.href = 'views/public.html?t=' + tournamentId;
   };
 
   function _statusColor(status) {

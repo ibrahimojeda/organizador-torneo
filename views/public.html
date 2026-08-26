@@ -590,7 +590,17 @@
     document.getElementById('view-select-tournament').style.display = 'none';
     _loadTournament(tid);
   } else {
-    _loadPublicList();
+    // Fallback: si hay sesión con torneo, cargarlo directamente
+    const session = Auth.getSession();
+    if (session?.tournamentId) {
+      state.tournamentId = session.tournamentId;
+      state.projectionTargetKey = _getProjectionTargetKey();
+      _syncProjectionTargetFromStorage();
+      document.getElementById('view-select-tournament').style.display = 'none';
+      _loadTournament(session.tournamentId);
+    } else {
+      _loadPublicList();
+    }
   }
 
   /* ---- Cargar torneo específico ---- */
