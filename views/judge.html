@@ -178,6 +178,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
 <script src="../js/config.js?v=20260713a"></script>
 <script src="../js/auth.js?v=20260713a"></script>
+<script src="../js/dojos.js"></script>
 <script src="../js/tournament.js?v=20260713a"></script>
 <script src="../js/matches.js?v=20260713a"></script>
 <script>
@@ -413,6 +414,7 @@
 
   function updateMatchDisplay(match) {
     if (!match) return;
+    Dojos.ensureCache().catch(() => {});
     const nameA = match.competitor_a?.competitors?.full_name || match.competitor_a?.full_name || 'Competidor A';
     const nameB = match.competitor_b?.competitors?.full_name || match.competitor_b?.full_name || 'Competidor B';
     const catName = match.category?.name || '';
@@ -548,8 +550,10 @@
       const clubB = m.competitor_b?.competitors?.club || m.competitor_b?.club || '';
       $('judge-kata-name-a').textContent = nameA;
       $('judge-kata-name-b').textContent = nameB;
-      $('judge-kata-club-a').textContent = clubA;
-      $('judge-kata-club-b').textContent = clubB;
+      $('judge-kata-club-a').innerHTML = Dojos.renderDojoBadge(Dojos.getFromCache(m.competitor_a?.competitors?.dojo_id || m.competitor_a?.dojo_id), 18)
+        + ' ' + Dojos.renderCountryBadge(m.competitor_a?.competitors?.country || m.competitor_a?.country, 14);
+      $('judge-kata-club-b').innerHTML = Dojos.renderDojoBadge(Dojos.getFromCache(m.competitor_b?.competitors?.dojo_id || m.competitor_b?.dojo_id), 18)
+        + ' ' + Dojos.renderCountryBadge(m.competitor_b?.competitors?.country || m.competitor_b?.country, 14);
 
       const duel = m.competitor_b_id ? Matches.getKataDuelSummary(m) : null;
       const seats = ['J1','J2','J3','J4','J5'];
@@ -575,10 +579,6 @@
         $('judge-kata-scores-b').innerHTML = '';
       }
     }
-    renderKataDuelBoard();
-    // Re-render on refresh
-    $('btn-refresh-kata').addEventListener('click', renderKataDuelBoard);
-
     // Send kata score
     $('btn-send-kata-score').addEventListener('click', async () => {
       const raw = String($('judge-kata-score-input').value || '').replace(',', '.').trim();
@@ -643,6 +643,7 @@
         } else {
           $('judge-kata-refresh-status').textContent = `Tu nota aún no ha sido registrada. ${summary.submitted}/5 jueces completados.`;
         }
+        renderKataDuelBoard();
       } catch (e) {
         $('judge-kata-refresh-status').textContent = `Error al actualizar: ${e.message}`;
       }
@@ -675,8 +676,10 @@
       const clubB = m.competitor_b?.competitors?.club || m.competitor_b?.club || '';
       $('judge-kumite-name-a').textContent = nameA;
       $('judge-kumite-name-b').textContent = nameB;
-      $('judge-kumite-club-a').textContent = clubA;
-      $('judge-kumite-club-b').textContent = clubB;
+      $('judge-kumite-club-a').innerHTML = Dojos.renderDojoBadge(Dojos.getFromCache(m.competitor_a?.competitors?.dojo_id || m.competitor_a?.dojo_id), 18)
+        + ' ' + Dojos.renderCountryBadge(m.competitor_a?.competitors?.country || m.competitor_a?.country, 14);
+      $('judge-kumite-club-b').innerHTML = Dojos.renderDojoBadge(Dojos.getFromCache(m.competitor_b?.competitors?.dojo_id || m.competitor_b?.dojo_id), 18)
+        + ' ' + Dojos.renderCountryBadge(m.competitor_b?.competitors?.country || m.competitor_b?.country, 14);
     }
 
     function updateSideButtons() {

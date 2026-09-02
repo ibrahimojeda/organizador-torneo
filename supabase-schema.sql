@@ -290,10 +290,16 @@ CREATE POLICY "tournaments: eliminar propios" ON tournaments
 -- Anonymous users call validate_tournament_code(p_code) instead of reading the table directly.
 DROP POLICY IF EXISTS "codes: ver por organizador o autenticado" ON tournament_codes;
 CREATE POLICY "codes: ver por organizador o autenticado" ON tournament_codes
-  FOR SELECT USING (auth.role() = 'authenticated');
+  FOR SELECT USING (
+    auth.role() = 'authenticated'
+    AND tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
+  );
 DROP POLICY IF EXISTS "codes: insertar por autenticado" ON tournament_codes;
 CREATE POLICY "codes: insertar por autenticado" ON tournament_codes
-  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+  FOR INSERT WITH CHECK (
+    auth.role() = 'authenticated'
+    AND tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
+  );
 DROP POLICY IF EXISTS "codes: gestionar por organizador" ON tournament_codes;
 CREATE POLICY "codes: gestionar por organizador" ON tournament_codes
   FOR UPDATE USING (
@@ -423,6 +429,32 @@ ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending'
 CHECK (status IN ('pending', 'accepted', 'denied'));
 
 CREATE INDEX IF NOT EXISTS idx_registrations_status ON registrations(status);
+
+-- =====================================================
+-- MIGRACIÓN: Crear tabla dojos (si no existe)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS dojos (
+  id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        TEXT         NOT NULL UNIQUE,
+  logo_url    TEXT,
+  website     TEXT,
+  notes       TEXT,
+  created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+-- =====================================================
+-- MIGRACIÓN: Agregar columna dojo_id a competitors
+-- =====================================================
+ALTER TABLE competitors
+ADD COLUMN IF NOT EXISTS dojo_id UUID REFERENCES dojos(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_competitors_dojo_id ON competitors(dojo_id);
+
+-- =====================================================
+-- MIGRACIÓN: Agregar columna logo_url a dojos (por si ya existe)
+-- =====================================================
+ALTER TABLE dojos
+ADD COLUMN IF NOT EXISTS logo_url TEXT;
 
 -- =====================================================
 -- RPC: validate_tournament_code

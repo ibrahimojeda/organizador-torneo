@@ -17,11 +17,13 @@ desktop.ini
 # Dependencias
 node_modules/
 
-# Proyecto Android (no se sirve en GitHub Pages)
-android/
+# Android / Gradle generated artifacts
+android/.gradle/
+android/**/build/
+android/local.properties
 
-# Copia de Capacitor (duplicada)
-www/
+# Copia de Capacitor (mantener trackable en el repositorio)
+# www/ se conserva versionado.
 
 # Binarios
 *.apk
@@ -35,4 +37,3 @@ replay_pid*
 0
 admin_backup.txt
 admin_original.txt
-Cargar en la nube.txt

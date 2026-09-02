@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Panel Juez — Torneo Karate</title>
+  <link rel="stylesheet" href="../css/styles.css" />
+</head>
+<body style="background:#0f172a;color:#fff;min-height:100vh;">
+
+<div id="judge-join-view" class="container" style="padding:1rem;max-width:900px;margin:0 auto;">
+  <div class="card" style="padding:1rem;background:#111827;color:#fff;border:1px solid #334155;">
+    <div style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;align-items:flex-start;">
+      <div>
+        <div class="text-xs" style="opacity:.8;text-transform:uppercase;letter-spacing:.08em;">Acceso de Juez</div>
+        <h1 id="join-title" style="margin:.25rem 0;font-size:1.5rem;">Cargando acceso…</h1>
+        <div id="join-meta" class="text-sm" style="opacity:.8;">Validando tatami y disciplina.</div>
+      </div>
+      <div>
+        <span class="badge badge-gold" id="judge-id-badge">—</span>
+      </div>
+    </div>
+
+    <div class="grid-2 gap-2 mt-3">
+      <div class="form-group mb-0">
+        <label class="form-label" style="color:#fff;">Nombre del juez</label>
+        <input type="text" class="form-control" id="judge-name" placeholder="Ej: Juez Carlos Pérez" />
+      </div>
+      <div class="form-group mb-0">
+        <label class="form-label" style="color:#fff;">Puesto disponible</label>
+        <div id="seat-selector" style="display:flex;gap:.5rem;flex-wrap:wrap;"></div>
+      </div>
+    </div>
+
+    <div id="join-status" class="text-sm mt-2" style="opacity:.8;">Selecciona tu puesto para entrar.</div>
+    <button class="btn btn-primary btn-lg mt-3" id="btn-join-judge">Entrar como Juez</button>
+  </div>
+</div>
+
+<div id="judge-panel-view" style="display:none;min-height:100vh;">
+  <div style="padding:.75rem 1rem;display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;background:#111827;border-bottom:1px solid #334155;">
+    <div>
+      <div id="judge-live-title" style="font-size:1.15rem;font-weight:800;">Tatami —</div>
+      <div id="judge-live-meta" class="text-sm" style="opacity:.8;">Esperando combate…</div>
+    </div>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;">
+      <span class="badge badge-blue" id="judge-live-seat">—</span>
+      <span class="badge badge-gold" id="judge-live-id">—</span>
+      <span class="badge" id="judge-conn-indicator" style="background:#0f172a;color:#fff;border:1px solid #334155;">—</span>
+      <span class="badge" id="judge-timer-display" style="background:#0f172a;color:#fff;border:1px solid #334155;">—</span>
+      <button class="btn btn-outline btn-sm" id="btn-judge-exit">Salir</button>
+    </div>
+  </div>
+    <div id="judge-flag-screen" style="display:none;padding:1rem;">
+      <div class="card" style="padding:1rem;background:#111827;color:#fff;border:1px solid #334155;text-align:center;">
+        <div class="text-sm mb-3" style="opacity:.8;">Votación por Banderas (WKF-2026)</div>
+        <div class="grid-2 gap-3">
+          <div class="form-group">
+            <label class="form-label" style="color:#fff;">Puntaje AO</label>
+            <input type="number" id="judge-flag-score-a" class="form-control" step="0.01" placeholder="0.00" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="color:#fff;">Puntaje AKA</label>
+            <input type="number" id="judge-flag-score-b" class="form-control" step="0.01" placeholder="0.00" />
+          </div>
+        </div>
+        <div class="flex gap-2 mt-3">
+          <button class="btn btn-primary flex-1" id="btn-flag-vote-a" type="button">🚩 Votar AO</button>
+          <button class="btn btn-danger flex-1" id="btn-flag-vote-b" type="button">🚩 Votar AKA</button>
+        </div>
+        <div id="judge-flag-status" class="text-sm mt-3" style="opacity:.8;">Esperando decisión...</div>
+      </div>
+    </div>
+  <div id="judge-kata-screen" style="display:none;padding:1rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:.75rem;">
+      <div class="text-sm" id="judge-kata-refresh-status" style="opacity:.8;">Puedes refrescar manualmente para verificar la llegada de notas.</div>
+      <button class="btn btn-outline btn-sm" id="btn-refresh-kata">Actualizar kata</button>
+    </div>
+    <div class="card" style="padding:.75rem;background:#0b1220;color:#fff;border:1px solid #334155;max-width:280px;margin-bottom:.75rem;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;">
+        <div>
+          <div style="font-size:.78rem;opacity:.8;">Temporizador Kata</div>
+          <div id="judge-kata-timer-display" style="font-weight:800;font-size:1.1rem;">0:35</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.35rem;align-items:flex-end;">
+          <div>
+            <button class="btn btn-sm" id="btn-kata-start">Iniciar</button>
+            <button class="btn btn-sm" id="btn-kata-pause" style="display:none;">Pausar</button>
+            <button class="btn btn-sm" id="btn-kata-reset">Reset</button>
+          </div>
+          <div style="margin-top:.25rem;">
+            <label class="text-xs" style="opacity:.8;">Segundos:</label>
+            <input id="judge-kata-seconds" type="number" min="5" max="180" value="35" style="width:72px;margin-left:.35rem;padding:.25rem;border-radius:6px;border:1px solid #334155;background:#0b1220;color:#fff;" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Duelo Kata: dos contendientes con círculos de jueces -->
+    <div class="card" style="padding:1rem;background:#0f172a;color:#fff;border:1px solid #334155;max-width:520px;margin:0 auto;">
+      <div style="text-align:center;font-size:1.05rem;font-weight:800;margin-bottom:.75rem;" id="judge-kata-category">🥋 Duelo de Kata</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+        <!-- AO -->
+        <div style="background:linear-gradient(135deg,#1565c0,#0f3ea8);border-radius:16px;padding:.75rem;text-align:center;">
+          <div style="font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;opacity:.85;">AO</div>
+          <div id="judge-kata-name-a" style="font-size:1.05rem;font-weight:800;line-height:1.15;margin-top:.25rem;">Competidor A</div>
+          <div id="judge-kata-club-a" style="font-size:.75rem;opacity:.8;"></div>
+          <div id="judge-kata-scores-a" style="display:grid;grid-template-columns:repeat(5,1fr);gap:.3rem;margin-top:.6rem;"></div>
+        </div>
+        <!-- AKA -->
+        <div style="background:linear-gradient(135deg,#c62828,#991b1b);border-radius:16px;padding:.75rem;text-align:center;">
+          <div style="font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;opacity:.85;">AKA</div>
+          <div id="judge-kata-name-b" style="font-size:1.05rem;font-weight:800;line-height:1.15;margin-top:.25rem;">Competidor B</div>
+          <div id="judge-kata-club-b" style="font-size:.75rem;opacity:.8;"></div>
+          <div id="judge-kata-scores-b" style="display:grid;grid-template-columns:repeat(5,1fr);gap:.3rem;margin-top:.6rem;"></div>
+        </div>
+      </div>
+
+      <!-- Mi puesto / selector de lado -->
+      <div style="margin-top:.9rem;padding:.6rem;background:#111827;border:1px solid #334155;border-radius:12px;">
+        <div class="text-xs mb-2" style="text-transform:uppercase;letter-spacing:.06em;opacity:.7;">Mi puesto: <span id="judge-kata-my-seat" style="font-weight:800;color:#facc15;">—</span> · Competidor a puntuar</div>
+        <div class="flex gap-2 mb-3">
+          <button class="btn flex-1" id="btn-kata-side-a" style="background:#1565c0;color:#fff;border:none;font-weight:700;">AO (Azul)</button>
+          <button class="btn flex-1" id="btn-kata-side-b" style="background:#c62828;color:#fff;border:none;font-weight:700;">AKA (Rojo)</button>
+        </div>
+        <label class="form-label" style="color:#fff;">Mi nota</label>
+        <input type="number" class="form-control" id="judge-kata-score-input" min="0" max="9.99" step="0.01" inputmode="decimal" placeholder="0.00 - 9.99" />
+        <div class="text-sm mt-2" style="opacity:.8;">Solo valores entre 0.00 y 9.99.</div>
+        <button class="btn btn-primary mt-3 btn-block" id="btn-send-kata-score" type="button">Enviar nota</button>
+        <div id="judge-kata-send-status" class="text-sm mt-2" style="opacity:.8;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Kumite screen -->
+  <div id="judge-kumite-screen" style="display:none;padding:1rem;">
+    <div class="card" style="padding:1rem;background:#0f172a;color:#fff;border:1px solid #334155;max-width:520px;margin:0 auto;">
+      <div style="text-align:center;font-size:1.05rem;font-weight:800;margin-bottom:.75rem;" id="judge-kumite-category">🥊 Combate de Kumite</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+        <!-- AO -->
+        <div id="kumite-card-a" style="background:linear-gradient(135deg,#1565c0,#0f3ea8);border-radius:16px;padding:.75rem;text-align:center;">
+          <div style="font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;opacity:.85;">AO</div>
+          <div id="judge-kumite-name-a" style="font-size:1.05rem;font-weight:800;line-height:1.15;margin-top:.25rem;">Competidor A</div>
+          <div id="judge-kumite-club-a" style="font-size:.75rem;opacity:.8;"></div>
+        </div>
+        <!-- AKA -->
+        <div id="kumite-card-b" style="background:linear-gradient(135deg,#c62828,#991b1b);border-radius:16px;padding:.75rem;text-align:center;">
+          <div style="font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;opacity:.85;">AKA</div>
+          <div id="judge-kumite-name-b" style="font-size:1.05rem;font-weight:800;line-height:1.15;margin-top:.25rem;">Competidor B</div>
+          <div id="judge-kumite-club-b" style="font-size:.75rem;opacity:.8;"></div>
+        </div>
+      </div>
+
+      <!-- Mi puesto / selector de lado -->
+      <div style="margin-top:.9rem;padding:.6rem;background:#111827;border:1px solid #334155;border-radius:12px;">
+        <div class="text-xs mb-2" style="text-transform:uppercase;letter-spacing:.06em;opacity:.7;">Mi puesto: <span id="judge-kumite-my-seat" style="font-weight:800;color:#facc15;">—</span> · Competidor a puntuar</div>
+        <div class="flex gap-2 mb-3">
+          <button class="btn flex-1" id="btn-kumite-side-a" style="background:#1565c0;color:#fff;border:none;font-weight:700;">AO (Azul)</button>
+          <button class="btn flex-1" id="btn-kumite-side-b" style="background:#c62828;color:#fff;border:none;font-weight:700;">AKA (Rojo)</button>
+        </div>
+
+        <!-- Point buttons -->
+        <div class="text-xs mb-2" style="text-transform:uppercase;letter-spacing:.06em;opacity:.7;">Enviar señal de punto</div>
+        <div class="flex gap-2 mb-3 flex-wrap">
+          <button class="btn btn-lg flex-1" style="background:#0f766e;color:#fff;border:none;font-weight:800;" data-signal="point" data-action="yuko">Yuko (+1)</button>
+          <button class="btn btn-lg flex-1" style="background:#0369a1;color:#fff;border:none;font-weight:800;" data-signal="point" data-action="wazaari">Waza-ari (+2)</button>
+          <button class="btn btn-lg flex-1" style="background:#7c3aed;color:#fff;border:none;font-weight:800;" data-signal="point" data-action="ippon">Ippon (+3)</button>
+        </div>
+
+        <!-- Status -->
+        <div id="judge-kumite-status" class="text-sm mt-2" style="opacity:.8;">Sin señales enviadas.</div>
+        <div id="judge-kumite-last" class="text-xs mt-1" style="color:#94a3b8;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
+<script src="../js/config.js?v=20260713a"></script>
+<script src="../js/auth.js?v=20260713a"></script>
+<script src="../js/dojos.js"></script>
+<script src="../js/tournament.js?v=20260713a"></script>
+<script src="../js/matches.js?v=20260713a"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* ---- Session validation ---- */
+  const session = Auth.getSession();
+  if (!session || session.role !== USER_ROLES.JUDGE) {
+    window.location.href = '../index.html';
+    return;
+  }
+
+  if (SUPABASE_URL && SUPABASE_ANON_KEY && typeof supabase.from !== 'function') {
+    window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+
+  /* ---- State ---- */
+  const state = {
+    tournamentId: session.tournamentId || null,
+    tournamentName: session.tournamentName || 'Torneo',
+    tatami: session.judgeTatami || null,
+    discipline: session.judgeDiscipline || 'kumite',
+    accessCode: session.judgeAccessCode || null,
+    seat: null,
+    judgeName: '',
+    currentMatch: null,
+    realtimeSub: null,
+    pingInterval: null,
+    selectedSide: 'a',
+    connected: false,
+  };
+
+  const MAX_SEATS = state.discipline === 'kata' ? 5 : 4;
+  const ALL_SEATS = Array.from({ length: MAX_SEATS }, (_, i) => 'J' + (i + 1));
+
+  /* ---- DOM refs ---- */
+  const $ = (id) => document.getElementById(id);
+
+  /* ---- Init join view ---- */
+  function initJoinView() {
+    $('join-title').textContent = `${state.discipline.toUpperCase()} — Tatami ${state.tatami || '?'}`;
+    $('join-meta').textContent = `Torneo: ${state.tournamentName} · Puesto para disciplina ${state.discipline}`;
+    $('judge-id-badge').textContent = state.discipline === 'kata' ? '🥋 Kata' : '🥊 Kumite';
+
+    // Build seat selector
+    const container = $('seat-selector');
+    container.innerHTML = '';
+    ALL_SEATS.forEach(seat => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-outline btn-sm';
+      btn.textContent = seat;
+      btn.style.minWidth = '48px';
+      btn.addEventListener('click', () => {
+        container.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.seat = seat;
+        $('join-status').textContent = `Puesto ${seat} seleccionado. Ingresa tu nombre y presiona "Entrar".`;
+      });
+      container.appendChild(btn);
+    });
+
+    // Auto-select first seat
+    if (container.firstChild) container.firstChild.click();
+  }
+
+  /* ---- Join handler ---- */
+  $('btn-join-judge').addEventListener('click', async () => {
+    const name = $('judge-name').value.trim();
+    if (!name) {
+      $('join-status').textContent = '⚠️ Ingresa tu nombre.';
+      $('join-status').style.color = '#f87171';
+      return;
+    }
+    if (!state.seat) {
+      $('join-status').textContent = '⚠️ Selecciona un puesto.';
+      $('join-status').style.color = '#f87171';
+      return;
+    }
+
+    state.judgeName = name;
+    $('btn-join-judge').disabled = true;
+    $('btn-join-judge').textContent = 'Conectando...';
+    $('join-status').textContent = 'Registrando juez...';
+    $('join-status').style.color = '#94a3b8';
+
+    try {
+      // Find the current match for this tatami
+      let matchToRegister = null;
+      if (state.tournamentId && state.tatami) {
+        try {
+          const pending = await Matches.listPendingByTatami(state.tournamentId, state.tatami);
+          matchToRegister = (pending || []).find(m => m.status === 'in_progress')
+            || (pending || [])[0]
+            || null;
+        } catch (_) {}
+      }
+
+      if (matchToRegister?.id) {
+        try {
+          await Matches.registerReferee(matchToRegister.id, {
+            seat: state.seat,
+            name: state.judgeName,
+            code: state.accessCode,
+            tatami: state.tatami,
+            discipline: state.discipline,
+          });
+        } catch (regErr) {
+          // If seat is taken by another judge, show error
+          if (regErr.message?.includes('ya fue seleccionado')) {
+            $('join-status').textContent = `⚠️ ${regErr.message}`;
+            $('join-status').style.color = '#f87171';
+            $('btn-join-judge').disabled = false;
+            $('btn-join-judge').textContent = 'Entrar como Juez';
+            return;
+          }
+          // Other errors are non-fatal (judge will register when match starts)
+          console.warn('[Judge] registerReferee non-fatal:', regErr.message);
+        }
+      }
+
+      // Switch to panel view
+      $('judge-join-view').style.display = 'none';
+      $('judge-panel-view').style.display = 'block';
+      state.connected = true;
+
+      // Update header
+      $('judge-live-title').textContent = `${state.discipline.toUpperCase()} — Tatami ${state.tatami || '?'}`;
+      $('judge-live-seat').textContent = state.seat;
+      $('judge-live-id').textContent = state.judgeName;
+      $('judge-conn-indicator').textContent = '🟢 Conectado';
+      $('judge-conn-indicator').style.borderColor = '#16a34a';
+
+      // Show correct screen
+      if (state.discipline === 'kata') {
+        $('judge-kata-screen').style.display = 'block';
+        initKataScreen();
+      } else {
+        $('judge-kumite-screen').style.display = 'block';
+        initKumiteScreen();
+      }
+
+      // Subscribe to realtime updates
+      subscribeToMatches();
+
+      // Start ping interval
+      startPing();
+
+    } catch (e) {
+      $('join-status').textContent = `⚠️ Error: ${e.message}`;
+      $('join-status').style.color = '#f87171';
+      $('btn-join-judge').disabled = false;
+      $('btn-join-judge').textContent = 'Entrar como Juez';
+    }
+  });
+
+  /* ---- Subscribe to realtime match updates ---- */
+  function subscribeToMatches() {
+    if (!state.tournamentId) return;
+    try {
+      state.realtimeSub = Matches.subscribeToTournament(state.tournamentId, async (payload) => {
+        await handleRealtimeUpdate(payload);
+      });
+    } catch (_) {}
+
+    // Also poll every 5s as fallback
+    setInterval(async () => {
+      if (!state.connected) return;
+      try {
+        await refreshCurrentMatch();
+      } catch (_) {}
+    }, 5000);
+  }
+
+  async function handleRealtimeUpdate(payload) {
+    const matchId = payload?.matchId || payload?.new?.id || payload?.record?.id || payload?.old?.id;
+    if (!matchId) return;
+
+    try {
+      const match = await Matches.getById(matchId);
+      const matchTatami = String(match?.tatami || match?.category?.tatami || '');
+      if (matchTatami !== String(state.tatami)) return;
+
+      // Update current match if it's ongoing or pending
+      if (match.status === 'in_progress' || match.status === 'pending') {
+        state.currentMatch = match;
+        updateMatchDisplay(match);
+      }
+
+      // If the match just finished, clear display
+      if (match.status === 'finished' || match.status === 'bye') {
+        if (state.currentMatch?.id === match.id) {
+          state.currentMatch = null;
+          $('judge-live-meta').textContent = 'Combate finalizado. Esperando siguiente...';
+          $('judge-timer-display').textContent = '—';
+        }
+      }
+    } catch (_) {}
+  }
+
+  async function refreshCurrentMatch() {
+    if (!state.tournamentId || !state.tatami) return;
+    try {
+      const pending = await Matches.listPendingByTatami(state.tournamentId, state.tatami);
+      const match = (pending || []).find(m => m.status === 'in_progress')
+        || (pending || [])[0]
+        || null;
+
+      if (match && (!state.currentMatch || state.currentMatch.id !== match.id)) {
+        state.currentMatch = match;
+        updateMatchDisplay(match);
+
+        // Register referee if new match
+        try {
+          await Matches.registerReferee(match.id, {
+            seat: state.seat,
+            name: state.judgeName,
+            code: state.accessCode,
+            tatami: state.tatami,
+            discipline: state.discipline,
+          });
+        } catch (_) {}
+      }
+
+      if (!match && state.currentMatch) {
+        state.currentMatch = null;
+        $('judge-live-meta').textContent = 'Sin combate activo. Esperando...';
+        $('judge-timer-display').textContent = '—';
+      }
+    } catch (_) {}
+  }
+
+  function updateMatchDisplay(match) {
+    if (!match) return;
+    Dojos.ensureCache().catch(() => {});
+    const nameA = match.competitor_a?.competitors?.full_name || match.competitor_a?.full_name || 'Competidor A';
+    const nameB = match.competitor_b?.competitors?.full_name || match.competitor_b?.full_name || 'Competidor B';
+    const catName = match.category?.name || '';
+    const roundLabel = match.round_label || '';
+
+    if (state.discipline === 'kata') {
+      $('judge-live-meta').textContent = `🥋 ${nameA} · ${catName} ${roundLabel}`;
+    } else {
+      $('judge-live-meta').textContent = `🥊 ${nameA} vs ${nameB} · ${catName} ${roundLabel}`;
+    }
+
+    // Update timer display from kumite clock if available
+    if (state.discipline === 'kumite') {
+      const summary = Matches.getKumiteSummary(match);
+      if (summary.clockRemaining != null) {
+        const m = Math.floor(summary.clockRemaining / 60);
+        const s = summary.clockRemaining % 60;
+        $('judge-timer-display').textContent = `${m}:${String(s).padStart(2, '0')}`;
+      }
+    }
+  }
+
+  /* ---- Kata score persistence on judge device ---- */
+  function _kataScoreKey() {
+    return `ot_judge_kata_${state.tournamentId}_${state.tatami}_${state.seat}`;
+  }
+  function _saveKataScoreLocal(score) {
+    try { localStorage.setItem(_kataScoreKey(), JSON.stringify({ score, at: new Date().toISOString() })); } catch (_) {}
+  }
+  function _loadKataScoreLocal() {
+    try { return JSON.parse(localStorage.getItem(_kataScoreKey()) || 'null'); } catch (_) { return null; }
+  }
+  function _clearKataScoreLocal() {
+    try { localStorage.removeItem(_kataScoreKey()); } catch (_) {}
+  }
+
+  /* ---- Kumite signal persistence on judge device ---- */
+  function _kumiteSignalKey() {
+    return `ot_judge_kumite_${state.tournamentId}_${state.tatami}_${state.seat}`;
+  }
+  function _saveKumiteSignalLocal(data) {
+    try { localStorage.setItem(_kumiteSignalKey(), JSON.stringify({ ...data, at: new Date().toISOString() })); } catch (_) {}
+  }
+  function _loadKumiteSignalLocal() {
+    try { return JSON.parse(localStorage.getItem(_kumiteSignalKey()) || 'null'); } catch (_) { return null; }
+  }
+  function _clearKumiteSignalLocal() {
+    try { localStorage.removeItem(_kumiteSignalKey()); } catch (_) {}
+  }
+
+  /* ---- Kata screen ---- */
+  function initKataScreen() {
+    let kataTimerSeconds = 35;
+    let kataTimerRemaining = 35;
+    let kataTimerRunning = false;
+    let kataTimerInterval = null;
+
+    function renderKataTimer() {
+      const m = Math.floor(kataTimerRemaining / 60);
+      const s = kataTimerRemaining % 60;
+      $('judge-kata-timer-display').textContent = `${m}:${String(s).padStart(2, '0')}`;
+    }
+
+    $('btn-kata-start').addEventListener('click', () => {
+      if (kataTimerRunning) return;
+      if (kataTimerRemaining <= 0) kataTimerRemaining = kataTimerSeconds;
+      kataTimerRunning = true;
+      $('btn-kata-start').style.display = 'none';
+      $('btn-kata-pause').style.display = 'inline-block';
+      kataTimerInterval = setInterval(() => {
+        kataTimerRemaining--;
+        renderKataTimer();
+        if (kataTimerRemaining <= 0) {
+          kataTimerRunning = false;
+          clearInterval(kataTimerInterval);
+          $('btn-kata-start').style.display = 'inline-block';
+          $('btn-kata-pause').style.display = 'none';
+          try { new (window.AudioContext || window.webkitAudioContext)(); } catch (_) {}
+        }
+      }, 1000);
+    });
+
+    $('btn-kata-pause').addEventListener('click', () => {
+      kataTimerRunning = false;
+      clearInterval(kataTimerInterval);
+      $('btn-kata-start').style.display = 'inline-block';
+      $('btn-kata-pause').style.display = 'none';
+    });
+
+    $('btn-kata-reset').addEventListener('click', () => {
+      kataTimerRunning = false;
+      clearInterval(kataTimerInterval);
+      kataTimerSeconds = parseInt($('judge-kata-seconds').value, 10) || 35;
+      kataTimerRemaining = kataTimerSeconds;
+      renderKataTimer();
+      $('btn-kata-start').style.display = 'inline-block';
+      $('btn-kata-pause').style.display = 'none';
+    });
+
+    $('judge-kata-seconds').addEventListener('input', () => {
+      kataTimerSeconds = parseInt($('judge-kata-seconds').value, 10) || 35;
+      if (!kataTimerRunning) {
+        kataTimerRemaining = kataTimerSeconds;
+        renderKataTimer();
+      }
+    });
+
+    // Kata side selector (for duel mode)
+    state.selectedSide = 'a';
+    function updateKataSideButtons() {
+      $('btn-kata-side-a').style.outline = state.selectedSide === 'a' ? '3px solid #93c5fd' : 'none';
+      $('btn-kata-side-b').style.outline = state.selectedSide === 'b' ? '3px solid #fca5a5' : 'none';
+    }
+    $('btn-kata-side-a').addEventListener('click', () => {
+      state.selectedSide = 'a';
+      updateKataSideButtons();
+    });
+    $('btn-kata-side-b').addEventListener('click', () => {
+      state.selectedSide = 'b';
+      updateKataSideButtons();
+    });
+    updateKataSideButtons();
+
+    // Render duel kata board (competitors + judge circles)
+    function renderKataDuelBoard() {
+      const m = state.currentMatch;
+      if (!m) return;
+      $('judge-kata-category').textContent = `🥋 ${m.category?.name || 'Duelo de Kata'} · ${m.round_label || ''}`;
+      $('judge-kata-my-seat').textContent = state.seat || '—';
+      const nameA = m.competitor_a?.competitors?.full_name || m.competitor_a?.full_name || 'Competidor A';
+      const nameB = m.competitor_b?.competitors?.full_name || m.competitor_b?.full_name || 'Competidor B';
+      const clubA = m.competitor_a?.competitors?.club || m.competitor_a?.club || '';
+      const clubB = m.competitor_b?.competitors?.club || m.competitor_b?.club || '';
+      $('judge-kata-name-a').textContent = nameA;
+      $('judge-kata-name-b').textContent = nameB;
+      $('judge-kata-club-a').innerHTML = Dojos.renderDojoBadge(Dojos.getFromCache(m.competitor_a?.competitors?.dojo_id || m.competitor_a?.dojo_id), 18)
+        + ' ' + Dojos.renderCountryBadge(m.competitor_a?.competitors?.country || m.competitor_a?.country, 14);
+      $('judge-kata-club-b').innerHTML = Dojos.renderDojoBadge(Dojos.getFromCache(m.competitor_b?.competitors?.dojo_id || m.competitor_b?.dojo_id), 18)
+        + ' ' + Dojos.renderCountryBadge(m.competitor_b?.competitors?.country || m.competitor_b?.country, 14);
+
+      const duel = m.competitor_b_id ? Matches.getKataDuelSummary(m) : null;
+      const seats = ['J1','J2','J3','J4','J5'];
+      const renderScores = (containerId, judges) => {
+        const el = $(containerId);
+        if (!el) return;
+        el.innerHTML = seats.map(seat => {
+          const j = (judges || []).find(jj => jj?.seat === seat) || {};
+          const isMe = seat === state.seat;
+          const score = Number.isFinite(Number(j.score)) ? Number(j.score).toFixed(2) : '—';
+          return `<div style="text-align:center;">
+            <div style="width:34px;height:34px;margin:0 auto;border-radius:50%;border:${isMe ? '3px solid #facc15' : '2px solid rgba(255,255,255,.5)'};background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:800;color:#fff;">${seat}</div>
+            <div style="margin-top:.15rem;font-size:.72rem;font-weight:700;color:#fff;">${score}</div>
+          </div>`;
+        }).join('');
+      };
+      if (duel) {
+        renderScores('judge-kata-scores-a', duel.summaryA.judges);
+        renderScores('judge-kata-scores-b', duel.summaryB.judges);
+      } else {
+        const summary = Matches.getKataSummary(m);
+        renderScores('judge-kata-scores-a', summary.judges);
+        $('judge-kata-scores-b').innerHTML = '';
+      }
+    }
+    renderKataDuelBoard();
+    // Re-render on refresh
+    $('btn-refresh-kata').addEventListener('click', renderKataDuelBoard);
+
+    // Send kata score
+    $('btn-send-kata-score').addEventListener('click', async () => {
+      const raw = String($('judge-kata-score-input').value || '').replace(',', '.').trim();
+      const score = Number(raw);
+      if (!Number.isFinite(score) || score < 0 || score > 9.99) {
+        $('judge-kata-send-status').textContent = '⚠️ Nota inválida. Debe ser entre 0.00 y 9.99.';
+        $('judge-kata-send-status').style.color = '#f87171';
+        return;
+      }
+
+      if (!state.currentMatch?.id) {
+        $('judge-kata-send-status').textContent = '⚠️ No hay combate activo. La nota se guardará cuando haya uno.';
+        $('judge-kata-send-status').style.color = '#fbbf24';
+        return;
+      }
+
+      $('btn-send-kata-score').disabled = true;
+      $('btn-send-kata-score').textContent = 'Enviando...';
+
+      try {
+        const isDuel = !!(state.currentMatch.competitor_b_id);
+        if (isDuel) {
+          await Matches.saveKataDuelJudgeScore(state.currentMatch.id, {
+            seat: state.seat,
+            name: state.judgeName,
+            code: state.accessCode,
+            tatami: state.tatami,
+          }, score, state.selectedSide);
+        } else {
+          await Matches.saveKataJudgeScore(state.currentMatch.id, {
+            seat: state.seat,
+            name: state.judgeName,
+            code: state.accessCode,
+            tatami: state.tatami,
+          }, score);
+        }
+        _saveKataScoreLocal(score);
+        $('judge-kata-send-status').textContent = `✅ Nota ${score.toFixed(2)} enviada (${state.seat}). La nota permanecerá visible hasta que la mesa confirme el resultado.`;
+        $('judge-kata-send-status').style.color = '#4ade80';
+      } catch (e) {
+        $('judge-kata-send-status').textContent = `❌ Error: ${e.message}`;
+        $('judge-kata-send-status').style.color = '#f87171';
+      } finally {
+        $('btn-send-kata-score').disabled = false;
+        $('btn-send-kata-score').textContent = 'Enviar nota';
+      }
+    });
+
+    // Refresh kata
+    $('btn-refresh-kata').addEventListener('click', async () => {
+      if (!state.currentMatch?.id) {
+        $('judge-kata-refresh-status').textContent = 'No hay combate activo.';
+        return;
+      }
+      try {
+        const match = await Matches.getById(state.currentMatch.id);
+        state.currentMatch = match;
+        const summary = Matches.getKataSummary(match);
+        const myScore = summary.judges.find(j => j.seat === state.seat);
+        if (myScore?.score != null) {
+          $('judge-kata-refresh-status').textContent = `Tu nota registrada: ${Number(myScore.score).toFixed(2)} (${state.seat}). Total: ${summary.submitted}/5 jueces.`;
+        } else {
+          $('judge-kata-refresh-status').textContent = `Tu nota aún no ha sido registrada. ${summary.submitted}/5 jueces completados.`;
+        }
+      } catch (e) {
+        $('judge-kata-refresh-status').textContent = `Error al actualizar: ${e.message}`;
+      }
+    });
+
+    // Restore previously sent kata score from localStorage
+    const savedKata = _loadKataScoreLocal();
+    if (savedKata?.score != null) {
+      $('judge-kata-score-input').value = Number(savedKata.score).toFixed(2);
+      const savedAt = savedKata.at ? new Date(savedKata.at).toLocaleTimeString('es-ES') : '';
+      $('judge-kata-send-status').textContent = `📋 Nota anterior: ${Number(savedKata.score).toFixed(2)} (${state.seat})${savedAt ? ' · ' + savedAt : ''}. Puedes enviar una nueva nota para actualizarla.`;
+      $('judge-kata-send-status').style.color = '#93c5fd';
+    }
+
+    renderKataTimer();
+  }
+
+  /* ---- Kumite screen ---- */
+  function initKumiteScreen() {
+    state.selectedSide = 'a';
+
+    function renderKumiteBoard() {
+      const m = state.currentMatch;
+      if (!m) return;
+      $('judge-kumite-category').textContent = `🥊 ${m.category?.name || 'Combate de Kumite'} · ${m.round_label || ''}`;
+      $('judge-kumite-my-seat').textContent = state.seat || '—';
+      const nameA = m.competitor_a?.competitors?.full_name || m.competitor_a?.full_name || 'Competidor A';
+      const nameB = m.competitor_b?.competitors?.full_name || m.competitor_b?.full_name || 'Competidor B';
+      const clubA = m.competitor_a?.competitors?.club || m.competitor_a?.club || '';
+      const clubB = m.competitor_b?.competitors?.club || m.competitor_b?.club || '';
+      $('judge-kumite-name-a').textContent = nameA;
+      $('judge-kumite-name-b').textContent = nameB;
+      $('judge-kumite-club-a').innerHTML = Dojos.renderDojoBadge(Dojos.getFromCache(m.competitor_a?.competitors?.dojo_id || m.competitor_a?.dojo_id), 18)
+        + ' ' + Dojos.renderCountryBadge(m.competitor_a?.competitors?.country || m.competitor_a?.country, 14);
+      $('judge-kumite-club-b').innerHTML = Dojos.renderDojoBadge(Dojos.getFromCache(m.competitor_b?.competitors?.dojo_id || m.competitor_b?.dojo_id), 18)
+        + ' ' + Dojos.renderCountryBadge(m.competitor_b?.competitors?.country || m.competitor_b?.country, 14);
+    }
+
+    function updateSideButtons() {
+      $('btn-kumite-side-a').style.outline = state.selectedSide === 'a' ? '3px solid #93c5fd' : 'none';
+      $('btn-kumite-side-b').style.outline = state.selectedSide === 'b' ? '3px solid #fca5a5' : 'none';
+    }
+
+    $('btn-kumite-side-a').addEventListener('click', () => {
+      state.selectedSide = 'a';
+      updateSideButtons();
+    });
+
+    $('btn-kumite-side-b').addEventListener('click', () => {
+      state.selectedSide = 'b';
+      updateSideButtons();
+    });
+
+    // Signal buttons
+    document.querySelectorAll('[data-signal]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const kind = btn.dataset.signal; // 'point' or 'penalty'
+        const action = btn.dataset.action; // 'yuko', 'wazaari', 'ippon', 'c1', 'c2'
+
+        if (!state.currentMatch?.id) {
+          $('judge-kumite-status').textContent = '⚠️ No hay combate activo.';
+          $('judge-kumite-status').style.color = '#fbbf24';
+          return;
+        }
+
+        btn.disabled = true;
+        try {
+          await Matches.submitJudgeSignal(state.currentMatch.id, {
+            kind,
+            side: state.selectedSide,
+            action,
+            seat: state.seat,
+            judge_name: state.judgeName,
+            code: state.accessCode,
+          });
+          const sideLabel = state.selectedSide === 'a' ? 'AO' : 'AKA';
+          const actionLabel = action.toUpperCase();
+          $('judge-kumite-status').textContent = `✅ ${actionLabel} enviado para ${sideLabel}.`;
+          $('judge-kumite-status').style.color = '#4ade80';
+          $('judge-kumite-last').textContent = `${state.judgeName} (${state.seat}) → ${sideLabel} · ${actionLabel} · ${new Date().toLocaleTimeString('es-ES')}`;
+        } catch (e) {
+          $('judge-kumite-status').textContent = `❌ Error: ${e.message}`;
+          $('judge-kumite-status').style.color = '#f87171';
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+
+    updateSideButtons();
+    renderKumiteBoard();
+  }
+
+  /* ---- Flag screen (for kata flag mode) ---- */
+  function initFlagScreen() {
+    $('btn-flag-vote-a').addEventListener('click', () => submitFlagVote('a'));
+    $('btn-flag-vote-b').addEventListener('click', () => submitFlagVote('b'));
+  }
+
+  async function submitFlagVote(side) {
+    if (!state.currentMatch?.id) {
+      $('judge-flag-status').textContent = '⚠️ No hay combate activo.';
+      $('judge-flag-status').style.color = '#fbbf24';
+      return;
+    }
+    try {
+      await Matches.submitFlagVote(state.currentMatch.id, state.seat, side);
+      $('judge-flag-status').textContent = `✅ Voto registrado: ${side === 'a' ? 'AO' : 'AKA'}.`;
+      $('judge-flag-status').style.color = '#4ade80';
+    } catch (e) {
+      $('judge-flag-status').textContent = `❌ Error: ${e.message}`;
+      $('judge-flag-status').style.color = '#f87171';
+    }
+  }
+
+  /* ---- Ping to maintain connection ---- */
+  function startPing() {
+    state.pingInterval = setInterval(async () => {
+      if (!state.currentMatch?.id) return;
+      try {
+        await Matches.pingMatch(state.currentMatch.id);
+        $('judge-conn-indicator').textContent = '🟢 Conectado';
+        $('judge-conn-indicator').style.borderColor = '#16a34a';
+      } catch (_) {
+        $('judge-conn-indicator').textContent = '🟡 Reconnecting';
+        $('judge-conn-indicator').style.borderColor = '#f59e0b';
+      }
+    }, 15000);
+  }
+
+  /* ---- Exit ---- */
+  $('btn-judge-exit').addEventListener('click', () => {
+    if (state.realtimeSub) {
+      try { state.realtimeSub.unsubscribe?.(); } catch (_) {}
+    }
+    if (state.pingInterval) clearInterval(state.pingInterval);
+    try { Auth.logout(); } catch (_) {}
+    try { localStorage.removeItem('ot_session'); } catch (_) {}
+    window.location.href = '../index.html';
+  });
+
+  /* ---- Auto-detect if there's a flag mode match ---- */
+  async function checkForFlagMode() {
+    if (!state.tournamentId || !state.tatami) return;
+    try {
+      const pending = await Matches.listPendingByTatami(state.tournamentId, state.tatami);
+      const match = (pending || []).find(m => m.status === 'in_progress') || (pending || [])[0];
+      if (match) {
+        state.currentMatch = match;
+        const isFlag = match.category?.kata_mode === 'flag'
+          || (match.category?.rules && match.category.rules.kata_mode === 'flag');
+        if (isFlag && state.discipline === 'kata') {
+          $('judge-kata-screen').style.display = 'none';
+          $('judge-flag-screen').style.display = 'block';
+          initFlagScreen();
+        }
+        updateMatchDisplay(match);
+      }
+    } catch (_) {}
+  }
+
+  /* ---- Boot ---- */
+  initJoinView();
+  checkForFlagMode();
+
+})();
+</script>
+</body>
+</html>

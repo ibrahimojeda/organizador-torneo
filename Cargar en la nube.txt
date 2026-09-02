@@ -1,0 +1,81 @@
+Perfecto. Si quieres subir “todo en masa” al repo y que aparezca en esa rama (`master`), haz este flujo en la terminal de VS Code.
+
+1. Ir al proyecto
+```powershell
+cd "C:\Users\venta\Desktop\Organizador de Torneo"
+```
+
+2. Verifica rama y estado
+```powershell
+git branch --show-current
+git status
+```
+
+3. Si hay rebase/merge en curso, ciérralo antes de seguir
+- Para continuar rebase:
+```powershell
+git add .
+git rebase --continue
+```
+- Para cancelar rebase:
+```powershell
+git rebase --abort
+```
+
+4. Asegura remoto correcto
+```powershell
+git remote -v
+```
+Debe apuntar a `ibrahimojeda/organizador-torneo`.
+
+5. Trae lo último de `master` sin perder tu trabajo
+```powershell
+git fetch origin
+git pull --rebase origin master
+```
+
+6. Commit masivo de todos tus cambios
+```powershell
+git add -A
+git commit -m "Actualizacion masiva del proyecto"
+```
+
+7. Push masivo a `master`
+```powershell
+git push origin master
+```
+
+Si te rechaza el push (`non-fast-forward`), repite:
+```powershell
+git pull --rebase origin master
+git add .
+git rebase --continue
+git push origin master
+```
+
+Si hay conflictos:
+1. Editas archivos con conflicto.
+2. Guardas.
+3. Ejecutas:
+```powershell
+git add .
+git rebase --continue
+```
+4. Repite hasta terminar y luego:
+```powershell
+git push origin master
+```
+
+Comando “todo junto” (cuando ya no hay rebase activo):
+```powershell
+git fetch origin
+git pull --rebase origin master
+git add -A
+git commit -m "Actualizacion masiva"
+git push origin master
+```
+
+Notas rápidas:
+- Si no hay cambios, `git commit` dirá “nothing to commit”.
+- No uses `git push --force` salvo que sepas exactamente por qué.
+- Si quieres incluir también archivos nuevos/no rastreados, `git add -A` ya los incluye.

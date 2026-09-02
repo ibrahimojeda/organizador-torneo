@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Panel Super Admin — Torneo Karate</title>
+  <link rel="stylesheet" href="../css/styles.css" />
+  <script>
+    window.onerror = function(msg, url, line, col, error) {
+      const alertDiv = document.createElement('div');
+      alertDiv.style = 'position:fixed;top:20px;right:20px;z-index:9999;background:#ef4444;color:white;padding:1rem;border-radius:8px;font-family:monospace;box-shadow:0 4px 12px rgba(0,0,0,0.3);max-width:400px;border:2px solid white;';
+      alertDiv.innerHTML = `<strong>🚨 ERROR CRÍTICO</strong><br><small>${msg}</small><br>Línea: ${line}, Col: ${col}`;
+      document.body.appendChild(alertDiv);
+      setTimeout(() => alertDiv.remove(), 10000);
+      return false;
+    };
+    window.onunhandledrejection = function(event) {
+      const alertDiv = document.createElement('div');
+      alertDiv.style = 'position:fixed;top:20px;right:20px;z-index:9999;background:#f59e0b;color:white;padding:1rem;border-radius:8px;font-family:monospace;box-shadow:0 4px 12px rgba(0,0,0,0.3);max-width:400px;border:2px solid white;';
+      alertDiv.innerHTML = `<strong>⚠️ PROMESA RECHAZADA</strong><br><small>${event.reason}</small>`;
+      document.body.appendChild(alertDiv);
+      setTimeout(() => alertDiv.remove(), 10000);
+    };
+  </script>
+</head>
+<body>
+<!-- Navbar -->
+<nav class="navbar">
+  <div class="navbar-brand">
+    <button class="btn-hamburger" id="btn-hamburger" aria-label="Menú">☰</button>
+    <div class="logo-icon">🥋</div>
+    <span id="nav-tournament-name">Panel Super Admin</span>
+  </div>
+  <div class="navbar-menu">
+    <span class="badge badge-gold text-xs mr-2" id="nav-role-badge">Super Admin</span>
+    <button class="btn btn-ghost btn-sm" id="btn-logout">Cerrar sesión</button>
+  </div>
+</nav>
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar">
+    <button class="sidebar-close" id="btn-sidebar-close" aria-label="Cerrar menú">✕</button>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Plataforma</div>
+      <div class="sidebar-item active" data-panel="dashboard">
+        <span class="icon">🌐</span> Dashboard
+      </div>
+      <div class="sidebar-item" data-panel="tournaments">
+        <span class="icon">🏆</span> Torneos
+      </div>
+      <div class="sidebar-item" data-panel="users">
+        <span class="icon">👥</span> Usuarios
+      </div>
+      <div class="sidebar-item" data-panel="payments">
+        <span class="icon">💸</span> Pagos
+      </div>
+      <div class="sidebar-item" data-panel="stats">
+        <span class="icon">📈</span> Estadísticas
+      </div>
+      <div class="sidebar-item" data-panel="logs">
+        <span class="icon">📝</span> Auditoría
+      </div>
+      <div class="sidebar-item" data-panel="settings">
+        <span class="icon">⚙️</span> Configuración
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Gestión</div>
+      <div class="sidebar-item" data-panel="competitors">
+        <span class="icon">👤</span> Competidores
+      </div>
+      <div class="sidebar-item" data-panel="categories">
+        <span class="icon">🗂</span> Categorías
+      </div>
+      <div class="sidebar-item" data-panel="brackets">
+        <span class="icon">⚔️</span> Llaves
+      </div>
+      <div class="sidebar-item" data-panel="schedule">
+        <span class="icon">📅</span> Programación
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Resultados</div>
+      <div class="sidebar-item" data-panel="medals">
+        <span class="icon">🏅</span> Medallero
+      </div>
+      <div class="sidebar-item" data-panel="reports-center">
+        <span class="icon">🖨️</span> Centro de Reportes
+      </div>
+    </div>
+  </aside>
+  <main class="main-content">
+    <section id="panel-dashboard" class="panel">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Dashboard Global</h1>
+          <p class="page-subtitle">Visión general de la plataforma</p>
+        </div>
+      </div>
+      <div class="grid-4 mb-4" id="superadmin-stats"></div>
+    </section>
+    <section id="panel-tournaments" class="panel" style="display:none;">
+      <div class="page-header">
+        <h1 class="page-title">Torneos</h1>
+      </div>
+      <div id="tournaments-table"></div>
+    </section>
+    <section id="panel-users" class="panel" style="display:none;">
+      <div class="page-header">
+        <h1 class="page-title">Usuarios</h1>
+      </div>
+      <div id="users-table"></div>
+    </section>
+    <section id="panel-payments" class="panel" style="display:none;">
+      <div class="page-header">
+        <h1 class="page-title">Pagos y Tarifas</h1>
+      </div>
+      <div id="payments-calc"></div>
+    </section>
+    <section id="panel-stats" class="panel" style="display:none;">
+      <div class="page-header">
+        <h1 class="page-title">Estadísticas</h1>
+      </div>
+      <div id="stats-panel"></div>
+    </section>
+    <section id="panel-logs" class="panel" style="display:none;">
+      <div class="page-header">
+        <h1 class="page-title">Auditoría y Logs</h1>
+      </div>
+      <div id="logs-table"></div>
+    </section>
+    <section id="panel-settings" class="panel" style="display:none;">
+      <div class="page-header">
+        <h1 class="page-title">Configuración Avanzada</h1>
+      </div>
+      <div id="settings-panel"></div>
+    </section>
+    <!-- =========================================================
+         PANEL: CENTRO DE REPORTES
+    ========================================================== -->
+    <section id="panel-reports-center" class="panel" style="display:none;">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Centro de Reportes e Impresiones</h1>
+          <p class="page-subtitle">Genera y exporta todos los documentos oficiales del torneo</p>
+        </div>
+      </div>
+      <div class="grid-3 gap-4">
+        <div class="card">
+          <h3 class="card-title mb-3">⚔️ Competición</h3>
+          <div class="flex flex-col gap-2">
+            <button class="btn btn-outline btn-block" id="btn-report-brackets">🖨️ Imprimir Llaves (A4)</button>
+            <button class="btn btn-outline btn-block" id="btn-report-medals">🏅 Imprimir Medallero</button>
+            <button class="btn btn-outline btn-block" id="btn-report-schedule">📅 Imprimir Programación</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3 class="card-title mb-3">🧾 Administración</h3>
+          <div class="flex flex-col gap-2">
+            <button class="btn btn-outline btn-block" id="btn-report-invoices">💸 Reporte de Pagos</button>
+            <button class="btn btn-outline btn-block" id="btn-report-competitors">👤 Lista de Competidores</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3 class="card-title mb-3">⚙️ Opciones</h3>
+          <div class="text-sm text-muted mb-3">Ajustes rápidos para la salida de documentos.</div>
+          <div class="flex flex-col gap-2">
+            <button class="btn btn-ghost btn-sm btn-block" onclick="window.print()">🖨️ Vista Previa de Página</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Paneles de gestión extendidos -->
+    <section id="panel-competitors" class="panel" style="display:none;"></section>
+    <section id="panel-categories" class="panel" style="display:none;"></section>
+    <section id="panel-brackets" class="panel" style="display:none;"></section>
+    <section id="panel-schedule" class="panel" style="display:none;"></section>
+    <section id="panel-medals" class="panel" style="display:none;"></section>
+  </main>
+</div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/tournament.js"></script>
+  <script src="../js/competitors.js"></script>
+  <script src="../js/categories.js"></script>
+  <script src="../js/bracket.js"></script>
+  <script src="../js/matches.js"></script>
+  <script src="../js/superadmin.js"></script>
+  <script src="../js/superadmin-users.js"></script>
+  <script src="../js/superadmin-tournaments.js"></script>
+  <script src="../js/superadmin-payments.js"></script>
+  <script src="../js/superadmin-stats.js"></script>
+  <script src="../js/superadmin-management.js"></script>
+  <script src="../js/superadmin-logs.js"></script>
+  <script src="../js/superadmin-settings.js"></script>
+  <script src="../js/reports-center.js"></script>
+  <!-- superadmin-reports.js eliminado para evitar conflictos con reports-center.js -->
+</body>
+</html>

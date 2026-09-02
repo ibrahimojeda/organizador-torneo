@@ -651,6 +651,7 @@
 <script src="../js/bracket.js"></script>
 <script src="../js/matches.js?v=20260421c"></script>
 <script src="../js/display.js"></script>
+<script src="../js/dojos.js"></script>
 <script src="../js/vendor/qrious.min.js"></script>
 <script>
 (function () {
@@ -2272,9 +2273,17 @@
 
       queueEl.innerHTML = filteredPending.map((m, i) => {
         const nameA  = m.competitor_a?.competitors?.full_name || m.competitor_a?.full_name || '?';
-        const clubA  = m.competitor_a?.competitors?.club      || m.competitor_a?.club      || '';
+        const _qDojoA = Dojos.getFromCache(m.competitor_a?.competitors?.dojo_id || m.competitor_a?.dojo_id);
+        const _qCountryA = getCountryInfo(m.competitor_a?.competitors?.country || m.competitor_a?.country);
+        const clubA  = (_qDojoA ? (_qDojoA.logo_url ? `<img src="${_qDojoA.logo_url}" style="width:12px;height:12px;object-fit:contain;border-radius:2px;vertical-align:middle;" /> ` : '🥋 ') + `${_qDojoA.name} ` : '')
+          + (_qCountryA.flag ? `${_qCountryA.flag} ${_qCountryA.name}` : '')
+          || (m.competitor_a?.competitors?.club || m.competitor_a?.club || '');
         const nameB  = m.competitor_b?.competitors?.full_name || m.competitor_b?.full_name || null;
-        const clubB  = m.competitor_b?.competitors?.club      || m.competitor_b?.club      || '';
+        const _qDojoB = Dojos.getFromCache(m.competitor_b?.competitors?.dojo_id || m.competitor_b?.dojo_id);
+        const _qCountryB = getCountryInfo(m.competitor_b?.competitors?.country || m.competitor_b?.country);
+        const clubB  = (_qDojoB ? (_qDojoB.logo_url ? `<img src="${_qDojoB.logo_url}" style="width:12px;height:12px;object-fit:contain;border-radius:2px;vertical-align:middle;" /> ` : '🥋 ') + `${_qDojoB.name} ` : '')
+          + (_qCountryB.flag ? `${_qCountryB.flag} ${_qCountryB.name}` : '')
+          || (m.competitor_b?.competitors?.club || m.competitor_b?.club || '');
         const isKata = m.bracket_type === 'kata_round';
         const matchLabel = isKata
           ? `🥋 <strong>${nameA}</strong>${clubA ? ' <span class="text-muted">(' + clubA + ')</span>' : ''}`
@@ -2374,10 +2383,14 @@
   }
 
   function _renderCurrentMatch(match) {
+    Dojos.ensureCache().catch(() => {});
     const isKata = _isKataMatch(match);
     const isLocked = _isResultLocked(match);
     const nameA = match.competitor_a?.competitors?.full_name || match.competitor_a?.full_name || 'Competidor A';
-    const clubA = match.competitor_a?.competitors?.club || match.competitor_a?.club || '';
+    const _dojoA = Dojos.getFromCache(match.competitor_a?.competitors?.dojo_id || match.competitor_a?.dojo_id);
+    const _countryA = getCountryInfo(match.competitor_a?.competitors?.country || match.competitor_a?.country);
+    const clubA = (_dojoA ? (_dojoA.logo_url ? `<img src="${_dojoA.logo_url}" style="width:14px;height:14px;object-fit:contain;border-radius:2px;vertical-align:middle;" /> ` : '🥋 ') + `${_dojoA.name} ` : '')
+      + (_countryA.flag ? `${_countryA.flag} ${_countryA.name}` : '');
 
     document.getElementById('header-category').textContent =
       `${match.category?.name || '—'} · ${match.round_label || ''}`;
@@ -2406,7 +2419,9 @@
           </div>`;
       } else {
         const nameB = match.competitor_b?.competitors?.full_name || match.competitor_b?.full_name || 'Competidor B';
-        const clubB = match.competitor_b?.competitors?.club || match.competitor_b?.club || '';
+        const clubB = Dojos.renderDojoBadge(Dojos.getFromCache(match.competitor_b?.competitors?.dojo_id || match.competitor_b?.dojo_id), 16)
+          + ' ' + Dojos.renderCountryBadge(match.competitor_b?.competitors?.country || match.competitor_b?.country, 13)
+          || match.competitor_b?.competitors?.club || match.competitor_b?.club || '';
         document.getElementById('ci-fighters').innerHTML = `
           <div style="flex:1;background:#1565c0;color:#fff;border-radius:6px;padding:.5rem .75rem;text-align:center;">
             <div style="font-size:.62rem;text-transform:uppercase;opacity:.7;margin-bottom:.1rem;">AO</div>
@@ -2427,7 +2442,9 @@
     if (isKata) {
       if (isKataDuel) {
         const nameB = match.competitor_b?.competitors?.full_name || match.competitor_b?.full_name || 'Competidor B';
-        const clubB = match.competitor_b?.competitors?.club || match.competitor_b?.club || '';
+        const clubB = Dojos.renderDojoBadge(Dojos.getFromCache(match.competitor_b?.competitors?.dojo_id || match.competitor_b?.dojo_id), 16)
+          + ' ' + Dojos.renderCountryBadge(match.competitor_b?.competitors?.country || match.competitor_b?.country, 13)
+          || match.competitor_b?.competitors?.club || match.competitor_b?.club || '';
         const duelSummary = Matches.getKataDuelSummary(match);
         const scoreA = isLocked && match.score_a != null ? Number(match.score_a).toFixed(2) : '—';
         const scoreB = isLocked && match.score_b != null ? Number(match.score_b).toFixed(2) : '—';
@@ -2484,7 +2501,9 @@
       }
     } else {
       const nameB = match.competitor_b?.competitors?.full_name || match.competitor_b?.full_name || 'Competidor B';
-      const clubB = match.competitor_b?.competitors?.club || match.competitor_b?.club || '';
+      const clubB = Dojos.renderDojoBadge(Dojos.getFromCache(match.competitor_b?.competitors?.dojo_id || match.competitor_b?.dojo_id), 16)
+          + ' ' + Dojos.renderCountryBadge(match.competitor_b?.competitors?.country || match.competitor_b?.country, 13)
+          || match.competitor_b?.competitors?.club || match.competitor_b?.club || '';
       const winnerName = match.winner?.competitors?.full_name
         || (match.winner_id === match.competitor_a_id ? nameA : (match.winner_id === match.competitor_b_id ? nameB : '—'));
       const scoreText = (match.score_a != null || match.score_b != null)
@@ -2562,6 +2581,15 @@
     if (nameGroup) nameGroup.style.display = 'none';
     if (individualGrid) individualGrid.style.display = 'none';
 
+    const existingValues = {};
+    document.querySelectorAll('.kata-duel-input').forEach(input => {
+      const side = input.dataset.side;
+      const seat = input.dataset.seat;
+      if (side && seat && input.dataset.edited === 'true') {
+        existingValues[`${side}:${seat}`] = input.value;
+      }
+    });
+
     const nameA = match.competitor_a?.competitors?.full_name || match.competitor_a?.full_name || 'Competidor A';
     const nameB = match.competitor_b?.competitors?.full_name || match.competitor_b?.full_name || 'Competidor B';
     document.getElementById('kata-duel-name-a').textContent = nameA;
@@ -2576,11 +2604,14 @@
       const judges = side === 'a' ? summary.summaryA.judges : summary.summaryB.judges;
       grid.innerHTML = seats.map(seat => {
         const j = judges.find(judge => judge.seat === seat) || { score: null };
-        const scoreValue = Number.isFinite(Number(j.score)) ? Number(j.score).toFixed(2) : '';
+        const rawValue = existingValues[`${side}:${seat}`];
+        const scoreValue = rawValue != null && rawValue !== ''
+          ? rawValue
+          : (Number.isFinite(Number(j.score)) ? Number(j.score).toFixed(2) : '');
         return `
           <div style="text-align:center;">
             <div style="font-size:.62rem;text-transform:uppercase;opacity:.7;">${seat}</div>
-            <input type="number" class="form-control text-center kata-duel-input" data-side="${side}" data-seat="${seat}" min="0" max="9.99" step="0.01" value="${scoreValue}" oninput="calcKataDuelTotal()" style="font-size:1rem;font-weight:800;" placeholder="0.00" />
+            <input type="number" class="form-control text-center kata-duel-input" data-side="${side}" data-seat="${seat}" min="0" max="9.99" step="0.01" value="${scoreValue}" oninput="this.dataset.edited='true';calcKataDuelTotal()" style="font-size:1rem;font-weight:800;" placeholder="0.00" />
           </div>`;
       }).join('');
     };
@@ -2809,7 +2840,8 @@
       document.getElementById('panel-kumite-result').style.display = 'none';
       document.getElementById('panel-kata-result').style.display  = 'block';
       document.getElementById('kata-athlete-name').textContent = nameA;
-      document.getElementById('kata-athlete-club').textContent = m.competitor_a?.competitors?.club || m.competitor_a?.club || '';
+      document.getElementById('kata-athlete-club').innerHTML = Dojos.renderDojoBadge(Dojos.getFromCache(m.competitor_a?.competitors?.dojo_id || m.competitor_a?.dojo_id), 16)
+      + ' ' + Dojos.renderCountryBadge(m.competitor_a?.competitors?.country || m.competitor_a?.country, 13);
       document.getElementById('kata-notes').value = '';
 
       if (isDuel) {
@@ -2837,8 +2869,10 @@
       document.getElementById('panel-kata-result').style.display  = 'none';
       document.getElementById('kumite-name-a').textContent = nameA;
       document.getElementById('kumite-name-b').textContent = nameB;
-      document.getElementById('kumite-club-a').textContent = m.competitor_a?.competitors?.club || '';
-      document.getElementById('kumite-club-b').textContent = m.competitor_b?.competitors?.club || '';
+      document.getElementById('kumite-club-a').innerHTML = Dojos.renderDojoBadge(Dojos.getFromCache(m.competitor_a?.competitors?.dojo_id || m.competitor_a?.dojo_id), 16)
+      + ' ' + Dojos.renderCountryBadge(m.competitor_a?.competitors?.country || m.competitor_a?.country, 13);
+      document.getElementById('kumite-club-b').innerHTML = Dojos.renderDojoBadge(Dojos.getFromCache(m.competitor_b?.competitors?.dojo_id || m.competitor_b?.dojo_id), 16)
+      + ' ' + Dojos.renderCountryBadge(m.competitor_b?.competitors?.country || m.competitor_b?.country, 13);
       const summary = Matches.getKumiteSummary(m);
       _kumite = {
         a: summary.scoreA,
@@ -2877,7 +2911,12 @@
         _kumite.winner = summary.scoreA > summary.scoreB ? 'a' : 'b';
       }
       _updateKumiteUI();
-      document.getElementById('btn-save-result').disabled = !(state.selectedWinnerId && state.manualKumiteTouched);
+      _refreshSaveResultButton();
+    }
+
+    const resultNotes = document.getElementById('result-notes');
+    if (resultNotes) {
+      resultNotes.oninput = () => _refreshSaveResultButton();
     }
 
     Display.openModal('modal-result');
@@ -2914,6 +2953,13 @@
       const el = document.getElementById('warn-display-' + side);
       if (el) el.textContent = 'C1: ' + _WARN_DOTS(W.c1) + '  C2: ' + _WARN_DOTS(W.c2);
     });
+  }
+
+  function _refreshSaveResultButton() {
+    const notesValue = String(document.getElementById('result-notes')?.value || '').trim();
+    const canSave = !!state.selectedWinnerId && (state.manualKumiteTouched || notesValue.length > 0);
+    const saveBtn = document.getElementById('btn-save-result');
+    if (saveBtn) saveBtn.disabled = !canSave;
   }
 
   function _updateKumiteUI() {
@@ -3067,7 +3113,7 @@
     // NO se marca manualKumiteTouched aquí — solo se marca por acciones reales
     // de combate (puntos, faltas, o que el timer termine).
     state.selectedWinnerId = side === 'a' ? state.currentMatch?.competitor_a_id : state.currentMatch?.competitor_b_id;
-    document.getElementById('btn-save-result').disabled = !(state.selectedWinnerId && state.manualKumiteTouched);
+    _refreshSaveResultButton();
     _updateKumiteUI();
     if (state.currentMatch?.id) {
       try {

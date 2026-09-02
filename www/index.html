@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>APK Juez - Torneo Karate</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+<div class="login-page">
+  <div class="login-card" style="max-width:520px;">
+    <div class="login-logo">
+      <div class="logo-big">⚖️</div>
+      <h1>Acceso de Juez</h1>
+      <p>APK exclusivo para jueces</p>
+    </div>
+
+    <div id="alert-box" style="display:none;"></div>
+
+    <form id="form-judge-code" novalidate>
+      <div class="form-group">
+        <label class="form-label" for="access-code">Codigo de acceso del juez</label>
+        <input
+          id="access-code"
+          type="text"
+          class="form-control"
+          placeholder="Ej: JZ-XXXX-T1-K-J1"
+          style="text-transform:uppercase;letter-spacing:.08em;"
+          autocomplete="off"
+          required
+        />
+        <p class="form-hint">Ingresa el codigo que te comparte la Mesa Tecnica.</p>
+      </div>
+      <button id="btn-enter-judge" type="submit" class="btn btn-primary btn-block btn-lg">Entrar al panel de juez</button>
+    </form>
+
+    <button id="btn-open-qr-scanner" class="btn btn-outline btn-block mt-2" type="button">Escanear QR de Mesa Tecnica</button>
+
+    <div id="qr-scanner-wrap" style="display:none;margin-top:.75rem;background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:.7rem;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap;">
+        <div style="font-size:.85rem;font-weight:800;color:#0f172a;">Escaner QR</div>
+        <button id="btn-close-qr-scanner" class="btn btn-outline btn-sm" type="button">Cerrar</button>
+      </div>
+      <div id="qr-reader" style="margin-top:.55rem;border-radius:8px;overflow:hidden;"></div>
+      <div class="text-xs text-muted" style="margin-top:.45rem;">Apunta al QR mostrado por Mesa Tecnica para completar el codigo automaticamente.</div>
+    </div>
+
+    <button id="btn-clear-session" class="btn btn-ghost btn-block mt-2" type="button">Cerrar sesion guardada</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
+<script src="js/vendor/html5-qrcode.min.js"></script>
+<script src="js/config.js?v=20260424a"></script>
+<script src="js/auth.js?v=20260424a"></script>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  let qrScanner = null;
+  let qrRunning = false;
+
+  function showAlert(message, type = 'danger') {
+    const box = $('alert-box');
+    box.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+    box.style.display = 'block';
+  }
+
+  function hideAlert() {
+    $('alert-box').style.display = 'none';
+  }
+
+  function setLoading(loading) {
+    const btn = $('btn-enter-judge');
+    btn.disabled = loading;
+    btn.textContent = loading ? 'Validando...' : 'Entrar al panel de juez';
+  }
+
+  function extractJudgeCode(payload) {
+    const raw = String(payload || '').trim();
+    if (!raw) return '';
+
+    const direct = raw.match(/(JZ-[A-Z0-9\-]+)/i);
+    if (direct && direct[1]) return direct[1].toUpperCase();
+
+    try {
+      const parsed = new URL(raw);
+      const access = parsed.searchParams.get('access') || parsed.searchParams.get('code');
+      if (access) return String(access).toUpperCase();
+    } catch (_) {}
+
+    return raw.toUpperCase();
+  }
+
+  async function stopQrScanner() {
+    if (!qrScanner || !qrRunning) return;
+    try {
+      await qrScanner.stop();
+      await qrScanner.clear();
+    } catch (_) {}
+    qrRunning = false;
+  }
+
+  async function openQrScanner() {
+    hideAlert();
+    const wrap = $('qr-scanner-wrap');
+    const isNativeApp = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    const nativeScanner = window.Capacitor?.Plugins?.CapacitorBarcodeScanner;
+
+    if (isNativeApp && nativeScanner && typeof nativeScanner.scanBarcode === 'function') {
+      try {
+        const nativeResult = await nativeScanner.scanBarcode({
+          hint: 17,
+          scanInstructions: 'Apunta al QR de Mesa Tecnica',
+          scanButton: false,
+          scanText: 'Escanear',
+        });
+        const payload = nativeResult?.ScanResult || '';
+        const code = extractJudgeCode(payload);
+        if (!code) {
+          showAlert('No se detecto un codigo valido en el QR.');
+          return;
+        }
+        $('access-code').value = code;
+        $('form-judge-code').requestSubmit();
+        return;
+      } catch (err) {
+        showAlert(err?.message || 'No se pudo abrir el escaner nativo. Intentando modo web...');
+      }
+    }
+
+    if (wrap) wrap.style.display = 'block';
+
+    if (typeof Html5Qrcode !== 'function') {
+      showAlert('No se pudo cargar el escaner QR en este dispositivo.');
+      return;
+    }
+
+    if (!qrScanner) {
+      qrScanner = new Html5Qrcode('qr-reader');
+    }
+    if (qrRunning) return;
+
+    try {
+      await qrScanner.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 240, height: 240 } },
+        async (decodedText) => {
+          const code = extractJudgeCode(decodedText);
+          if (!code) return;
+          $('access-code').value = code;
+          await stopQrScanner();
+          if (wrap) wrap.style.display = 'none';
+          $('form-judge-code').requestSubmit();
+        },
+        () => {}
+      );
+      qrRunning = true;
+    } catch (err) {
+      showAlert(err?.message || 'No se pudo iniciar la camara para escanear QR. Revisa permisos de camara en Android.');
+    }
+  }
+
+  const current = Auth.getSession();
+  if (current?.role === USER_ROLES.JUDGE && current?.judgeAccessCode) {
+    window.location.href = 'views/judge.html';
+    return;
+  }
+
+  $('form-judge-code').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideAlert();
+    const code = String($('access-code').value || '').trim();
+    if (!code) {
+      showAlert('Ingresa el codigo de acceso del juez.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const session = await Auth.loginWithCode(code);
+      if (session?.role !== USER_ROLES.JUDGE) {
+        throw new Error('Este APK solo permite acceso de juez.');
+      }
+      window.location.href = 'views/judge.html';
+    } catch (err) {
+      showAlert(err?.message || 'No se pudo validar el codigo de juez.');
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  $('btn-clear-session').addEventListener('click', () => {
+    try { Auth.logout(); } catch (_) {}
+    try { localStorage.removeItem('ot_session'); } catch (_) {}
+    $('access-code').value = '';
+    hideAlert();
+    showAlert('Sesion local limpiada.', 'success');
+  });
+
+  $('btn-open-qr-scanner').addEventListener('click', () => {
+    openQrScanner();
+  });
+
+  $('btn-close-qr-scanner').addEventListener('click', async () => {
+    const wrap = $('qr-scanner-wrap');
+    await stopQrScanner();
+    if (wrap) wrap.style.display = 'none';
+  });
+})();
+</script>
+</body>
+</html>

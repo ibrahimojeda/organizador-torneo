@@ -5,6 +5,41 @@
 const Display = (() => {
 
   /* --------------------------------------------------------
+     CACHÉ DE DATOS DE DOJOS
+  -------------------------------------------------------- */
+  function _getCompetitorDojo(competitor) {
+    if (!competitor) return null;
+    const c = competitor.competitors || competitor;
+    return c.dojo_id ? Dojos.getFromCache(c.dojo_id) : null;
+  }
+
+  function _getCompetitorCountryInfo(competitor) {
+    if (!competitor) return { flag: '', name: '' };
+    const c = competitor.competitors || competitor;
+    return getCountryInfo(c.country);
+  }
+
+  function _renderDojoBadgeSmall(competitor) {
+    const dojo = _getCompetitorDojo(competitor);
+    const country = _getCompetitorCountryInfo(competitor);
+    const parts = [];
+    if (dojo?.logo_url) {
+      parts.push(`<img src="${dojo.logo_url}" alt="" style="width:16px;height:16px;object-fit:contain;border-radius:2px;display:inline-block;vertical-align:middle;" />`);
+    }
+    if (dojo) {
+      parts.push(`<span class="text-muted" style="font-size:0.82em;">${dojo.name}</span>`);
+    }
+    if (country.flag) {
+      parts.push(`<span style="font-size:0.9em;">${country.flag}</span>`);
+    }
+    if (country.name) {
+      parts.push(`<span class="text-muted" style="font-size:0.8em;">${country.name}</span>`);
+    }
+    if (!parts.length) return '';
+    return `<span style="display:inline-flex;align-items:center;gap:3px;">${parts.join(' ')}</span>`;
+  }
+
+  /* --------------------------------------------------------
      RENDERIZA EL BRACKET COMPLETO DE UNA CATEGORÍA
      @param {HTMLElement} container - Elemento donde se renderiza
      @param {object[]} matches - Lista de combates de la categoría
@@ -24,14 +59,7 @@ const Display = (() => {
     if (bracketType === 'round_robin') {
       _renderRoundRobin(container, matches, category, options);
     } else if (bracketType === 'kata_round') {
-      // Kata individual (sin competitor_b) usa tabla; kata por duelos usa bracket
-      const isIndividual = matches.length > 0 && matches[0].competitor_b_id == null
-        && !matches.some(m => m.competitor_b_id != null);
-      if (isIndividual) {
-        _renderKataList(container, matches, category, options);
-      } else {
-        _renderEliminationBracket(container, matches, category, options);
-      }
+      _renderKataList(container, matches, category, options);
     } else {
       _renderEliminationBracket(container, matches, category, options);
     }
@@ -79,7 +107,7 @@ const Display = (() => {
               <tr>
                 <td class="text-muted">${m.position}</td>
                 <td><strong>${name}</strong></td>
-                <td class="text-muted">${club}</td>
+                <td class="text-muted">${_renderDojoBadgeSmall(m.competitor_a)}</td>
                 <td>${statusCell}</td>
                 <td>${scoreCell}</td>
                 ${options.editable ? `
@@ -175,20 +203,19 @@ const Display = (() => {
     const clubB = match.competitor_b?.competitors?.club || match.competitor_b?.club || '';
     const competitorAId = match.competitor_a?.id || match.competitor_a_id || null;
     const competitorBId = match.competitor_b?.id || match.competitor_b_id || null;
+    const isWinnerA = match.winner_id && competitorAId === match.winner_id;
+    const isWinnerB = match.winner_id && competitorBId === match.winner_id;
     const isBye     = match.status === MATCH_STATUS.BYE;
-    // BYE no cuenta como victoria: no mostrar estilo de ganador para matches BYE
-    const isWinnerA = !isBye && match.winner_id && competitorAId === match.winner_id;
-    const isWinnerB = !isBye && match.winner_id && competitorBId === match.winner_id;
 
     card.innerHTML = `
-      <div class="bracket-competitor ${isWinnerA ? 'winner' : ''} ${!isWinnerA && match.winner_id ? 'loser' : ''}">
+      <div class="bracket-competitor ${isWinnerA ? 'winner' : ''} ${!isBye && !isWinnerA && match.winner_id ? 'loser' : ''}">
         <span class="bracket-competitor-name">${nameA || (isBye ? '—' : 'Por definir')}</span>
-        ${nameA && clubA ? `<span style="font-size:.65rem;opacity:.6;display:block;line-height:1.2;">${clubA}</span>` : ''}
+        ${nameA && clubA ? `<span style="font-size:.65rem;opacity:.6;display:block;line-height:1.2;">${_renderDojoBadgeSmall(match.competitor_a)}</span>` : ''}
         ${match.score_a != null ? `<span class="bracket-competitor-score">${match.score_a}</span>` : ''}
       </div>
-      <div class="bracket-competitor ${isWinnerB ? 'winner' : ''} ${!isWinnerB && match.winner_id ? 'loser' : ''} ${isBye ? 'bye' : ''}">
+      <div class="bracket-competitor ${isWinnerB ? 'winner' : ''} ${!isBye && !isWinnerB && match.winner_id ? 'loser' : ''} ${isBye ? 'bye' : ''}">
         <span class="bracket-competitor-name">${nameB || (isBye ? 'BYE' : 'Por definir')}</span>
-        ${nameB && clubB ? `<span style="font-size:.65rem;opacity:.6;display:block;line-height:1.2;">${clubB}</span>` : ''}
+        ${nameB && clubB ? `<span style="font-size:.65rem;opacity:.6;display:block;line-height:1.2;">${_renderDojoBadgeSmall(match.competitor_b)}</span>` : ''}
         ${match.score_b != null ? `<span class="bracket-competitor-score">${match.score_b}</span>` : ''}
       </div>
     `;
@@ -282,7 +309,7 @@ const Display = (() => {
               <tr>
                 <td>${medals[i] || i + 1}</td>
                 <td><strong>${s.full_name || '—'}</strong></td>
-                <td class="text-muted text-sm">${s.club || '—'}</td>
+                <td class="text-muted text-sm">${s.competitor ? _renderDojoBadgeSmall({ competitors: s }) : (s.club || '—')}</td>
                 <td class="text-success"><strong>${s.wins}</strong></td>
                 <td class="text-danger">${s.losses}</td>
                 <td class="text-muted">${s.played}</td>

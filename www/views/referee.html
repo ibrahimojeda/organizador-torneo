@@ -1,0 +1,3906 @@
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mesa Técnica — Torneo Karate</title>
+  <link rel="stylesheet" href="../css/styles.css" />
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar">
+  <div class="navbar-brand">
+    <div class="logo-icon">⚖️</div>
+    <span id="nav-tournament-name">Cargando...</span>
+  </div>
+  <div class="navbar-menu">
+    <span class="badge badge-blue">Mesa Técnica</span>
+    <span class="badge badge-muted ml-2" id="nav-tatami-badge">Sin tatami</span>
+    <span class="badge badge-muted ml-2" id="nav-referee-badge">Sin nombre</span>
+    <span class="badge badge-gold ml-2" id="nav-seat-badge">Sin puesto</span>
+    <button class="btn btn-ghost btn-sm ml-2" id="btn-logout">Salir</button>
+  </div>
+</nav>
+
+<!-- Layout -->
+<div style="padding:1.5rem;" class="container">
+
+  <!-- Selector de tatami (visible al inicio) -->
+  <div id="view-select-tatami" class="card container-sm" style="margin:0 auto;">
+    <div class="text-center mb-3">
+      <div style="font-size:2.5rem;">⚖️</div>
+      <h2 class="mt-2">Mesa Técnica del Tatami</h2>
+      <p class="text-muted text-sm">Elige el tatami que administrarás desde la mesa técnica.</p>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Tatami / Área</label>
+      <select class="form-control form-control-lg" id="select-tatami" onchange="_previewTatamiCategories(this.value)">
+        <option value="">Seleccionar...</option>
+      </select>
+    </div>
+
+    <div class="grid-2 gap-2">
+      <div class="form-group">
+        <label class="form-label">Responsable de mesa</label>
+        <input type="text" class="form-control" id="referee-name" placeholder="Ej: Mesa Tatami 1" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Código de mesa</label>
+        <input type="text" class="form-control" id="referee-code" placeholder="Automático" disabled />
+      </div>
+    </div>
+    <div class="text-xs text-muted mb-2">Desde esta pantalla la mesa técnica controla el tatami y genera los accesos para jueces.</div>
+
+    <!-- Preview de categorías asignadas al tatami seleccionado -->
+    <div id="tatami-preview" style="display:none;margin-bottom:1rem;">
+      <div class="text-xs text-muted mb-1" style="text-transform:uppercase;letter-spacing:.06em;">Categorías en este tatami</div>
+      <div id="tatami-preview-list"></div>
+    </div>
+
+    <button class="btn btn-primary btn-block btn-lg" id="btn-enter-tatami">Entrar al Tatami</button>
+  </div>
+
+  <!-- Panel principal del árbitro -->
+  <div id="view-referee-panel" style="display:none;">
+
+    <!-- Combate actual -->
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Tatami <span id="header-tatami">—</span></h1>
+        <p class="page-subtitle" id="header-category">—</p>
+      </div>
+      <div class="flex gap-2">
+        <button class="btn btn-outline btn-sm" id="btn-change-tatami">Cambiar Tatami</button>
+        <button class="btn btn-outline btn-sm" id="btn-open-generic-panel">🧩 Pantalla generica</button>
+        <button class="btn btn-outline btn-sm" id="btn-refresh">🔄 Actualizar</button>
+      </div>
+    </div>
+
+    <div class="grid-2 gap-3">
+
+      <!-- Combate en curso -->
+      <div>
+        <h3 class="text-sm text-muted mb-2" style="text-transform:uppercase;letter-spacing:.06em;">Combate en Curso</h3>
+
+        <div id="current-match-display">
+          <div class="empty-state" style="padding:2rem;">
+            <div class="empty-icon">⚔️</div>
+            <h3>Sin combate activo</h3>
+            <p>Llama al primer combate de la cola.</p>
+          </div>
+        </div>
+
+        <!-- Botones de acción del combate -->
+        <div id="match-actions" style="display:none;" class="mt-3">
+          <div class="flex gap-2 mb-2">
+            <button class="btn btn-outline flex-1" id="btn-start-match">▶ Iniciar Combate</button>
+            <button class="btn btn-danger    flex-1" id="btn-cancel-match">✕ Cancelar</button>
+          </div>
+          <button class="btn btn-outline btn-block mb-2" id="btn-open-scoreboard" type="button">
+            🖥 Pantalla extendida del marcador
+          </button>
+          <button class="btn btn-success btn-block btn-lg" id="btn-record-result" disabled>
+            ✅ Registrar Resultado
+          </button>
+          <div id="sync-indicator" class="text-xs mt-2" style="display:flex;align-items:center;gap:.4rem;color:#94a3b8;">
+            <span id="sync-indicator-dot" style="width:.55rem;height:.55rem;border-radius:999px;background:#94a3b8;display:inline-block;"></span>
+            <span id="sync-indicator-text">Sin cambios pendientes.</span>
+          </div>
+          <div id="sync-history" class="card mt-2" style="padding:.55rem .65rem;background:#0f172a;border:1px solid rgba(148,163,184,.25);">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;">
+              <div class="text-xs" style="text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;">Historial de sincronizacion</div>
+              <button class="btn btn-outline btn-sm" id="btn-clear-sync-history" type="button">Limpiar historial</button>
+            </div>
+            <div id="sync-history-list" class="mt-1" style="display:flex;flex-direction:column;gap:.35rem;">
+              <div class="text-xs" style="color:#64748b;">Sin eventos todavia.</div>
+            </div>
+          </div>
+          <div id="final-result-status" class="text-xs mt-2" style="color:#94a3b8;">Resultado final pendiente de confirmacion.</div>
+        </div>
+
+        <div id="judge-station-card" class="card mt-3" style="display:none;">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;flex-wrap:wrap;">
+            <div>
+              <div style="font-size:1rem;font-weight:700;">Accesos para jueces</div>
+              <div class="text-xs text-muted" id="judge-station-meta">Genera y comparte los accesos para los jueces de este tatami.</div>
+            </div>
+            <div class="flex gap-1 flex-wrap">
+              <span class="badge badge-muted" id="judge-seat-badge">Sin puesto</span>
+              <span class="badge badge-blue" id="judge-discipline-badge">Sin disciplina</span>
+            </div>
+          </div>
+
+          <div id="judge-access-links" style="margin-top:.75rem;display:grid;grid-template-columns:1fr;gap:.6rem;">
+            <div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:.6rem;color:#111827;">
+              <div class="text-xs text-muted mb-1">5 códigos fijos para jueces de Kata</div>
+              <div id="judge-link-kata" style="font-size:.8rem;font-weight:600;word-break:break-word;color:#111827;">Se generarán al entrar al tatami.</div>
+              <button class="btn btn-outline btn-sm mt-2" type="button" onclick="copyJudgeAccess('kata')">Copiar códigos de Kata</button>
+            </div>
+            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:.6rem;color:#111827;">
+              <div class="text-xs text-muted mb-1">4 códigos fijos para jueces de Kumite</div>
+              <div id="judge-link-kumite" style="font-size:.8rem;font-weight:600;word-break:break-word;color:#111827;">Se generarán al entrar al tatami.</div>
+              <button class="btn btn-outline btn-sm mt-2" type="button" onclick="copyJudgeAccess('kumite')">Copiar códigos de Kumite</button>
+            </div>
+          </div>
+
+          <div id="judge-qr-viewer" style="display:none;margin-top:.65rem;background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:.75rem;color:#111827;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap;">
+              <div id="judge-qr-title" style="font-size:.85rem;font-weight:800;">QR de acceso</div>
+              <button class="btn btn-outline btn-sm" type="button" onclick="closeJudgeQr()">Cerrar</button>
+            </div>
+            <div style="display:flex;justify-content:center;align-items:center;padding:.55rem 0;">
+              <canvas id="judge-qr-canvas" width="220" height="220" style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;"></canvas>
+            </div>
+            <div id="judge-qr-code" class="text-xs" style="font-weight:700;word-break:break-all;text-align:center;"></div>
+            <div class="text-xs text-muted" style="margin-top:.35rem;text-align:center;">El juez puede escanear este QR con el APK de juez.</div>
+          </div>
+
+          <div id="judge-kata-panel" style="display:none;margin-top:.75rem;">
+            <div class="form-group">
+              <label class="form-label">Nota del juez</label>
+              <input type="number" class="form-control form-control-lg" id="judge-kata-score" min="0" max="9.99" step="0.01" inputmode="decimal" placeholder="0.00 - 9.99" oninput="judgePreviewKataScore(this.value)" />
+            </div>
+            <div id="judge-kata-preview" style="font-size:2.3rem;font-weight:900;color:#7c3aed;text-align:center;margin:.5rem 0;">—</div>
+            <button class="btn btn-primary btn-block" id="btn-submit-kata-score">Enviar nota al sistema</button>
+          </div>
+
+          <div id="judge-kumite-panel" style="display:none;margin-top:.75rem;">
+            <div class="flex gap-2 mb-2">
+              <button class="btn flex-1" id="judge-side-a" style="background:#1565c0;color:#fff;border:none;" onclick="judgeSetSide('a')">AO</button>
+              <button class="btn flex-1" id="judge-side-b" style="background:#c62828;color:#fff;border:none;" onclick="judgeSetSide('b')">AKA</button>
+            </div>
+            <div class="flex gap-1 flex-wrap justify-center">
+              <button class="btn btn-sm" style="background:#0f766e;color:#fff;border:none;" onclick="judgeSendKumite('point','yuko')">Yuko</button>
+              <button class="btn btn-sm" style="background:#0369a1;color:#fff;border:none;" onclick="judgeSendKumite('point','wazaari')">Waza-ari</button>
+              <button class="btn btn-sm" style="background:#7c3aed;color:#fff;border:none;" onclick="judgeSendKumite('point','ippon')">Ippon</button>
+              <button class="btn btn-sm" style="background:#d97706;color:#fff;border:none;" onclick="judgeSendKumite('penalty','c1')">Falta C1</button>
+              <button class="btn btn-sm" style="background:#b45309;color:#fff;border:none;" onclick="judgeSendKumite('penalty','c2')">Falta C2</button>
+            </div>
+            <div id="judge-kumite-last" class="text-xs text-muted mt-2" style="text-align:center;">Sin señal enviada.</div>
+          </div>
+
+          <div id="judge-flag-board" style="display:none;margin-top:.75rem;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:.75rem;color:#111827;">
+            <div class="text-xs text-muted mb-2" style="text-align:center;text-transform:uppercase;font-weight:700;">Banderas en tiempo real</div>
+            <div id="judge-flag-content" style="display:grid;grid-template-columns:repeat(5,1fr);gap:.5rem;text-align:center;">
+              <!-- J1..J5 flags -->
+            </div>
+            <div id="judge-flag-summary" class="text-sm mt-3 text-center font-bold" style="color:#4338ca;">Esperando votos...</div>
+          </div>
+        </div>
+
+        <div id="judges-live-board" class="card mt-3" style="display:none;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap;">
+            <div>
+              <div style="font-size:1rem;font-weight:700;">Mesa técnica en vivo</div>
+              <div class="text-xs text-muted">Aquí se ven las señales y resultados emitidos por cada juez.</div>
+            </div>
+            <div class="flex gap-1 flex-wrap">
+              <button class="btn btn-outline btn-sm" id="btn-enable-projection" type="button">Habilitar segunda pantalla</button>
+              <button class="btn btn-danger btn-sm" id="btn-disable-projection" type="button" style="display:none;">Deshabilitar segunda pantalla</button>
+              <button class="btn btn-outline btn-sm" onclick="refreshJudgeBoard()">Sincronizar</button>
+            </div>
+          </div>
+          <div id="projection-status" class="text-xs text-muted mt-2">La proyeccion mostrara solo el marcador del tatami actual.</div>
+          <div id="projection-debug" class="text-xs text-muted mt-1" style="opacity:.8;">Trace: sin combate activo.</div>
+          <div id="judges-live-content" style="margin-top:.75rem;"></div>
+        </div>
+      </div>
+
+      <!-- Modo Extra (al lado del combate en curso) -->
+      <div>
+        <div class="card mb-3" id="generic-panel-card" style="color:#111827;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap;">
+            <div>
+              <div class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:.06em;">Modo extra</div>
+              <div style="font-size:1rem;font-weight:700;">Pantalla Generica</div>
+            </div>
+            <span class="badge badge-blue">Pantalla extendida</span>
+          </div>
+          <div class="text-xs text-muted mt-1">Este modo no altera llaves ni resultados oficiales.</div>
+
+          <div class="grid-2 gap-2 mt-2">
+            <label>
+              <span class="text-xs text-muted">Disciplina</span>
+              <select class="form-control" id="generic-mode">
+                <option value="kata">Kata</option>
+                <option value="kumite">Kumite</option>
+              </select>
+            </label>
+            <label>
+              <span class="text-xs text-muted">Titulo opcional</span>
+              <input class="form-control" id="generic-title" placeholder="Ej: Exhibicion Especial" />
+            </label>
+          </div>
+
+          <div id="generic-kata-fields" class="mt-2">
+            <div class="grid-2 gap-2">
+              <label>
+                <span class="text-xs text-muted">Competidor Kata</span>
+                <input class="form-control" id="generic-kata-name" placeholder="Nombre del competidor" />
+              </label>
+              <label>
+                <span class="text-xs text-muted">Puntaje Kata (WKF)</span>
+                <input class="form-control" id="generic-kata-score" type="number" min="0" step="0.01" placeholder="0.00" />
+              </label>
+            </div>
+            <div class="grid-2 gap-2 mt-2" style="grid-template-columns:repeat(5,minmax(0,1fr));">
+              <label>
+                <span class="text-xs text-muted">J1</span>
+                <input class="form-control" id="generic-kata-judge-1" type="number" min="0" max="10" step="0.01" placeholder="0.00" />
+              </label>
+              <label>
+                <span class="text-xs text-muted">J2</span>
+                <input class="form-control" id="generic-kata-judge-2" type="number" min="0" max="10" step="0.01" placeholder="0.00" />
+              </label>
+              <label>
+                <span class="text-xs text-muted">J3</span>
+                <input class="form-control" id="generic-kata-judge-3" type="number" min="0" max="10" step="0.01" placeholder="0.00" />
+              </label>
+              <label>
+                <span class="text-xs text-muted">J4</span>
+                <input class="form-control" id="generic-kata-judge-4" type="number" min="0" max="10" step="0.01" placeholder="0.00" />
+              </label>
+              <label>
+                <span class="text-xs text-muted">J5</span>
+                <input class="form-control" id="generic-kata-judge-5" type="number" min="0" max="10" step="0.01" placeholder="0.00" />
+              </label>
+            </div>
+          </div>
+
+          <div id="generic-kumite-fields" class="mt-2" style="display:none;">
+            <div class="grid-2 gap-2">
+              <label>
+                <span class="text-xs text-muted">AO (izquierda)</span>
+                <input class="form-control" id="generic-kumite-name-a" placeholder="Nombre AO" />
+              </label>
+              <label>
+                <span class="text-xs text-muted">AKA (derecha)</span>
+                <input class="form-control" id="generic-kumite-name-b" placeholder="Nombre AKA" />
+              </label>
+              <label>
+                <span class="text-xs text-muted">Puntaje AO</span>
+                <input class="form-control" id="generic-kumite-score-a" type="number" min="0" step="1" placeholder="0" />
+              </label>
+              <label>
+                <span class="text-xs text-muted">Puntaje AKA</span>
+                <input class="form-control" id="generic-kumite-score-b" type="number" min="0" step="1" placeholder="0" />
+              </label>
+              <label>
+                <span class="text-xs text-muted">Tiempo asignado (segundos)</span>
+                <input class="form-control" id="generic-kumite-time-seconds" type="number" min="10" step="1" placeholder="180" />
+              </label>
+              <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.45rem;align-items:end;">
+                <label>
+                  <span class="text-xs text-muted">AO C1</span>
+                  <input class="form-control" id="generic-kumite-warn-a-c1" type="number" min="0" max="4" step="1" placeholder="0" />
+                </label>
+                <label>
+                  <span class="text-xs text-muted">AO C2</span>
+                  <input class="form-control" id="generic-kumite-warn-a-c2" type="number" min="0" max="4" step="1" placeholder="0" />
+                </label>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.45rem;align-items:end;">
+                <label>
+                  <span class="text-xs text-muted">AKA C1</span>
+                  <input class="form-control" id="generic-kumite-warn-b-c1" type="number" min="0" max="4" step="1" placeholder="0" />
+                </label>
+                <label>
+                  <span class="text-xs text-muted">AKA C2</span>
+                  <input class="form-control" id="generic-kumite-warn-b-c2" type="number" min="0" max="4" step="1" placeholder="0" />
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex gap-2 mt-2 flex-wrap">
+            <button class="btn btn-outline btn-sm" id="btn-generic-preset-kata" type="button">Preset Kata individual</button>
+            <button class="btn btn-outline btn-sm" id="btn-generic-preset-kumite" type="button">Preset Kumite estandar</button>
+          </div>
+
+          <div class="flex gap-2 mt-2 flex-wrap">
+            <button class="btn btn-primary btn-sm" id="btn-generic-open" type="button">Mostrar en pantalla extendida</button>
+            <button class="btn btn-outline btn-sm" id="btn-generic-update" type="button">Actualizar vista extendida</button>
+            <button class="btn btn-outline btn-sm" id="btn-generic-clear" type="button">Limpiar</button>
+            <button class="btn btn-danger btn-sm" id="btn-generic-exit" type="button">Salir modo generico</button>
+          </div>
+          <div id="generic-status" class="text-xs text-muted mt-2">Modo inactivo.</div>
+        </div>
+
+        <!-- Selección directa (debajo del modo extra, mismo lado) -->
+        <div class="card mb-3" style="color:#111827;">
+          <div class="text-xs text-muted mb-1" style="text-transform:uppercase;letter-spacing:.06em;">Selección directa</div>
+          <select class="form-control" id="mesa-category-select">
+            <option value="">Todas las categorías del tatami</option>
+          </select>
+          <div id="mesa-category-helper" class="text-xs text-muted mt-2">Puedes elegir una categoría directamente desde la mesa.</div>
+        </div>
+
+        <!-- Info de la categoría en curso -->
+        <div id="category-info-card" class="card mb-3" style="display:none;color:#111827;">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;">
+            <div>
+              <div id="ci-name" style="font-size:1rem;font-weight:700;margin-bottom:.3rem;">—</div>
+              <div id="ci-badges" class="flex gap-1 flex-wrap" style="margin-bottom:.5rem;"></div>
+            </div>
+          </div>
+          <!-- Combatientes -->
+          <div id="ci-fighters" style="display:flex;gap:.5rem;margin-top:.25rem;"></div>
+        </div>
+
+        <h3 class="text-sm text-muted mb-2" style="text-transform:uppercase;letter-spacing:.06em;">
+          <span id="queue-title">Cola de Combates</span> <span id="queue-count" class="badge badge-blue ml-1">0</span>
+        </h3>
+        <div class="card p-0">
+          <div id="match-queue" style="max-height:420px;overflow-y:auto;">
+            <div class="text-center p-4"><span class="spinner"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Llaves asignadas y tablas inferiores (ancho completo) -->
+    <div class="mt-3">
+        <div class="mt-3">
+          <h3 class="text-sm text-muted mb-2" style="text-transform:uppercase;letter-spacing:.06em;">
+            Llaves asignadas a este tatami
+          </h3>
+          <div id="assigned-brackets" class="card" style="padding:.75rem;">
+            <div class="text-center p-3"><span class="spinner"></span></div>
+          </div>
+        </div>
+      </div>
+
+    <!-- Combates completados hoy -->
+    <div class="mt-4">
+      <h3 class="text-sm text-muted mb-2" style="text-transform:uppercase;letter-spacing:.06em;">
+        Completados en este Tatami
+      </h3>
+      <div class="card p-0">
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr><th>#</th><th>Categoría</th><th>Ganador</th><th>Resultado</th><th>Hora</th></tr>
+            </thead>
+            <tbody id="completed-tbody">
+              <tr><td colspan="5" class="text-center text-muted p-3">Sin combates completados aún.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-4">
+      <h3 class="text-sm text-muted mb-2" style="text-transform:uppercase;letter-spacing:.06em;">
+        Resultados de llaves del tatami seleccionado
+      </h3>
+      <div class="card p-0">
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr><th>Categoría</th><th>Ronda</th><th>Combate</th><th>Ganador</th><th>Resultado</th><th>Hora</th></tr>
+            </thead>
+            <tbody id="bracket-results-tbody">
+              <tr><td colspan="6" class="text-center text-muted p-3">Sin resultados de llaves aún.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-4">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem;">
+        <h3 class="text-sm text-muted mb-0" style="text-transform:uppercase;letter-spacing:.06em;">
+          Bitácora resumida del tatami
+        </h3>
+        <div class="flex gap-1 flex-wrap">
+          <button class="btn btn-outline btn-sm" id="btn-export-csv" type="button">📥 Exportar CSV</button>
+          <button class="btn btn-outline btn-sm" id="btn-export-pdf" type="button">📄 Exportar PDF</button>
+          <button class="btn btn-outline btn-sm" id="btn-export-full-csv" type="button">📦 CSV Torneo Completo</button>
+        </div>
+      </div>
+      <div class="card" id="bitacora-list" style="padding:0;color:#111827;">
+        <div class="text-center p-3"><span class="spinner"></span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Registrar Resultado (árbitro) -->
+<div class="modal-overlay" id="modal-result">
+  <div class="modal" style="max-width:700px;">
+    <div class="modal-header">
+      <h3 class="modal-title" id="modal-result-title">Resultado del Combate</h3>
+      <button class="btn btn-ghost btn-icon" onclick="Display.closeModal('modal-result')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:0;">
+      <input type="hidden" id="result-match-id" />
+
+      <!-- =====================================================
+           PANEL KUMITE — Marcador estilo WKF
+      ====================================================== -->
+      <div id="panel-kumite-result">
+
+        <!-- TEMPORIZADOR -->
+        <div style="background:#0f172a;color:#fff;padding:.6rem .75rem;border-radius:8px 8px 0 0;display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:.5rem;">
+            <select id="timer-preset" style="background:#1e293b;color:#fff;border:1px solid #334155;border-radius:4px;padding:.2rem .4rem;font-size:.8rem;" onchange="timerSetPreset(this.value)">
+              <option value="60">1 min</option>
+              <option value="120">2 min</option>
+              <option value="180" selected>3 min</option>
+              <option value="240">4 min</option>
+              <option value="custom">Personalizado</option>
+            </select>
+            <input type="number" id="timer-custom" min="10" max="600" placeholder="seg" style="display:none;width:70px;background:#1e293b;color:#fff;border:1px solid #334155;border-radius:4px;padding:.2rem .4rem;font-size:.8rem;" oninput="timerSetCustom()" />
+          </div>
+          <div id="timer-display" style="font-size:4rem;font-weight:900;letter-spacing:.1em;font-variant-numeric:tabular-nums;color:#4ade80;min-width:160px;text-align:center;line-height:1;">3:00</div>
+          <div style="display:flex;gap:.4rem;">
+            <button class="btn btn-sm" id="btn-timer-start" style="background:#16a34a;color:#fff;border:none;" onclick="timerStart()">▶ Iniciar</button>
+            <button class="btn btn-sm" id="btn-timer-pause" style="background:#d97706;color:#fff;border:none;display:none;" onclick="timerPause()">⏸ Pausar</button>
+            <button class="btn btn-sm" style="background:#475569;color:#fff;border:none;" onclick="timerReset()">🔄 Reset</button>
+            <button class="btn btn-sm" id="btn-ping-judges" style="background:#0ea5a4;color:#fff;border:none;">📶 Ping</button>
+          </div>
+        </div>
+
+        <!-- Marcador principal -->
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;background:#1a1a2e;color:#fff;">
+
+           <!-- LADO AO (Azul) -->
+           <div id="kumite-side-a" style="background:#1565c0;padding:1rem;text-align:center;cursor:pointer;transition:opacity .15s;"
+              onclick="kumiteSelectWinner('a')">
+            <div style="font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;opacity:.8;margin-bottom:.25rem;">AO · Competidor A</div>
+            <div id="kumite-name-a" style="font-size:1rem;font-weight:700;margin-bottom:.25rem;">—</div>
+            <div id="kumite-club-a" style="font-size:.75rem;opacity:.75;margin-bottom:.5rem;"></div>
+            <div id="kumite-score-a" style="font-size:3.5rem;font-weight:900;line-height:1;">0</div>
+            <div class="flex gap-1 justify-center mt-2 flex-wrap">
+              <button class="btn btn-sm" style="background:rgba(255,255,255,.18);color:#fff;border:none;font-size:.75rem;"
+                  onclick="kumiteAddPoint('a','yuko',event)">+1 Yuko</button>
+              <button class="btn btn-sm" style="background:rgba(255,255,255,.18);color:#fff;border:none;font-size:.75rem;"
+                  onclick="kumiteAddPoint('a','wazaari',event)">+2 Waza-ari</button>
+              <button class="btn btn-sm" style="background:rgba(255,255,255,.18);color:#fff;border:none;font-size:.75rem;"
+                  onclick="kumiteAddPoint('a','ippon',event)">+3 Ippon</button>
+            </div>
+            <div class="flex gap-1 justify-center mt-1 flex-wrap">
+              <button class="btn btn-sm" style="background:rgba(220,120,0,.7);color:#fff;border:none;font-size:.68rem;"
+                  onclick="kumiteWarn('a','c1',event)" title="Falta C1 (Contacto)">⚠C1 Contacto</button>
+              <button class="btn btn-sm" style="background:rgba(220,100,0,.7);color:#fff;border:none;font-size:.68rem;"
+                  onclick="kumiteWarn('a','c2',event)" title="Falta C2 (Técnica/Jogai)">⚠C2 Técnica</button>
+              <button class="btn btn-sm" style="background:rgba(255,255,255,.1);color:#fff;border:none;font-size:.7rem;"
+                  onclick="kumiteUndo('a',event)">↩ Deshacer</button>
+            </div>
+            <!-- Indicador de advertencias (lado AO) -->
+            <div style="margin-top:.4rem;font-size:.65rem;opacity:.85;" id="warn-display-a">C1: ○○○○ &nbsp; C2: ○○○○</div>
+          </div>
+
+          <!-- Centro: VS + senshu + timer indicador -->
+          <div style="background:#1a1a2e;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:.5rem .75rem;gap:.5rem;min-width:80px;">
+            <div style="font-size:1.1rem;font-weight:900;letter-spacing:.06em;opacity:.6;">VS</div>
+            <div style="font-size:.65rem;text-transform:uppercase;opacity:.5;letter-spacing:.1em;">Senshu</div>
+            <div id="senshu-a" style="width:20px;height:20px;border-radius:50%;background:#1565c0;opacity:.3;border:2px solid #1565c0;"></div>
+            <div id="senshu-b" style="width:20px;height:20px;border-radius:50%;background:#c62828;opacity:.3;border:2px solid #c62828;"></div>
+          </div>
+
+          <!-- LADO AKA (Rojo) -->
+          <div id="kumite-side-b" style="background:#c62828;padding:1rem;text-align:center;cursor:pointer;transition:opacity .15s;"
+               onclick="kumiteSelectWinner('b')">
+            <div style="font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;opacity:.8;margin-bottom:.25rem;">AKA · Competidor B</div>
+            <div id="kumite-name-b" style="font-size:1rem;font-weight:700;margin-bottom:.25rem;">—</div>
+            <div id="kumite-club-b" style="font-size:.75rem;opacity:.75;margin-bottom:.5rem;"></div>
+            <div id="kumite-score-b" style="font-size:3.5rem;font-weight:900;line-height:1;">0</div>
+            <div class="flex gap-1 justify-center mt-2 flex-wrap">
+              <button class="btn btn-sm" style="background:rgba(255,255,255,.18);color:#fff;border:none;font-size:.75rem;"
+                  onclick="kumiteAddPoint('b','yuko',event)">+1 Yuko</button>
+              <button class="btn btn-sm" style="background:rgba(255,255,255,.18);color:#fff;border:none;font-size:.75rem;"
+                  onclick="kumiteAddPoint('b','wazaari',event)">+2 Waza-ari</button>
+              <button class="btn btn-sm" style="background:rgba(255,255,255,.18);color:#fff;border:none;font-size:.75rem;"
+                  onclick="kumiteAddPoint('b','ippon',event)">+3 Ippon</button>
+            </div>
+            <div class="flex gap-1 justify-center mt-1 flex-wrap">
+              <button class="btn btn-sm" style="background:rgba(220,120,0,.7);color:#fff;border:none;font-size:.68rem;"
+                  onclick="kumiteWarn('b','c1',event)" title="Falta C1 (Contacto)">⚠C1 Contacto</button>
+              <button class="btn btn-sm" style="background:rgba(220,100,0,.7);color:#fff;border:none;font-size:.68rem;"
+                  onclick="kumiteWarn('b','c2',event)" title="Falta C2 (Técnica/Jogai)">⚠C2 Técnica</button>
+              <button class="btn btn-sm" style="background:rgba(255,255,255,.1);color:#fff;border:none;font-size:.7rem;"
+                  onclick="kumiteUndo('b',event)">↩ Deshacer</button>
+            </div>
+              <div style="margin-top:.4rem;font-size:.65rem;opacity:.85;" id="warn-display-b">C1: ○○○○ &nbsp; C2: ○○○○</div>
+          </div>
+        </div>
+
+        <!-- Historial de puntos -->
+        <div style="padding:.75rem;background:#f1f5f9;">
+          <div class="flex gap-2 mb-2">
+            <div style="flex:1;">
+              <div class="text-xs text-muted mb-1">Historial AO:</div>
+              <div id="kumite-log-a" style="font-size:.75rem;min-height:20px;color:#1565c0;font-weight:500;">—</div>
+            </div>
+            <div style="flex:1;text-align:right;">
+              <div class="text-xs text-muted mb-1">Historial AKA:</div>
+              <div id="kumite-log-b" style="font-size:.75rem;min-height:20px;color:#c62828;font-weight:500;">—</div>
+            </div>
+          </div>
+          <!-- Leyenda WKF -->
+          <div style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:.4rem .6rem;font-size:.72rem;color:#64748b;display:flex;gap:1rem;flex-wrap:wrap;">
+            <span>⚠C1 Contacto: Chukoku→Keikoku→Hansoku-chui→Hansoku</span>
+            <span>⚠C2 Técnica / Jogai: ídem</span>
+            <span>Keikoku = +1 rival · Hansoku-chui = +2 · Hansoku = victoria rival</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;margin-top:.75rem;">
+            <label style="background:#fff;border:1px solid #bfdbfe;border-radius:8px;padding:.6rem;display:block;">
+              <div class="text-xs text-muted mb-1">Corregir puntos AO</div>
+              <input type="number" class="form-control" id="kumite-edit-score-a" min="0" step="1" value="0" />
+            </label>
+            <label style="background:#fff;border:1px solid #fecaca;border-radius:8px;padding:.6rem;display:block;">
+              <div class="text-xs text-muted mb-1">Corregir puntos AKA</div>
+              <input type="number" class="form-control" id="kumite-edit-score-b" min="0" step="1" value="0" />
+            </label>
+          </div>
+          <div class="flex gap-2 mt-2 flex-wrap">
+            <button class="btn btn-outline btn-sm" type="button" id="btn-sync-kumite-score">Aplicar corrección al marcador</button>
+          </div>
+        </div>
+
+        <!-- Banner ganador y notas -->
+        <div style="padding:.5rem .75rem;background:#fff;">
+          <div id="kumite-winner-banner" style="display:none;text-align:center;padding:.5rem;border-radius:6px;font-weight:700;font-size:.95rem;margin-bottom:.5rem;"></div>
+          <div class="form-group mb-0">
+            <label class="form-label" style="font-size:.75rem;">Notas / motivo (opcional)</label>
+            <input type="text" class="form-control form-control-sm" id="result-notes" placeholder="Ej: Hansoku, descalificación, abandono..." />
+          </div>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           PANEL KATA — 5 Jueces WKF, descarta mayor y menor
+      ====================================================== -->
+      <div id="panel-kata-result" style="display:none;">
+        <div style="background:#2d1b69;color:#fff;padding:1rem;text-align:center;border-radius:8px 8px 0 0;">
+          <div style="font-size:1.5rem;">🥋</div>
+          <div id="kata-athlete-name" style="font-size:1.1rem;font-weight:700;margin-top:.25rem;">—</div>
+          <div id="kata-athlete-club" style="font-size:.8rem;opacity:.75;"></div>
+        </div>
+
+        <div style="padding:1rem;background:#faf5ff;">
+          <div id="kata-duel-panel" style="display:none;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem;">
+              <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:.6rem;">
+                <div style="font-size:.8rem;font-weight:800;color:#1565c0;margin-bottom:.3rem;">🔵 AO — <span id="kata-duel-name-a">Competidor A</span></div>
+                <div id="kata-judge-grid-a" style="display:grid;grid-template-columns:repeat(5,1fr);gap:.4rem;"></div>
+                <div id="kata-duel-total-a" class="text-center mt-2" style="font-size:1.4rem;font-weight:900;color:#1565c0;">—</div>
+              </div>
+              <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:.6rem;">
+                <div style="font-size:.8rem;font-weight:800;color:#c62828;margin-bottom:.3rem;">🔴 AKA — <span id="kata-duel-name-b">Competidor B</span></div>
+                <div id="kata-judge-grid-b" style="display:grid;grid-template-columns:repeat(5,1fr);gap:.4rem;"></div>
+                <div id="kata-duel-total-b" class="text-center mt-2" style="font-size:1.4rem;font-weight:900;color:#c62828;">—</div>
+              </div>
+            </div>
+            <div id="kata-duel-summary" style="background:#ede9fe;border-radius:8px;padding:.75rem;text-align:center;margin-bottom:.75rem;">
+              <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:#7c3aed;margin-bottom:.2rem;">Resultado del Duelo</div>
+              <div id="kata-duel-winner" style="font-size:1.2rem;font-weight:900;color:#6d28d9;line-height:1.2;">Esperando notas de ambos contendientes...</div>
+            </div>
+          </div>
+
+          <div class="form-group" id="kata-name-group">
+            <label class="form-label" style="font-size:.75rem;">Nombre de la Kata</label>
+            <input type="text" class="form-control form-control-sm" id="kata-name" placeholder="Ej: Gojushiho Sho, Unsu, Kanku Dai..." />
+          </div>
+          <div id="kata-judge-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:.5rem;margin-bottom:.75rem;"></div>
+
+          <div style="background:#fff;border:1px solid #ddd6fe;border-radius:8px;padding:.75rem;margin-bottom:.75rem;color:#111827;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem;">
+              <div>
+                <div style="font-size:.9rem;font-weight:700;">Ajuste manual de Mesa Tecnica</div>
+                <div class="text-xs text-muted">La mesa puede corregir o cargar las 5 notas directamente.</div>
+              </div>
+              <div class="flex gap-1 flex-wrap">
+                <button class="btn btn-outline btn-sm" type="button" id="btn-reload-kata-from-live">Recargar desde jueces</button>
+                <button class="btn btn-primary btn-sm" type="button" id="btn-apply-kata-override">Aplicar ajuste de mesa</button>
+              </div>
+            </div>
+            <div id="kata-override-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:.5rem;"></div>
+          </div>
+
+          <div style="background:#ede9fe;border-radius:8px;padding:.75rem;text-align:center;">
+            <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:#7c3aed;margin-bottom:.2rem;">Puntaje Final WKF · descarta mayor y menor y suma los 3 restantes</div>
+            <div id="kata-total" style="font-size:2.8rem;font-weight:900;color:#7c3aed;line-height:1;">—</div>
+            <div id="kata-detail" style="font-size:.7rem;color:#6d28d9;margin-top:.2rem;"></div>
+            <div id="kata-flag-resolution" style="display:none;margin-top:.75rem;padding-top:.75rem;border-top:1px solid #ddd6fe;">
+              <button class="btn btn-primary btn-sm btn-block" id="btn-resolve-flags">🚩 Resolver por Banderas</button>
+            </div>
+          </div>
+
+          <div class="form-group mt-2 mb-0">
+            <label class="form-label" style="font-size:.75rem;">Notas (opcional)</label>
+            <input type="text" class="form-control form-control-sm" id="kata-notes" placeholder="Observaciones del jurado o mesa técnica..." />
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="Display.closeModal('modal-result');resetKumiteBoard();">Cancelar</button>
+      <button class="btn btn-success" id="btn-save-result" disabled>✅ Confirmar Resultado</button>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
+<script src="../js/config.js?v=20260424a"></script>
+<script src="../js/auth.js?v=20260421b"></script>
+<script src="../js/tournament.js"></script>
+<script src="../js/categories.js"></script>
+<script src="../js/competitors.js"></script>
+<script src="../js/bracket.js"></script>
+<script src="../js/matches.js?v=20260421c"></script>
+<script src="../js/display.js"></script>
+<script src="../js/dojos.js"></script>
+<script src="../js/vendor/qrious.min.js"></script>
+<script>
+(function () {
+  /* ---- Sesión ---- */
+  const session = Auth.getSession();
+  if (!session) { window.location.href = '../index.html'; return; }
+
+  if (SUPABASE_URL && SUPABASE_ANON_KEY && typeof supabase.from !== 'function') {
+    window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+
+  /* ---- Estado ---- */
+  const REFEREE_STORAGE_KEY = 'ot_referee_profile_' + (session.codeId || session.userId || 'anon');
+  const savedReferee = JSON.parse(localStorage.getItem(REFEREE_STORAGE_KEY) || '{}');
+  const state = {
+    tournamentId:     session.tournamentId || null,
+    tatami:           savedReferee.tatami || null,
+    currentMatch:     null,
+    selectedWinnerId: null,
+    realtimeSub:      null,
+    completedCount:   0,
+    pollingInterval:  null,
+    selectedCategoryId: savedReferee.categoryId || '',
+    judgeSide:        'a',
+    manualKumiteTouched: false,
+    projectionWindow: null,
+    projectionLiveActive: false,
+    projectionModeOverride: null,
+    genericModeActive: false,
+    referee: {
+      name:  savedReferee.name || '',
+      code:  String(session.codeId || session.userId || 'REF-LOCAL'),
+      seat:  null,
+      seats: { kata: null, kumite: null },
+    },
+    sync: {
+      status: 'idle',
+      text: 'Sin cambios pendientes.',
+      at: null,
+      history: [],
+    },
+  };
+
+  document.getElementById('referee-name').value = state.referee.name || '';
+  document.getElementById('referee-code').value = state.referee.code || '';
+  _buildKataScoreOptions();
+  _syncRefereeBadges();
+  _renderSyncHistory();
+  _syncGenericModeFields();
+  _setGenericStatus('Modo inactivo.', 'muted');
+
+  function _persistRefereeProfile() {
+    localStorage.setItem(REFEREE_STORAGE_KEY, JSON.stringify({
+      name: state.referee.name || '',
+      tatami: state.tatami || '',
+      categoryId: state.selectedCategoryId || '',
+    }));
+  }
+
+  function _restoreTatamiSession() {
+    if (!state.tatami || !state.referee.name) return;
+    document.getElementById('referee-name').value = state.referee.name || '';
+    document.getElementById('select-tatami').value = String(state.tatami);
+    document.getElementById('view-select-tatami').style.display = 'none';
+    document.getElementById('view-referee-panel').style.display = 'block';
+    document.getElementById('judge-station-card').style.display = 'block';
+    document.getElementById('header-tatami').textContent = state.tatami;
+    document.getElementById('nav-tatami-badge').textContent = `Tatami ${state.tatami}`;
+    _syncRefereeBadges();
+    _updateJudgeSideButtons();
+    _init();
+  }
+
+  function _populateCategoryPicker(categories = []) {
+    const select = document.getElementById('mesa-category-select');
+    if (!select) return;
+    const current = state.selectedCategoryId || '';
+    const mine = (categories || []).filter(c => String(c.tatami) === String(state.tatami));
+    select.innerHTML = '<option value="">Todas las categorías del tatami</option>';
+    mine.forEach(cat => {
+      const opt = document.createElement('option');
+      opt.value = cat.id;
+      opt.dataset.discipline = cat.discipline || '';
+      opt.textContent = `${cat.discipline === 'kata' ? '🥋' : '🥊'} ${cat.name || cat.discipline}`;
+      select.appendChild(opt);
+    });
+    if (mine.some(cat => String(cat.id) === String(current))) {
+      select.value = current;
+    } else {
+      state.selectedCategoryId = '';
+      select.value = '';
+    }
+    _updateQueueTitle();
+  }
+
+  function _updateQueueTitle() {
+    const select = document.getElementById('mesa-category-select');
+    const selected = select?.selectedOptions?.[0];
+    const discipline = selected?.dataset?.discipline || '';
+    const title = document.getElementById('queue-title');
+    const helper = document.getElementById('mesa-category-helper');
+    if (title) title.textContent = discipline === 'kata' ? 'Orden de salida' : 'Cola de Combates';
+    if (helper) {
+      helper.textContent = state.selectedCategoryId
+        ? (discipline === 'kata' ? 'Lista individual de atletas por puntuar.' : 'Mostrando solo la categoría seleccionada.')
+        : 'Puedes elegir una categoría directamente desde la mesa.';
+    }
+  }
+
+  function _buildKataScoreOptions() {
+    const input = document.getElementById('judge-kata-score');
+    if (!input) return;
+    input.setAttribute('min', '0');
+    input.setAttribute('max', '9.99');
+    input.setAttribute('step', '0.01');
+  }
+
+  function _setGenericStatus(text, tone = 'muted') {
+    const el = document.getElementById('generic-status');
+    if (!el) return;
+    const colorByTone = {
+      muted: '#64748b',
+      ok: '#166534',
+      warn: '#92400e',
+      error: '#b91c1c',
+    };
+    el.style.color = colorByTone[tone] || colorByTone.muted;
+    el.textContent = text || 'Modo inactivo.';
+  }
+
+  function _syncGenericModeFields() {
+    const mode = document.getElementById('generic-mode')?.value || 'kata';
+    const kataFields = document.getElementById('generic-kata-fields');
+    const kumiteFields = document.getElementById('generic-kumite-fields');
+    if (kataFields) kataFields.style.display = mode === 'kata' ? 'block' : 'none';
+    if (kumiteFields) kumiteFields.style.display = mode === 'kumite' ? 'block' : 'none';
+    if (mode === 'kata') _refreshGenericKataScoreFromJudges();
+  }
+
+  function _collectGenericKataJudgeScores() {
+    const ids = [
+      'generic-kata-judge-1',
+      'generic-kata-judge-2',
+      'generic-kata-judge-3',
+      'generic-kata-judge-4',
+      'generic-kata-judge-5',
+    ];
+    return ids.map((id) => {
+      const raw = String(document.getElementById(id)?.value || '').replace(',', '.').trim();
+      if (!raw) return null;
+      const num = Number(raw);
+      return Number.isFinite(num) ? Number(num.toFixed(2)) : null;
+    });
+  }
+
+  function _computeGenericKataWkfScore(judgeScores = []) {
+    const valid = (Array.isArray(judgeScores) ? judgeScores : [])
+      .map((n) => Number(n))
+      .filter((n) => Number.isFinite(n));
+    if (!valid.length) return null;
+    if (valid.length < 5) {
+      const total = valid.reduce((sum, n) => sum + n, 0);
+      return Number(total.toFixed(2));
+    }
+    const ordered = [...valid].sort((a, b) => a - b);
+    const middle = ordered.slice(1, -1);
+    if (!middle.length) return null;
+    const total = middle.reduce((sum, n) => sum + n, 0);
+    return Number(total.toFixed(2));
+  }
+
+  function _refreshGenericKataScoreFromJudges() {
+    const scoreEl = document.getElementById('generic-kata-score');
+    if (!scoreEl) return;
+    const judgeScores = _collectGenericKataJudgeScores();
+    const wkfScore = _computeGenericKataWkfScore(judgeScores);
+    if (!Number.isFinite(wkfScore)) return;
+    scoreEl.value = Number(wkfScore).toFixed(2);
+  }
+
+  function _applyGenericPreset(type) {
+    const modeEl = document.getElementById('generic-mode');
+    if (!modeEl) return;
+
+    if (type === 'kumite') {
+      modeEl.value = 'kumite';
+      _syncGenericModeFields();
+      const t = document.getElementById('generic-title');
+      const na = document.getElementById('generic-kumite-name-a');
+      const nb = document.getElementById('generic-kumite-name-b');
+      const sa = document.getElementById('generic-kumite-score-a');
+      const sb = document.getElementById('generic-kumite-score-b');
+      const ts = document.getElementById('generic-kumite-time-seconds');
+      const ac1 = document.getElementById('generic-kumite-warn-a-c1');
+      const ac2 = document.getElementById('generic-kumite-warn-a-c2');
+      const bc1 = document.getElementById('generic-kumite-warn-b-c1');
+      const bc2 = document.getElementById('generic-kumite-warn-b-c2');
+      if (t) t.value = t.value || 'Kumite estandar';
+      if (na) na.value = na.value || 'AO';
+      if (nb) nb.value = nb.value || 'AKA';
+      if (sa) sa.value = sa.value || '0';
+      if (sb) sb.value = sb.value || '0';
+      if (ts) ts.value = ts.value || '180';
+      if (ac1) ac1.value = ac1.value || '0';
+      if (ac2) ac2.value = ac2.value || '0';
+      if (bc1) bc1.value = bc1.value || '0';
+      if (bc2) bc2.value = bc2.value || '0';
+      _setGenericStatus('Preset Kumite cargado. Edita y publica.', 'muted');
+      return;
+    }
+
+    modeEl.value = 'kata';
+    _syncGenericModeFields();
+    const t = document.getElementById('generic-title');
+    const nk = document.getElementById('generic-kata-name');
+    const sk = document.getElementById('generic-kata-score');
+    const j1 = document.getElementById('generic-kata-judge-1');
+    const j2 = document.getElementById('generic-kata-judge-2');
+    const j3 = document.getElementById('generic-kata-judge-3');
+    const j4 = document.getElementById('generic-kata-judge-4');
+    const j5 = document.getElementById('generic-kata-judge-5');
+    if (t) t.value = t.value || 'Kata individual';
+    if (nk) nk.value = nk.value || 'Competidor Kata';
+    if (sk) sk.value = sk.value || '0.00';
+    if (j1) j1.value = j1.value || '0.00';
+    if (j2) j2.value = j2.value || '0.00';
+    if (j3) j3.value = j3.value || '0.00';
+    if (j4) j4.value = j4.value || '0.00';
+    if (j5) j5.value = j5.value || '0.00';
+    _refreshGenericKataScoreFromJudges();
+    _setGenericStatus('Preset Kata cargado. Edita y publica.', 'muted');
+  }
+
+  function _buildGenericProjectionPayload() {
+    const mode = document.getElementById('generic-mode')?.value === 'kumite' ? 'kumite' : 'kata';
+    const title = (document.getElementById('generic-title')?.value || '').trim();
+    const base = {
+      mode: 'generic_board',
+      boardType: mode,
+      tournamentId: state.tournamentId || null,
+      tatami: state.tatami || null,
+      updatedAt: new Date().toISOString(),
+      title: title || null,
+    };
+
+    if (mode === 'kata') {
+      const name = (document.getElementById('generic-kata-name')?.value || '').trim();
+      const judgeScores = _collectGenericKataJudgeScores();
+      const scoreRaw = String(document.getElementById('generic-kata-score')?.value || '').replace(',', '.').trim();
+      const scoreNum = Number(scoreRaw);
+      const scoreFromJudges = _computeGenericKataWkfScore(judgeScores);
+      const resolvedScore = Number.isFinite(scoreFromJudges) ? scoreFromJudges : scoreNum;
+      return {
+        ...base,
+        kata: {
+          name: name || 'Competidor Kata',
+          score: Number.isFinite(resolvedScore) ? Number(resolvedScore.toFixed(2)) : null,
+          judgeScores,
+        },
+      };
+    }
+
+    const nameA = (document.getElementById('generic-kumite-name-a')?.value || '').trim();
+    const nameB = (document.getElementById('generic-kumite-name-b')?.value || '').trim();
+    const scoreA = Number.parseInt(document.getElementById('generic-kumite-score-a')?.value || '0', 10);
+    const scoreB = Number.parseInt(document.getElementById('generic-kumite-score-b')?.value || '0', 10);
+    const assignedSecondsRaw = Number.parseInt(document.getElementById('generic-kumite-time-seconds')?.value || '180', 10);
+    const assignedSeconds = Number.isFinite(assignedSecondsRaw) ? Math.max(10, assignedSecondsRaw) : 180;
+    const warnAC1 = Math.min(4, Math.max(0, Number.parseInt(document.getElementById('generic-kumite-warn-a-c1')?.value || '0', 10) || 0));
+    const warnAC2 = Math.min(4, Math.max(0, Number.parseInt(document.getElementById('generic-kumite-warn-a-c2')?.value || '0', 10) || 0));
+    const warnBC1 = Math.min(4, Math.max(0, Number.parseInt(document.getElementById('generic-kumite-warn-b-c1')?.value || '0', 10) || 0));
+    const warnBC2 = Math.min(4, Math.max(0, Number.parseInt(document.getElementById('generic-kumite-warn-b-c2')?.value || '0', 10) || 0));
+    return {
+      ...base,
+      kumite: {
+        competitorAName: nameA || 'AO',
+        competitorBName: nameB || 'AKA',
+        scoreA: Number.isFinite(scoreA) ? Math.max(0, scoreA) : 0,
+        scoreB: Number.isFinite(scoreB) ? Math.max(0, scoreB) : 0,
+        assignedSeconds,
+        warnA: { c1: warnAC1, c2: warnAC2 },
+        warnB: { c1: warnBC1, c2: warnBC2 },
+      },
+    };
+  }
+
+  function _publishGenericProjection() {
+    const key = _getProjectionLiveKey();
+    if (!key) throw new Error('Selecciona un tatami para usar la pantalla generica.');
+    const payload = _buildGenericProjectionPayload();
+    localStorage.setItem(key, JSON.stringify(payload));
+    state.projectionModeOverride = 'generic_board';
+    state.genericModeActive = true;
+    _persistProjectionTarget();
+    _setGenericStatus('Modo generico activo en pantalla extendida.', 'ok');
+  }
+
+  function _clearGenericFields() {
+    const ids = [
+      'generic-title',
+      'generic-kata-name',
+      'generic-kata-score',
+      'generic-kata-judge-1',
+      'generic-kata-judge-2',
+      'generic-kata-judge-3',
+      'generic-kata-judge-4',
+      'generic-kata-judge-5',
+      'generic-kumite-name-a',
+      'generic-kumite-name-b',
+      'generic-kumite-score-a',
+      'generic-kumite-score-b',
+      'generic-kumite-time-seconds',
+      'generic-kumite-warn-a-c1',
+      'generic-kumite-warn-a-c2',
+      'generic-kumite-warn-b-c1',
+      'generic-kumite-warn-b-c2',
+    ];
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+  }
+
+  function _exitGenericProjection(showToast = true) {
+    const key = _getProjectionLiveKey();
+    state.genericModeActive = false;
+    if (state.projectionModeOverride === 'generic_board') state.projectionModeOverride = null;
+    if (key) {
+      try { localStorage.removeItem(key); } catch (_) {}
+    }
+    _syncProjectionWindow();
+    _setGenericStatus('Modo inactivo.', 'muted');
+    if (showToast) Display.toast('Pantalla generica desactivada.', 'info');
+  }
+
+  function _buildKataOverrideGrid(scores = {}) {
+    const grid = document.getElementById('kata-override-grid');
+    if (!grid) return;
+    const seats = ['J1', 'J2', 'J3', 'J4', 'J5'];
+    grid.innerHTML = seats.map(seat => {
+      const value = scores[seat] != null ? Number(scores[seat]).toFixed(2) : '';
+      return `
+        <div style="background:#faf5ff;border:1px solid #ddd6fe;border-radius:8px;padding:.55rem;text-align:center;">
+          <div style="font-size:.7rem;text-transform:uppercase;color:#7c3aed;letter-spacing:.08em;margin-bottom:.3rem;">${seat}</div>
+          <input type="number" class="form-control text-center kata-override-input" data-seat="${seat}" min="0" max="9.99" step="0.01" value="${value}" oninput="calcKataTotal()" style="font-size:1.1rem;font-weight:800;" placeholder="0.00" disabled />
+        </div>`;
+    }).join('');
+  }
+
+  function _getKataOverrideScores() {
+    const inputs = Array.from(document.querySelectorAll('.kata-manual-input'));
+    const fallbackInputs = Array.from(document.querySelectorAll('.kata-override-input'));
+    const sourceInputs = inputs.length ? inputs : fallbackInputs;
+    const scores = {};
+    sourceInputs.forEach(input => {
+      const seat = input.dataset.seat;
+      const rawValue = String(input.value || '').replace(',', '.').trim();
+      const value = Number(rawValue);
+      scores[seat] = /^\d(?:\.\d{1,2})?$/.test(rawValue) && Number.isFinite(value) && value >= 0 && value <= 9.99
+        ? Number(value.toFixed(2))
+        : null;
+    });
+    return scores;
+  }
+
+  function _getKataSummaryFromScores(scores = {}) {
+    const seats = ['J1', 'J2', 'J3', 'J4', 'J5'];
+    const judges = seats.map(seat => ({
+      seat,
+      score: Number.isFinite(Number(scores[seat])) ? Number(scores[seat]) : null,
+    }));
+    const validScores = judges.filter(j => Number.isFinite(j.score)).map(j => j.score);
+    const sorted = [...validScores].sort((a, b) => a - b);
+    const trimmed = sorted.length >= 5 ? sorted.slice(1, -1) : sorted;
+    return {
+      judges,
+      submitted: validScores.length,
+      ready: validScores.length >= 5,
+      total: trimmed.length ? Number(trimmed.reduce((sum, value) => sum + value, 0).toFixed(2)) : null,
+      dropped_low: sorted.length >= 5 ? sorted[0] : null,
+      dropped_high: sorted.length >= 5 ? sorted[sorted.length - 1] : null,
+    };
+  }
+
+  function _populateKataOverride(match) {
+    const summary = Matches.getKataSummary(match);
+    const scores = {};
+    summary.judges.forEach(judge => {
+      scores[judge.seat] = judge.score;
+    });
+    const manualInputs = Array.from(document.querySelectorAll('.kata-manual-input'));
+    if (manualInputs.length) {
+      manualInputs.forEach(input => {
+        const seat = input.dataset.seat;
+        const score = scores[seat];
+        input.value = Number.isFinite(Number(score)) ? Number(score).toFixed(2) : '';
+      });
+    } else {
+      _buildKataOverrideGrid(scores);
+    }
+    return _getKataSummaryFromScores(scores);
+  }
+
+  async function _applyKataOverride(match, refreshAfter = true) {
+    if (!match?.id) return null;
+    const scores = _getKataOverrideScores();
+    const summary = _getKataSummaryFromScores(scores);
+    if (!summary.ready) {
+      throw new Error('La mesa debe completar las 5 notas de kata.');
+    }
+
+    _setSyncIndicator('syncing', `Sincronizando notas kata... ${_syncTimeStamp()}`);
+    try {
+      await Matches.applyMesaKataOverride(match.id, scores, {
+        name: 'Mesa Tecnica',
+        code: state.referee.code,
+        tatami: state.tatami,
+      });
+      _setSyncIndicator('ok', `Notas kata sincronizadas ${_syncTimeStamp()}`);
+    } catch (err) {
+      _setSyncIndicator('error', `Error al sincronizar notas kata ${_syncTimeStamp()}`);
+      throw err;
+    }
+
+    if (!refreshAfter) return summary;
+
+    // Intentar refrescar desde backend, pero no depender de eso para reflejar el ajuste.
+    let refreshed = null;
+    try {
+      const latest = await Matches.getById(match.id);
+      if (latest) {
+        state.currentMatch = latest;
+        _renderCurrentMatch(latest);
+        _syncProjectionWindow();
+        refreshed = Matches.getKataSummary(latest);
+      }
+    } catch (_) {
+      // Si la lectura está restringida, mantenemos UI coherente con la captura de mesa.
+    }
+
+    const useRefreshed = !!(
+      refreshed &&
+      refreshed.total != null &&
+      (refreshed.mesa_override_active || Math.abs(Number(refreshed.total) - Number(summary.total)) < 0.01)
+    );
+    const finalSummary = useRefreshed ? refreshed : summary;
+
+    const scoreEl = document.getElementById('score-a');
+    if (scoreEl) scoreEl.textContent = finalSummary.total != null ? Number(finalSummary.total).toFixed(2) : '—';
+    const totalEl = document.getElementById('kata-total');
+    if (totalEl) totalEl.textContent = finalSummary.total != null ? Number(finalSummary.total).toFixed(2) : '—';
+    return finalSummary;
+  }
+
+  function _buildProjectionUrl() {
+    const params = new URLSearchParams({
+      tournament: state.tournamentId || '',
+      tatami: state.tatami || '',
+      display: 'mesa',
+      v: '20260426f',
+    });
+    return `../views/public.html?${params.toString()}`;
+  }
+
+  function _ensureSupabaseClientForMesa() {
+    if (Auth.isDevMode()) return true;
+    if (typeof supabase !== 'undefined' && supabase && typeof supabase.from === 'function') return true;
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return false;
+    if (!window.supabase || typeof window.supabase.createClient !== 'function') return false;
+    try {
+      window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      return !!(window.supabase && typeof window.supabase.from === 'function');
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function _getProjectionTargetKey() {
+    if (!state.tournamentId || !state.tatami) return null;
+    return `ot_projection_target_${state.tournamentId}_${state.tatami}`;
+  }
+
+  function _getProjectionLiveKey() {
+    if (!state.tournamentId || !state.tatami) return null;
+    return `ot_projection_live_${state.tournamentId}_${state.tatami}`;
+  }
+
+  function _getLastFinishedMatchKey() {
+    if (!state.tournamentId || !state.tatami) return null;
+    return `ot_ref_last_finished_${state.tournamentId}_${state.tatami}`;
+  }
+
+  function _rememberLastFinishedMatch(matchId) {
+    const key = _getLastFinishedMatchKey();
+    if (!key || !matchId) return;
+    try {
+      sessionStorage.setItem(key, JSON.stringify({ id: matchId, at: new Date().toISOString() }));
+    } catch (_) {}
+  }
+
+  function _consumeRememberedFinishedMatch() {
+    const key = _getLastFinishedMatchKey();
+    if (!key) return null;
+    try {
+      const raw = sessionStorage.getItem(key);
+      if (!raw) return null;
+      sessionStorage.removeItem(key);
+      const data = JSON.parse(raw);
+      const ageMs = Date.now() - new Date(data?.at || 0).getTime();
+      if (!data?.id || Number.isNaN(ageMs) || ageMs > 2 * 60 * 60 * 1000) return null;
+      return data.id;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function _persistProjectionLiveState() {
+    const key = _getProjectionLiveKey();
+    if (!key) return;
+    // Solo bloquear si el modo genérico está realmente activo (no basta el override flag)
+    if (state.genericModeActive && state.projectionModeOverride === 'generic_board') return;
+    if (state.projectionModeOverride === 'category_awards') return;
+    const match = state.currentMatch;
+    if (!match?.id) {
+      try { localStorage.removeItem(key); } catch (_) {}
+      return;
+    }
+
+    const isKata = _isKataMatch(match);
+    const isDuel = isKata && !!match.competitor_b_id;
+    let kataSummary = isKata ? Matches.getKataSummary(match) : null;
+    let kataDuelSummary = null;
+    if (isKata) {
+      const manualInputs = Array.from(document.querySelectorAll('.kata-manual-input'));
+      if (manualInputs.length) {
+        const draft = _getKataSummaryFromScores(_getKataOverrideScores());
+        const liveJudgesBySeat = Object.fromEntries((kataSummary?.judges || []).map(j => [j.seat, j]));
+        kataSummary = {
+          ...(kataSummary || {}),
+          ...draft,
+          judges: (draft.judges || []).map(j => ({
+            ...liveJudgesBySeat[j.seat],
+            seat: j.seat,
+            score: j.score,
+          })),
+        };
+      }
+      if (isDuel) {
+        const duelInputs = _getKataDuelSummaryFromInputs();
+        kataDuelSummary = {
+          winner: duelInputs.winner,
+          scoreA: duelInputs.scoreA,
+          scoreB: duelInputs.scoreB,
+          ready: duelInputs.ready,
+          totalA: duelInputs.summaryA?.total ?? null,
+          totalB: duelInputs.summaryB?.total ?? null,
+          judgesA: duelInputs.summaryA?.judges || [],
+          judgesB: duelInputs.summaryB?.judges || [],
+        };
+      }
+    }
+    const payload = {
+      tournamentId: state.tournamentId || null,
+      tatami: state.tatami || null,
+      matchId: match.id,
+      discipline: isKata ? 'kata' : 'kumite',
+      updatedAt: new Date().toISOString(),
+      categoryName: match.category?.name || null,
+      roundLabel: match.round_label || null,
+      status: match.status || null,
+      competitorAName: match.competitor_a?.competitors?.full_name || match.competitor_a?.full_name || 'Competidor A',
+      competitorBName: match.competitor_b?.competitors?.full_name || match.competitor_b?.full_name || 'Competidor B',
+      clubA: match.competitor_a?.competitors?.club || match.competitor_a?.club || '',
+      clubB: match.competitor_b?.competitors?.club || match.competitor_b?.club || '',
+      kumite: isKata ? null : {
+        scoreA: _kumite.a,
+        scoreB: _kumite.b,
+        warnA: _kumite.warnA,
+        warnB: _kumite.warnB,
+        winner: _kumite.winner,
+        senshu: _kumite.senshu,
+        histA: Array.isArray(_kumite.histA) ? [..._kumite.histA] : [],
+        histB: Array.isArray(_kumite.histB) ? [..._kumite.histB] : [],
+        clockSeconds: Number.isFinite(Number(_timer.seconds)) ? Number(_timer.seconds) : null,
+        clockRemaining: Number.isFinite(Number(_timer.remaining)) ? Number(_timer.remaining) : null,
+        clockRunning: !!_timer.running,
+      },
+      kata: isKata ? {
+        total: kataSummary?.total ?? null,
+        judges: kataSummary?.judges || [],
+        submitted: Number.isFinite(Number(kataSummary?.submitted)) ? Number(kataSummary.submitted) : null,
+        ready: !!kataSummary?.ready,
+      } : null,
+      kataDuel: isDuel ? kataDuelSummary : null,
+    };
+    try {
+      localStorage.setItem(key, JSON.stringify(payload));
+    } catch (_) {}
+  }
+
+  function _persistProjectionTarget() {
+    const key = _getProjectionTargetKey();
+    if (!key) return;
+    const payload = {
+      tournamentId: state.tournamentId || null,
+      tatami: state.tatami || null,
+      matchId: state.currentMatch?.id || null,
+      active: !!state.projectionLiveActive,
+      updatedAt: new Date().toISOString(),
+    };
+    try {
+      localStorage.setItem(key, JSON.stringify(payload));
+    } catch (_) {}
+  }
+
+  function _normalizeKataRoundAthlete(match) {
+    const athleteId = match?.competitor_a_id || null;
+    const athleteName = match?.competitor_a?.competitors?.full_name
+      || match?.competitor_a?.full_name
+      || 'Competidor';
+    const score = Number(match?.score_a);
+    return {
+      athleteId,
+      athleteName,
+      score: Number.isFinite(score) ? Number(score.toFixed(2)) : null,
+      finishedAt: match?.finished_at || match?.updated_at || null,
+    };
+  }
+
+  function _buildKataRoundProjectionPayload(seedMatch, roundMatches) {
+    const ranking = (roundMatches || [])
+      .map(_normalizeKataRoundAthlete)
+      .filter(item => Number.isFinite(item.score))
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        const ta = a.finishedAt ? Date.parse(a.finishedAt) : 0;
+        const tb = b.finishedAt ? Date.parse(b.finishedAt) : 0;
+        return (Number.isFinite(ta) ? ta : 0) - (Number.isFinite(tb) ? tb : 0);
+      })
+      .map((item, idx) => ({
+        ...item,
+        position: idx + 1,
+      }));
+
+    const winner = ranking[0] || null;
+    return {
+      mode: 'kata_round_results',
+      tournamentId: state.tournamentId || null,
+      tatami: state.tatami || null,
+      categoryId: seedMatch?.category_id || seedMatch?.category?.id || null,
+      categoryName: seedMatch?.category?.name || null,
+      round: Number.isFinite(Number(seedMatch?.round)) ? Number(seedMatch.round) : null,
+      roundLabel: seedMatch?.round_label || null,
+      discipline: 'kata',
+      matchId: seedMatch?.id || null,
+      updatedAt: new Date().toISOString(),
+      showUntil: new Date(Date.now() + 15000).toISOString(),
+      winner,
+      ranking,
+    };
+  }
+
+  async function _publishKataRoundResultsIfReady(savedResult) {
+    if (!_isKataMatch(savedResult)) return false;
+    const categoryId = savedResult?.category_id || savedResult?.category?.id;
+    const round = Number(savedResult?.round);
+    if (!categoryId || !Number.isFinite(round)) return false;
+
+    let allMatches = [];
+    try {
+      allMatches = await Matches.listByCategory(categoryId);
+    } catch (_) {
+      return false;
+    }
+
+    const roundMatches = (allMatches || []).filter(m => Number(m?.round) === round);
+    if (!roundMatches.length) return false;
+
+    const isComplete = roundMatches.every(m => {
+      const isFinished = String(m?.status || '') === String(MATCH_STATUS.FINISHED);
+      return isFinished && Number.isFinite(Number(m?.score_a));
+    });
+    if (!isComplete) return false;
+
+    const payload = _buildKataRoundProjectionPayload(savedResult, roundMatches);
+    if (!Array.isArray(payload.ranking) || !payload.ranking.length) return false;
+
+    const key = _getProjectionLiveKey();
+    if (!key) return false;
+    try {
+      localStorage.setItem(key, JSON.stringify(payload));
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function _normalizeAthleteName(value) {
+    return String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function _normalizePodiumEntries(podio, options = {}) {
+    const scoreByRegistration = options?.scoreByRegistration || {};
+    const scoreByAthleteName = options?.scoreByAthleteName || {};
+    const latestScoreByAthleteName = options?.latestScoreByAthleteName || {};
+    const includeScore = !!options?.includeScore;
+    const positions = Array.isArray(podio?.positions) ? podio.positions : [];
+    return positions
+      .filter((p) => Number.isFinite(Number(p?.position)))
+      .sort((a, b) => Number(a.position) - Number(b.position))
+      .map((p) => {
+        const athleteName = p.full_name || p.name || 'Competidor';
+        const athleteKey = _normalizeAthleteName(athleteName);
+        const registrationId = p.registration_id || null;
+
+        let score = null;
+        let scoreSource = null;
+        if (includeScore) {
+          if (registrationId && Number.isFinite(Number(scoreByRegistration[registrationId]))) {
+            score = Number(Number(scoreByRegistration[registrationId]).toFixed(2));
+            scoreSource = 'registration_id';
+          } else if (athleteKey && Number.isFinite(Number(scoreByAthleteName[athleteKey]))) {
+            score = Number(Number(scoreByAthleteName[athleteKey]).toFixed(2));
+            scoreSource = 'athlete_name';
+          } else if (athleteKey && Number.isFinite(Number(latestScoreByAthleteName[athleteKey]))) {
+            score = Number(Number(latestScoreByAthleteName[athleteKey]).toFixed(2));
+            scoreSource = 'latest_finished_match';
+          }
+        }
+
+        return {
+          position: Number(p.position),
+          registrationId,
+          athleteName,
+          club: p.club || '',
+          score,
+          scoreSource,
+        };
+      });
+  }
+
+  async function _publishCategoryAwardsProjection(categoryId) {
+    if (!categoryId) return { ok: false, reason: 'no-category' };
+
+    let category = null;
+    let podio = null;
+    try {
+      [category, podio] = await Promise.all([
+        Categories.getById(categoryId),
+        Bracket.getPodio(categoryId),
+      ]);
+    } catch (e) {
+      return { ok: false, reason: e?.message || 'load-error' };
+    }
+
+    let scoreByRegistration = {};
+    let scoreByAthleteName = {};
+    let latestScoreByAthleteName = {};
+    const isKataCategory = String(category?.discipline || '').toLowerCase() === 'kata';
+    if (isKataCategory) {
+      try {
+        const categoryMatches = await Matches.listByCategory(categoryId);
+        const kataMatches = (categoryMatches || []).filter(m => _isKataMatch(m));
+        const rounds = kataMatches
+          .map((m) => Number(m?.round))
+          .filter((r) => Number.isFinite(r));
+        const maxRound = rounds.length ? Math.max(...rounds) : null;
+        const finalRound = kataMatches.filter((m) =>
+          Number(m?.round) === maxRound
+          && String(m?.status || '') === String(MATCH_STATUS.FINISHED)
+          && Number.isFinite(Number(m?.score_a))
+          && m?.competitor_a_id
+        );
+        scoreByRegistration = Object.fromEntries(
+          finalRound.map((m) => [m.competitor_a_id, Number(m.score_a)])
+        );
+        scoreByAthleteName = Object.fromEntries(
+          finalRound
+            .map((m) => {
+              const name = m?.competitor_a?.competitors?.full_name || m?.competitor_a?.full_name || '';
+              const key = _normalizeAthleteName(name);
+              return [key, Number(m.score_a)];
+            })
+            .filter(([key, score]) => !!key && Number.isFinite(Number(score)))
+        );
+
+        const finishedByNewest = [...kataMatches]
+          .filter((m) =>
+            String(m?.status || '') === String(MATCH_STATUS.FINISHED)
+            && Number.isFinite(Number(m?.score_a))
+          )
+          .sort((a, b) => {
+            const ta = Date.parse(a?.finished_at || a?.updated_at || a?.started_at || 0);
+            const tb = Date.parse(b?.finished_at || b?.updated_at || b?.started_at || 0);
+            return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
+          });
+        latestScoreByAthleteName = {};
+        finishedByNewest.forEach((m) => {
+          const name = m?.competitor_a?.competitors?.full_name || m?.competitor_a?.full_name || '';
+          const key = _normalizeAthleteName(name);
+          if (!key || Object.prototype.hasOwnProperty.call(latestScoreByAthleteName, key)) return;
+          latestScoreByAthleteName[key] = Number(m.score_a);
+        });
+      } catch (_) {
+        scoreByRegistration = {};
+        scoreByAthleteName = {};
+        latestScoreByAthleteName = {};
+      }
+    }
+
+    const podium = _normalizePodiumEntries(podio, {
+      includeScore: isKataCategory,
+      scoreByRegistration,
+      scoreByAthleteName,
+      latestScoreByAthleteName,
+    });
+    if (!podium.length) return { ok: false, reason: 'not-finished' };
+
+    const key = _getProjectionLiveKey();
+    if (!key) return { ok: false, reason: 'no-projection-key' };
+
+    const payload = {
+      mode: 'category_awards',
+      tournamentId: state.tournamentId || null,
+      tatami: state.tatami || null,
+      categoryId: category?.id || categoryId,
+      categoryName: category?.name || 'Categoria',
+      discipline: category?.discipline || null,
+      scoreSource: isKataCategory ? 'registration_id|athlete_name|latest_finished_match' : null,
+      updatedAt: new Date().toISOString(),
+      podium,
+    };
+
+    try {
+      localStorage.setItem(key, JSON.stringify(payload));
+      state.projectionModeOverride = 'category_awards';
+      _persistProjectionTarget();
+      return { ok: true, payload };
+    } catch (_) {
+      return { ok: false, reason: 'save-error' };
+    }
+  }
+
+  function _clearProjectionTarget() {
+    const key = _getProjectionTargetKey();
+    if (!key) return;
+    try {
+      localStorage.removeItem(key);
+    } catch (_) {}
+  }
+
+  function _syncProjectionWindow() {
+    _persistProjectionTarget();
+    _persistProjectionLiveState();
+  }
+
+  function _updateProjectionButtons() {
+    const enableBtn = document.getElementById('btn-enable-projection');
+    const disableBtn = document.getElementById('btn-disable-projection');
+    const statusEl = document.getElementById('projection-status');
+    const active = !!(state.projectionWindow && !state.projectionWindow.closed);
+    if (enableBtn) enableBtn.style.display = active ? 'none' : 'inline-flex';
+    if (disableBtn) disableBtn.style.display = active ? 'inline-flex' : 'none';
+    if (statusEl) {
+      statusEl.textContent = active
+        ? 'Segunda pantalla habilitada. Si el navegador no entra en pantalla completa, usa F11 en la ventana proyectada.'
+        : 'La proyeccion mostrara solo el marcador del tatami actual.';
+    }
+    const debugEl = document.getElementById('projection-debug');
+    if (debugEl) {
+      const matchId = state.currentMatch?.id || 'none';
+      const status = state.currentMatch?.status || 'idle';
+      debugEl.textContent = `Trace: active=${state.projectionLiveActive ? '1' : '0'} · match=${matchId} · status=${status} · ${new Date().toLocaleTimeString('es-ES')}`;
+    }
+  }
+
+  function _renderSyncHistory() {
+    const listEl = document.getElementById('sync-history-list');
+    if (!listEl) return;
+    const history = Array.isArray(state.sync?.history) ? state.sync.history : [];
+    if (!history.length) {
+      listEl.innerHTML = '<div class="text-xs" style="color:#64748b;">Sin eventos todavia.</div>';
+      return;
+    }
+    const statusMeta = {
+      syncing: { color: '#f59e0b', label: 'SYNC' },
+      ok: { color: '#16a34a', label: 'OK' },
+      error: { color: '#dc2626', label: 'ERROR' },
+      idle: { color: '#94a3b8', label: 'IDLE' },
+    };
+    listEl.innerHTML = history.map((entry) => {
+      const meta = statusMeta[entry.status] || statusMeta.idle;
+      const time = entry.at ? new Date(entry.at).toLocaleTimeString('es-ES') : '--:--:--';
+      return `
+        <div class="text-xs" style="display:flex;align-items:flex-start;gap:.45rem;color:#cbd5e1;line-height:1.25;">
+          <span style="display:inline-block;width:.5rem;height:.5rem;border-radius:999px;background:${meta.color};margin-top:.25rem;flex:0 0 auto;"></span>
+          <span style="min-width:3rem;color:${meta.color};font-weight:700;">${meta.label}</span>
+          <span style="color:#93c5fd;min-width:3.7rem;">${time}</span>
+          <span style="color:#cbd5e1;">${entry.text || ''}</span>
+        </div>`;
+    }).join('');
+  }
+
+  function _appendSyncHistory(status, text) {
+    if (!state.sync) return;
+    const entry = {
+      status,
+      text: text || '',
+      at: new Date().toISOString(),
+    };
+    state.sync.history = [entry, ...(state.sync.history || [])].slice(0, 5);
+    _renderSyncHistory();
+  }
+
+  function _clearSyncHistory(showToast = false) {
+    if (!state.sync) return;
+    state.sync.history = [];
+    _renderSyncHistory();
+    if (showToast) {
+      Display.toast('Historial de sincronizacion limpiado.', 'info');
+    }
+  }
+
+  function _setSyncIndicator(status = 'idle', text = '') {
+    const dot = document.getElementById('sync-indicator-dot');
+    const label = document.getElementById('sync-indicator-text');
+    const map = {
+      idle: { color: '#94a3b8', text: 'Sin cambios pendientes.' },
+      syncing: { color: '#f59e0b', text: 'Sincronizando con Supabase...' },
+      ok: { color: '#16a34a', text: 'Sincronizado con Supabase.' },
+      error: { color: '#dc2626', text: 'Error de sincronizacion con Supabase.' },
+    };
+    const resolved = map[status] || map.idle;
+    state.sync.status = status;
+    state.sync.at = new Date().toISOString();
+    state.sync.text = text || resolved.text;
+    if (dot) dot.style.background = resolved.color;
+    if (label) label.textContent = state.sync.text;
+    if (status !== 'idle') {
+      _appendSyncHistory(status, state.sync.text);
+    }
+  }
+
+  function _setFinalResultStatus(match = null, customText = '') {
+    const el = document.getElementById('final-result-status');
+    if (!el) return;
+    if (customText) {
+      el.style.color = '#22c55e';
+      el.textContent = customText;
+      return;
+    }
+    if (!match) {
+      el.style.color = '#94a3b8';
+      el.textContent = 'Resultado final pendiente de confirmacion.';
+      return;
+    }
+    if (match.status === MATCH_STATUS.FINISHED || match.status === MATCH_STATUS.BYE || _isResultLocked(match)) {
+      const rawId = match?.id != null ? String(match.id) : '—';
+      const shortId = rawId.length > 10 ? rawId.slice(0, 8) : rawId;
+      const confirmedAt = match?.finished_at ? new Date(match.finished_at).toLocaleTimeString('es-ES') : _syncTimeStamp();
+      el.style.color = '#22c55e';
+      el.textContent = `Resultado final confirmado (ID ${shortId}) · ${confirmedAt}`;
+      return;
+    }
+    el.style.color = '#94a3b8';
+    el.textContent = 'Resultado final pendiente de confirmacion.';
+  }
+
+  function _syncTimeStamp() {
+    return new Date().toLocaleTimeString('es-ES');
+  }
+
+  const clearSyncHistoryBtn = document.getElementById('btn-clear-sync-history');
+  if (clearSyncHistoryBtn) {
+    clearSyncHistoryBtn.addEventListener('click', () => _clearSyncHistory(true));
+  }
+
+  function _openProjectionWindow() {
+    const url = _buildProjectionUrl();
+    _persistProjectionTarget();
+    if (state.projectionWindow && !state.projectionWindow.closed) {
+      try {
+        state.projectionWindow.focus();
+      } catch (_) {}
+      _updateProjectionButtons();
+      return;
+    }
+    state.projectionWindow = window.open(url, 'ot_mesa_projection', 'width=1280,height=720');
+    _updateProjectionButtons();
+  }
+
+  function _closeProjectionWindow() {
+    if (state.projectionWindow && !state.projectionWindow.closed) {
+      try { state.projectionWindow.close(); } catch (_) {}
+    }
+    state.projectionWindow = null;
+    state.genericModeActive = false;
+    if (state.projectionModeOverride === 'generic_board') {
+      _setGenericStatus('Modo inactivo.', 'muted');
+    }
+    state.projectionModeOverride = null;
+    _clearProjectionTarget();
+    const liveKey = _getProjectionLiveKey();
+    if (liveKey) {
+      try { localStorage.removeItem(liveKey); } catch (_) {}
+    }
+    _updateProjectionButtons();
+  }
+
+  function _getJudgeAccessData() {
+    if (!state.tournamentId || !state.tatami) return {};
+    const key = 'ot_judge_access_' + state.tournamentId + '_' + state.tatami;
+    let data = {};
+    try { data = JSON.parse(localStorage.getItem(key) || '{}'); } catch (_) { data = {}; }
+
+    const config = {
+      kata: ['J1','J2','J3','J4','J5'],
+      kumite: ['J1','J2','J3','J4'],
+    };
+
+    Object.entries(config).forEach(([discipline, seats]) => {
+      if (!Array.isArray(data[discipline])) data[discipline] = [];
+      data[discipline] = seats.map((seat, index) => {
+        const code = Auth.buildJudgeAccessCode(state.tournamentId, state.tatami, discipline, seat);
+        const root = window.location.pathname.replace(/\/views\/[^/]+$/, '');
+        const url = `${window.location.origin}${root}/views/judge.html?tournament=${encodeURIComponent(state.tournamentId)}&tatami=${encodeURIComponent(state.tatami)}&discipline=${encodeURIComponent(discipline)}&access=${encodeURIComponent(code)}`;
+        Auth.generateCode(state.tournamentId, USER_ROLES.JUDGE, {
+          tatami: state.tatami,
+          discipline,
+          seat,
+        }).catch(() => {});
+        return { seat, code, url };
+      });
+    });
+
+    localStorage.setItem(key, JSON.stringify(data));
+    return data;
+  }
+
+  function _renderJudgeCodeList(discipline) {
+    const data = _getJudgeAccessData();
+    const list = Array.isArray(data?.[discipline]) ? data[discipline] : [];
+    const refs = state.currentMatch ? (Matches.getRefereePresence(state.currentMatch, discipline) || {}) : {};
+    if (!list.length) return 'No disponible';
+    return list.map(entry => {
+      const ref = refs[entry.seat];
+      const active = !!ref?.active;
+      const status = active ? '🟢 Activo' : (ref ? '🟡 Inactivo' : '⚪ Inactivo');
+      const name = ref?.name ? ` · ${ref.name}` : '';
+      const pending = state.currentMatch ? (Matches.getKumiteSummary(state.currentMatch).pending || []) : [];
+      const pendingCount = pending.filter(p => String(p.seat || '') === String(entry.seat)).length;
+      const pendingLabel = pendingCount ? ` <span style="font-size:.78rem;color:#ef4444;margin-left:.35rem">📨${pendingCount}</span>` : '';
+      const encodedUrl = encodeURIComponent(entry.url || '');
+      const encodedCode = encodeURIComponent(entry.code || '');
+      return `
+        <div style="padding:.35rem 0;border-bottom:1px solid #dbeafe;display:flex;justify-content:space-between;gap:.4rem;align-items:center;">
+          <div><strong>${entry.seat}</strong> · ${entry.code} <span style="font-size:.72rem;color:${active ? '#15803d' : (ref ? '#b45309' : '#64748b')};">${status}${name}${pendingLabel}</span></div>
+          <button class="btn btn-outline btn-sm" type="button" onclick="showJudgeQr('${encodedUrl}','${encodedCode}','${entry.seat}')">QR</button>
+        </div>`;
+    }).join('');
+  }
+
+  function _buildJudgeAccessLinks() {
+    const kataEl = document.getElementById('judge-link-kata');
+    const kumiteEl = document.getElementById('judge-link-kumite');
+    if (kataEl) kataEl.innerHTML = _renderJudgeCodeList('kata');
+    if (kumiteEl) kumiteEl.innerHTML = _renderJudgeCodeList('kumite');
+  }
+
+  window.copyJudgeAccess = async function(discipline) {
+    try {
+      const entries = _getJudgeAccessData()[discipline] || [];
+      if (!entries.length) return;
+      const text = entries.map(item => `${item.seat}: ${item.code}`).join('\n');
+      await navigator.clipboard.writeText(text);
+      Display.toast(`Códigos ${discipline.toUpperCase()} copiados.`, 'success');
+    } catch (_) {
+      Display.toast('No se pudo copiar los códigos.', 'warning');
+    }
+  };
+
+  window.showJudgeQr = async function(encodedUrl, encodedCode, seat) {
+    const qrViewer = document.getElementById('judge-qr-viewer');
+    const qrCanvas = document.getElementById('judge-qr-canvas');
+    const qrTitle = document.getElementById('judge-qr-title');
+    const qrCode = document.getElementById('judge-qr-code');
+    if (!qrViewer || !qrCanvas) return;
+
+    const judgeUrl = decodeURIComponent(encodedUrl || '');
+    const judgeCode = decodeURIComponent(encodedCode || '');
+    const qrPayload = judgeUrl || judgeCode;
+    if (!qrPayload) return;
+
+    if (qrTitle) qrTitle.textContent = `QR ${seat || ''} · ${judgeCode || 'Acceso de juez'}`;
+    if (qrCode) qrCode.textContent = judgeCode || qrPayload;
+
+    try {
+      if (typeof QRious !== 'function') {
+        throw new Error('QRious no disponible');
+      }
+      // Generate a dataURL with QRious and draw it into the existing canvas.
+      const qrObj = new QRious({
+        value: qrPayload,
+        size: 220,
+        level: 'M',
+        foreground: '#0f172a',
+        background: '#ffffff',
+      });
+      const dataUrl = qrObj.toDataURL();
+      const img = new Image();
+      img.onload = function () {
+        try {
+          const ctx = qrCanvas.getContext && qrCanvas.getContext('2d');
+          if (ctx) {
+            ctx.clearRect(0, 0, qrCanvas.width, qrCanvas.height);
+            ctx.drawImage(img, 0, 0, qrCanvas.width, qrCanvas.height);
+          } else {
+            // fallback: replace canvas with the image
+            qrCanvas.style.display = 'none';
+            const parent = qrCanvas.parentElement;
+            if (parent) parent.appendChild(img);
+          }
+          qrViewer.style.display = 'block';
+        } catch (e) {
+          Display.toast('Error al dibujar el QR.', 'warning');
+        }
+      };
+      img.onerror = function () { Display.toast('No se pudo cargar la imagen del QR.', 'warning'); };
+      img.src = dataUrl;
+    } catch (e) {
+      Display.toast('No se pudo generar el QR de acceso.', 'warning');
+    }
+  };
+
+  window.closeJudgeQr = function() {
+    const qrViewer = document.getElementById('judge-qr-viewer');
+    if (qrViewer) qrViewer.style.display = 'none';
+  };
+
+  function _syncRefereeBadges(discipline = null) {
+    document.getElementById('nav-referee-badge').textContent = state.referee.name || 'Mesa';
+    document.getElementById('nav-seat-badge').textContent = 'Mesa';
+    document.getElementById('judge-seat-badge').textContent = 'Mesa';
+    document.getElementById('judge-discipline-badge').textContent = discipline ? discipline.toUpperCase() : 'Accesos';
+    const meta = document.getElementById('judge-station-meta');
+    if (meta) {
+      meta.textContent = state.currentMatch
+        ? `Mesa técnica ${state.referee.name || ''} · Tatami ${state.tatami || '—'} · Comparte los accesos a los jueces.`
+        : 'Ingresa el nombre del responsable y comparte los accesos de jueces.';
+    }
+    _buildJudgeAccessLinks();
+  }
+
+  function _updateJudgeSideButtons() {
+    const btnA = document.getElementById('judge-side-a');
+    const btnB = document.getElementById('judge-side-b');
+    if (btnA) btnA.style.outline = state.judgeSide === 'a' ? '3px solid #bfdbfe' : 'none';
+    if (btnB) btnB.style.outline = state.judgeSide === 'b' ? '3px solid #fecaca' : 'none';
+  }
+
+  async function _ensureJudgeAssignment(match) {
+    if (!match?.id || !state.referee.name) return;
+    const discipline = _isKataMatch(match) ? 'kata' : 'kumite';
+    const maxSeats   = discipline === 'kata' ? 5 : 4;
+    const live       = Matches.getLiveState(match);
+    const refs       = live[discipline]?.referees || {};
+
+    let seat = state.referee.seats[discipline];
+    const existing = Object.values(refs).find(r => r.code === state.referee.code || r.name === state.referee.name);
+    if (existing) {
+      seat = existing.seat;
+    } else {
+      const freeSeat = Array.from({ length: maxSeats }, (_, i) => 'J' + (i + 1)).find(key => !refs[key]);
+      seat = seat || freeSeat || ('J' + maxSeats);
+      try {
+        await Matches.registerReferee(match.id, {
+          seat,
+          name: state.referee.name,
+          code: state.referee.code,
+          tatami: state.tatami,
+          discipline,
+        });
+      } catch (_) {}
+    }
+
+    state.referee.seats[discipline] = seat;
+    state.referee.seat = seat;
+    _syncRefereeBadges(discipline);
+  }
+
+  async function _refreshCurrentMatch() {
+    if (!state.currentMatch?.id) return;
+    try {
+      const refreshed = await Matches.getById(state.currentMatch.id);
+      state.currentMatch = refreshed;
+      _renderCurrentMatch(refreshed);
+      _syncProjectionWindow();
+    } catch (_) {}
+  }
+
+  window.refreshJudgeBoard = function() {
+    return _refreshCurrentMatch();
+  };
+
+  async function _syncCurrentMatchFromPayload(payload) {
+    const changedMatchId =
+      payload?.matchId ||
+      payload?.new?.id ||
+      payload?.record?.id ||
+      payload?.old?.id ||
+      null;
+    if (!changedMatchId) return;
+
+    try {
+      const changedMatch = await Matches.getById(changedMatchId);
+      const changedTatami = changedMatch?.tatami ?? changedMatch?.category?.tatami ?? null;
+      if (state.tatami && String(changedTatami || '') !== String(state.tatami)) return;
+
+      // Si es el mismo combate que ya tenemos, solo refrescamos UI.
+      if (state.currentMatch?.id && String(state.currentMatch.id) === String(changedMatch.id)) {
+        state.currentMatch = changedMatch;
+        _renderCurrentMatch(changedMatch);
+        _syncProjectionWindow();
+        return;
+      }
+
+      // NO adoptamos automáticamente otro combate si ya hay uno en pantalla.
+      // Solo se cambia de combate mediante clic explícito del usuario en la cola
+      // o cuando se limpia el combate actual (ClearCurrentMatch).
+      if (state.currentMatch?.id) return;
+    } catch (_) {}
+  }
+
+  /* ---- Modo dev: inyectar tournamentId desde el primer torneo en localStorage ---- */
+  if (!state.tournamentId && Auth.isDevMode()) {
+    const devTournaments = JSON.parse(localStorage.getItem('ot_dev_tournaments') || '[]');
+    if (devTournaments.length) state.tournamentId = devTournaments[0].id;
+  }
+
+  /* ---- Poblar selector de tatamis dinámicamente desde num_tatamis del torneo ---- */
+  if (state.tournamentId) {
+    Tournament.getById(state.tournamentId).then(async t => {
+      const numT = (t && t.num_tatamis) ? parseInt(t.num_tatamis, 10) : 6;
+      const sel = document.getElementById('select-tatami');
+      sel.innerHTML = '<option value="">Seleccionar...</option>';
+      for (let i = 1; i <= numT; i++) {
+        sel.innerHTML += `<option value="${i}">Tatami ${i}</option>`;
+      }
+      if (state.tatami) {
+        sel.value = String(state.tatami);
+        await _previewTatamiCategories(state.tatami);
+        if (state.referee.name) _restoreTatamiSession();
+      }
+    }).catch(() => {});
+  }
+
+  /* ---- Preview de categorías al cambiar selección de tatami ---- */
+  window._previewTatamiCategories = async function(tatamiVal) {
+    const previewEl  = document.getElementById('tatami-preview');
+    const listEl     = document.getElementById('tatami-preview-list');
+    if (!tatamiVal || !state.tournamentId) { previewEl.style.display = 'none'; return; }
+    previewEl.style.display = 'block';
+    listEl.innerHTML = '<span class="text-xs text-muted">Cargando...</span>';
+    try {
+      const cats = await Categories.listByTournament(state.tournamentId);
+      const mine = cats.filter(c => String(c.tatami) === String(tatamiVal));
+      if (!mine.length) {
+        listEl.innerHTML = '<span class="text-xs text-muted">Sin categorías asignadas a este tatami.</span>';
+        return;
+      }
+      listEl.innerHTML = mine.map(c => {
+        const disc  = c.discipline === 'kumite'
+          ? '<span style="background:#c62828;color:#fff;padding:.1rem .35rem;border-radius:3px;font-size:.65rem;">kumite</span>'
+          : '<span style="background:#b45309;color:#fff;padding:.1rem .35rem;border-radius:3px;font-size:.65rem;">kata</span>';
+        const count = c.registrations_count !== undefined ? ` · ${c.registrations_count} comp.` : '';
+        return `<div style="display:flex;align-items:center;gap:.4rem;padding:.3rem 0;border-bottom:1px solid var(--border,#e5e7eb);">
+          ${disc}
+          <span style="font-size:.8rem;font-weight:600;">${c.name || c.discipline}</span>
+          <span style="font-size:.7rem;color:#94a3b8;">${count}</span>
+        </div>`;
+      }).join('');
+    } catch (e) {
+      listEl.innerHTML = `<span class="text-xs" style="color:#ef4444;">${e.message}</span>`;
+    }
+  };
+
+  /* ---- Nombre del torneo en navbar ---- */
+  if (session.tournamentName) {
+    document.getElementById('nav-tournament-name').textContent = session.tournamentName;
+  } else if (state.tournamentId) {
+    Tournament.getById(state.tournamentId).then(t => {
+      if (t) document.getElementById('nav-tournament-name').textContent = t.name;
+    }).catch(() => {});
+  }
+
+  /* ---- Selección de tatami ---- */
+  document.getElementById('btn-enter-tatami').addEventListener('click', () => {
+    const tatami = document.getElementById('select-tatami').value;
+    const refereeName = document.getElementById('referee-name').value.trim();
+    if (!tatami) { Display.toast('Selecciona un tatami.', 'warning'); return; }
+    if (!refereeName) { Display.toast('Escribe el nombre del responsable de mesa.', 'warning'); return; }
+    state.tatami = tatami;
+    state.referee.name = refereeName;
+    _persistRefereeProfile();
+    _syncRefereeBadges();
+    _updateJudgeSideButtons();
+    document.getElementById('view-select-tatami').style.display = 'none';
+    document.getElementById('view-referee-panel').style.display = 'block';
+    document.getElementById('judge-station-card').style.display = 'block';
+    document.getElementById('header-tatami').textContent = tatami;
+    document.getElementById('nav-tatami-badge').textContent = `Tatami ${tatami}`;
+    _init();
+  });
+
+  document.getElementById('btn-change-tatami').addEventListener('click', () => {
+    if (state.realtimeSub) {
+      try { state.realtimeSub.unsubscribe?.(); } catch (_) {}
+      try { supabase.removeChannel(state.realtimeSub); } catch(_){}
+    }
+    if (state.pollingInterval) { clearInterval(state.pollingInterval); state.pollingInterval = null; }
+    try { if (state.pingInterval) clearInterval(state.pingInterval); state.pingInterval = null; } catch(_){}
+    _closeProjectionWindow();
+    document.getElementById('view-referee-panel').style.display = 'none';
+    document.getElementById('view-select-tatami').style.display = 'block';
+    state.currentMatch = null;
+    state.tatami = null;
+    state.referee.seat = null;
+    state.selectedCategoryId = '';
+    _persistRefereeProfile();
+    _syncRefereeBadges();
+    _clearCurrentMatch();
+  });
+
+  document.getElementById('mesa-category-select').addEventListener('change', async (event) => {
+    state.selectedCategoryId = event.target.value || '';
+    _persistRefereeProfile();
+    _updateQueueTitle();
+    await _loadQueue();
+  });
+
+  /* ---- Init panel árbitro ---- */
+  async function _init() {
+    await _loadAssignedBrackets();
+    await _loadQueue();
+    _subscribeRealtime();
+    if (state.pollingInterval) clearInterval(state.pollingInterval);
+    state.pollingInterval = setInterval(() => {
+      _loadQueue();
+      _refreshCurrentMatch();
+    }, 60000);
+    // Start periodic ping to judges to maintain connection checks
+    try { if (state.pingInterval) clearInterval(state.pingInterval); } catch(_){}
+    state.pingInterval = setInterval(async () => {
+      try {
+        if (state.currentMatch?.id) await Matches.pingMatch(state.currentMatch.id);
+      } catch (_) {}
+    }, 15000);
+  }
+
+  async function _loadAssignedBrackets() {
+    if (!state.tournamentId || !state.tatami) return;
+    const el = document.getElementById('assigned-brackets');
+    if (!el) return;
+    el.innerHTML = '<div class="text-center p-3"><span class="spinner"></span></div>';
+
+    try {
+      const cats = await Categories.listByTournament(state.tournamentId);
+      const tournamentMatches = await Matches.listByTournament(state.tournamentId).catch(() => []);
+      const countsByCategory = {};
+      (tournamentMatches || []).forEach((m) => {
+        const catId = m.category_id || null;
+        if (!catId) return;
+        if (!countsByCategory[catId]) countsByCategory[catId] = { total: 0, finished: 0 };
+        countsByCategory[catId].total += 1;
+        if (m.status === MATCH_STATUS.FINISHED || m.status === MATCH_STATUS.BYE) {
+          countsByCategory[catId].finished += 1;
+        }
+      });
+      const mine = (cats || [])
+        .filter(c => String(c.tatami) === String(state.tatami))
+        .map(c => ({
+          ...c,
+          registrations_count: c.registrations?.[0]?.count ?? c.registrations?.count ?? c.registrations_count ?? 0,
+          matches_count: countsByCategory[c.id]?.total ?? (Array.isArray(c.matches) ? c.matches.length : (c.matches_count || 0)),
+          finished_count: countsByCategory[c.id]?.finished ?? (Array.isArray(c.matches)
+            ? c.matches.filter(m => m.status === MATCH_STATUS.FINISHED || m.status === MATCH_STATUS.BYE).length
+            : (c.finished_count || 0)),
+        }));
+
+      _populateCategoryPicker(mine);
+
+      if (!mine.length) {
+        el.innerHTML = '<div class="text-sm text-muted">No hay llaves o categorías asignadas a este tatami.</div>';
+        return;
+      }
+
+      Display.renderCategoryList(el, mine, async (cat) => {
+        try {
+          state.selectedCategoryId = cat.id;
+          document.getElementById('mesa-category-select').value = cat.id;
+          _persistRefereeProfile();
+          _updateQueueTitle();
+          const matches = await Matches.listByCategory(cat.id);
+          const next = (matches || []).find(m => m.status === MATCH_STATUS.ONGOING)
+            || (matches || []).find(m => m.status === MATCH_STATUS.PENDING && m.competitor_a_id);
+          if (next?.id) {
+            await callMatch(next.id);
+          } else {
+            const latestFinished = (matches || [])
+              .filter((m) => _isResultLocked(m))
+              .sort((a, b) => {
+                const ta = new Date(a.finished_at || a.updated_at || a.started_at || 0).getTime();
+                const tb = new Date(b.finished_at || b.updated_at || b.started_at || 0).getTime();
+                return tb - ta;
+              })[0];
+            if (latestFinished?.id) {
+              await callMatch(latestFinished.id);
+              _showLockedResultToast(latestFinished);
+            } else {
+              Display.toast('Esta llave no tiene combates pendientes aún.', 'info');
+            }
+          }
+        } catch (e) {
+          Display.toast(e.message, 'error');
+        }
+      });
+    } catch (e) {
+      el.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
+  }
+
+  function _formatBitacoraEntry(entry) {
+    const iconMap = {
+      conexion: '🟢',
+      kata_score: '🥋',
+      senal: '🧑‍⚖️',
+      falta: '⚠️',
+      mesa_decision: '⚖️',
+      resultado: '🏁',
+    };
+    const time = entry.at ? new Date(entry.at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '—';
+    const meta = [entry.category_name, entry.match_label, entry.seat].filter(Boolean).join(' · ');
+    return `
+      <div style="padding:.7rem .8rem;border-bottom:1px solid #e2e8f0;background:#fff;color:#111827;">
+        <div style="font-size:.84rem;font-weight:800;">${iconMap[entry.type] || '📝'} ${entry.label || 'Evento'}</div>
+        <div style="font-size:.86rem;margin-top:.15rem;">${entry.message || 'Actualización registrada.'}</div>
+        <div class="text-xs text-muted" style="margin-top:.2rem;">${time}${meta ? ' · ' + meta : ''}</div>
+      </div>`;
+  }
+
+  async function _loadBitacora() {
+    const el = document.getElementById('bitacora-list');
+    if (!el || !state.tournamentId || !state.tatami) return;
+    try {
+      const matches = await Matches.listByTournament(state.tournamentId);
+      const tatamiMatches = (matches || []).filter(
+        m => String(m.tatami ?? m.category?.tatami ?? '') === String(state.tatami)
+      );
+      const filtered = state.selectedCategoryId
+        ? tatamiMatches.filter(m => String(m.category_id || m.category?.id || '') === String(state.selectedCategoryId))
+        : tatamiMatches;
+      const entries = Matches.buildTournamentBitacora(filtered).slice(0, 18);
+      if (!entries.length) {
+        el.innerHTML = '<div class="text-center text-muted p-3">Sin eventos registrados todavía.</div>';
+        return;
+      }
+      el.innerHTML = entries.map(_formatBitacoraEntry).join('');
+    } catch (e) {
+      el.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
+  }
+
+  async function _loadCompletedMatches() {
+    const tbody = document.getElementById('completed-tbody');
+    if (!tbody || !state.tournamentId || !state.tatami) return;
+    try {
+      const matches = await Matches.listByTournament(state.tournamentId);
+      const tatamiMatches = (matches || []).filter(
+        m => String(m.tatami ?? m.category?.tatami ?? '') === String(state.tatami)
+      );
+      const completed = tatamiMatches
+        .filter(m => m.status === MATCH_STATUS.FINISHED || m.status === MATCH_STATUS.BYE)
+        .sort((a, b) => {
+          const ta = new Date(a.finished_at || a.updated_at || a.started_at || 0).getTime();
+          const tb = new Date(b.finished_at || b.updated_at || b.started_at || 0).getTime();
+          return tb - ta;
+        });
+
+      state.completedCount = completed.length;
+      if (!completed.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted p-3">Sin combates completados aún.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = completed.map((match, index) => {
+        const isKata = _isKataMatch(match);
+        const nameA = match.competitor_a?.competitors?.full_name || match.competitor_a?.full_name || 'Competidor A';
+        const nameB = match.competitor_b?.competitors?.full_name || match.competitor_b?.full_name || 'Competidor B';
+        const winnerName = match.winner?.competitors?.full_name
+          || (isKata ? nameA : (match.winner_id === match.competitor_a_id ? nameA : nameB));
+        const score = isKata
+          ? (match.score_a != null ? Number(match.score_a).toFixed(2) : '—')
+          : (match.score_a != null ? `${match.score_a} – ${match.score_b}` : '—');
+        const time = match.finished_at
+          ? new Date(match.finished_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+          : '—';
+        return `
+          <tr>
+            <td>${completed.length - index}</td>
+            <td class="text-sm">${match.category?.name || '—'}</td>
+            <td><strong>${winnerName || '—'}</strong></td>
+            <td>${score}</td>
+            <td class="text-muted text-sm">${time}</td>
+          </tr>`;
+      }).join('');
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger p-3">${e.message}</td></tr>`;
+    }
+  }
+
+  async function _loadBracketResultsBoard() {
+    const tbody = document.getElementById('bracket-results-tbody');
+    if (!tbody || !state.tournamentId || !state.tatami) return;
+    try {
+      const matches = await Matches.listByTournament(state.tournamentId);
+      const tatamiMatches = (matches || []).filter(
+        m => String(m.tatami ?? m.category?.tatami ?? '') === String(state.tatami)
+      );
+
+      const finishedMatches = tatamiMatches
+        .filter((m) => m.status === MATCH_STATUS.FINISHED || m.status === MATCH_STATUS.BYE || !!m.winner_id || m.score_a != null || m.score_b != null)
+        .sort((a, b) => {
+          const ta = new Date(a.finished_at || a.updated_at || a.started_at || 0).getTime();
+          const tb = new Date(b.finished_at || b.updated_at || b.started_at || 0).getTime();
+          return tb - ta;
+        });
+
+      if (!finishedMatches.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted p-3">Sin resultados de llaves aún.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = finishedMatches.map((match) => {
+        const isKata = _isKataMatch(match);
+        const discipline = isKata ? 'kata' : 'kumite';
+        const disciplineBadge = isKata
+          ? '<span class="badge" style="background:#b45309;color:#fff;">KATA</span>'
+          : '<span class="badge" style="background:#1565c0;color:#fff;">KUMITE</span>';
+        const nameA = match.competitor_a?.competitors?.full_name || match.competitor_a?.full_name || 'Competidor A';
+        const nameB = match.competitor_b?.competitors?.full_name || match.competitor_b?.full_name || 'Competidor B';
+        const winnerName = match.winner?.competitors?.full_name
+          || (isKata ? nameA : (match.winner_id === match.competitor_a_id ? nameA : (match.winner_id === match.competitor_b_id ? nameB : '—')));
+        const duel = isKata ? `🥋 ${nameA}` : `${nameA} vs ${nameB}`;
+        const result = (match.status === MATCH_STATUS.BYE)
+          ? 'BYE'
+          : (isKata
+            ? (match.score_a != null ? Number(match.score_a).toFixed(2) : '—')
+            : (match.score_a != null || match.score_b != null ? `${match.score_a ?? '—'} – ${match.score_b ?? '—'}` : '—'));
+        const roundLabel = match.round_label || (match.round ? `R${match.round}` : '—');
+        const time = match.finished_at
+          ? new Date(match.finished_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+          : '—';
+        const winnerCell = winnerName && winnerName !== '—'
+          ? `<span style="display:inline-flex;align-items:center;gap:.35rem;padding:.2rem .45rem;border-radius:6px;background:#dcfce7;color:#166534;font-weight:800;">🏆 ${winnerName}</span>`
+          : '<span class="text-muted">—</span>';
+        const resultCell = match.status === MATCH_STATUS.BYE
+          ? '<span class="badge badge-muted">BYE</span>'
+          : `<strong>${result}</strong>`;
+
+        return `
+          <tr>
+            <td class="text-sm">${disciplineBadge} <span style="margin-left:.35rem;">${match.category?.name || '—'}</span></td>
+            <td class="text-sm">${roundLabel}</td>
+            <td class="text-sm">${duel}</td>
+            <td>${winnerCell}</td>
+            <td>${resultCell}</td>
+            <td class="text-muted text-sm">${time}</td>
+          </tr>`;
+      }).join('');
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger p-3">${e.message}</td></tr>`;
+    }
+  }
+
+  /* ---- Cola de combates ---- */
+  async function _loadQueue() {
+    if (!state.tournamentId || !state.tatami) return;
+    const queueEl = document.getElementById('match-queue');
+    await _loadAssignedBrackets();
+    try {
+      const pending = await Matches.listPendingByTatami(state.tournamentId, state.tatami);
+      const filteredPending = state.selectedCategoryId
+        ? pending.filter(m => String(m.category_id || m.category?.id || '') === String(state.selectedCategoryId))
+        : pending;
+      document.getElementById('queue-count').textContent = filteredPending.length;
+      _updateQueueTitle();
+      await _loadBitacora();
+      await _loadCompletedMatches();
+      await _loadBracketResultsBoard();
+
+      if (!state.currentMatch) {
+        const rememberedMatchId = _consumeRememberedFinishedMatch();
+        if (rememberedMatchId) {
+          try {
+            await callMatch(rememberedMatchId);
+          } catch (_) {}
+        }
+      }
+
+      if (!filteredPending.length) {
+        queueEl.innerHTML = `<div class="empty-state" style="padding:1.5rem;"><div class="empty-icon" style="font-size:1.8rem;">✅</div><p>${state.selectedCategoryId ? 'No hay atletas o combates pendientes en esta categoría.' : 'Sin combates en cola'}</p></div>`;
+        return;
+      }
+
+      queueEl.innerHTML = filteredPending.map((m, i) => {
+        const nameA  = m.competitor_a?.competitors?.full_name || m.competitor_a?.full_name || '?';
+        const _qDojoA = Dojos.getFromCache(m.competitor_a?.competitors?.dojo_id || m.competitor_a?.dojo_id);
+        const _qCountryA = getCountryInfo(m.competitor_a?.competitors?.country || m.competitor_a?.country);
+        const clubA  = (_qDojoA ? (_qDojoA.logo_url ? `<img src="${_qDojoA.logo_url}" style="width:12px;height:12px;object-fit:contain;border-radius:2px;vertical-align:middle;" /> ` : '🥋 ') + `${_qDojoA.name} ` : '')
+          + (_qCountryA.flag ? `${_qCountryA.flag} ${_qCountryA.name}` : '')
+          || (m.competitor_a?.competitors?.club || m.competitor_a?.club || '');
+        const nameB  = m.competitor_b?.competitors?.full_name || m.competitor_b?.full_name || null;
+        const _qDojoB = Dojos.getFromCache(m.competitor_b?.competitors?.dojo_id || m.competitor_b?.dojo_id);
+        const _qCountryB = getCountryInfo(m.competitor_b?.competitors?.country || m.competitor_b?.country);
+        const clubB  = (_qDojoB ? (_qDojoB.logo_url ? `<img src="${_qDojoB.logo_url}" style="width:12px;height:12px;object-fit:contain;border-radius:2px;vertical-align:middle;" /> ` : '🥋 ') + `${_qDojoB.name} ` : '')
+          + (_qCountryB.flag ? `${_qCountryB.flag} ${_qCountryB.name}` : '')
+          || (m.competitor_b?.competitors?.club || m.competitor_b?.club || '');
+        const isKata = m.bracket_type === 'kata_round';
+        const matchLabel = isKata
+          ? `🥋 <strong>${nameA}</strong>${clubA ? ' <span class="text-muted">(' + clubA + ')</span>' : ''}`
+          : `<strong>${nameA}</strong>${clubA ? ' <span class="text-muted text-xs">(${clubA})</span>' : ''} <span class="text-muted">vs</span> <strong>${nameB || '?'}</strong>${clubB ? ' <span class="text-muted text-xs">(${clubB})</span>' : ''}`;
+        return `
+        <div class="flex items-center justify-between p-2"
+             style="${i > 0 ? 'border-top:1px solid var(--border);' : ''}cursor:pointer;"
+             onclick="callMatch('${m.id}')">
+          <div style="flex:1;min-width:0;">
+            <div class="text-sm" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${matchLabel}</div>
+            <div class="text-xs text-muted">${m.category?.name || '—'} · ${m.round_label || 'R' + m.round}</div>
+          </div>
+          <span class="badge ${i === 0 ? 'badge-gold' : 'badge-muted'}" style="flex-shrink:0;margin-left:.5rem;">${i === 0 ? 'Siguiente' : '#' + (i + 1)}</span>
+        </div>`;
+      }).join('');
+
+      // Solo auto-seleccionamos el primer combate si NO hay ninguno en pantalla.
+      // Si ya hay un combate (aunque no esté bloqueado), respetamos la selección del usuario.
+      if (!state.currentMatch) {
+        const preferred = filteredPending.find(m => m.status === MATCH_STATUS.ONGOING) || filteredPending[0];
+        if (preferred?.id) {
+          callMatch(preferred.id);
+        }
+      }
+    } catch (e) {
+      queueEl.innerHTML = `<div class="alert alert-danger m-2">${e.message}</div>`;
+    }
+  }
+
+  /* ---- Llamar combate ---- */
+  window.callMatch = async function(matchId) {
+    try {
+      const match = await Matches.getById(matchId);
+      state.currentMatch = match;
+      // Al llamar un combate, limpiamos override para que la pantalla extendida lo muestre
+      if (state.projectionModeOverride === 'generic_board' || state.projectionModeOverride === 'category_awards') {
+        state.projectionModeOverride = null;
+        state.genericModeActive = false;
+      }
+      if (!state.projectionLiveActive && match?.id) {
+        state.projectionLiveActive = true;
+      }
+      _renderCurrentMatch(state.currentMatch);
+      _syncProjectionWindow();
+      _syncMatchActionState(state.currentMatch);
+      document.getElementById('match-actions').style.display = 'block';
+      _setFinalResultStatus(state.currentMatch);
+      _setSyncIndicator('idle', 'Listo para sincronizar cambios de mesa.');
+      if (_isResultLocked(match)) _showLockedResultToast(match);
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  };
+
+  function _isKataMatch(match) {
+    return match?.bracket_type === 'kata_round'
+        || match?.category?.discipline === 'kata';
+  }
+
+  function _isKumiteMatch(match) {
+    return !match ? false : !_isKataMatch(match);
+  }
+
+  function _isResultLocked(match) {
+    if (!match) return false;
+    if (match.status === MATCH_STATUS.FINISHED || match.status === MATCH_STATUS.BYE) return true;
+    return !!(match.winner_id || match.score_a != null || match.score_b != null);
+  }
+
+  function _showLockedResultToast(match) {
+    if (_isKataMatch(match)) {
+      Display.toast('Este participante ya ejecuto su kata.', 'info');
+    } else {
+      Display.toast('Este combate ya termino.', 'info');
+    }
+  }
+
+  function _syncMatchActionState(match) {
+    const startBtn = document.getElementById('btn-start-match');
+    const resultBtn = document.getElementById('btn-record-result');
+    if (!startBtn || !resultBtn) return;
+
+    const locked = _isResultLocked(match);
+    const ongoing = match?.status === MATCH_STATUS.ONGOING;
+    startBtn.disabled = locked || ongoing;
+
+    if (locked) {
+      resultBtn.disabled = true;
+      resultBtn.textContent = _isKataMatch(match)
+        ? '✅ Kata ya ejecutada'
+        : '✅ Combate terminado';
+      return;
+    }
+
+    resultBtn.disabled = false;
+    resultBtn.textContent = '✅ Registrar Resultado';
+  }
+
+  function _renderCurrentMatch(match) {
+    Dojos.ensureCache().catch(() => {});
+    const isKata = _isKataMatch(match);
+    const isLocked = _isResultLocked(match);
+    const nameA = match.competitor_a?.competitors?.full_name || match.competitor_a?.full_name || 'Competidor A';
+    const _dojoA = Dojos.getFromCache(match.competitor_a?.competitors?.dojo_id || match.competitor_a?.dojo_id);
+    const _countryA = getCountryInfo(match.competitor_a?.competitors?.country || match.competitor_a?.country);
+    const clubA = (_dojoA ? (_dojoA.logo_url ? `<img src="${_dojoA.logo_url}" style="width:14px;height:14px;object-fit:contain;border-radius:2px;vertical-align:middle;" /> ` : '🥋 ') + `${_dojoA.name} ` : '')
+      + (_countryA.flag ? `${_countryA.flag} ${_countryA.name}` : '');
+
+    document.getElementById('header-category').textContent =
+      `${match.category?.name || '—'} · ${match.round_label || ''}`;
+
+    /* -- Actualizar card de info en panel derecho -- */
+    const ciCard = document.getElementById('category-info-card');
+    if (ciCard) {
+      ciCard.style.display = 'block';
+      document.getElementById('ci-name').textContent = match.category?.name || '—';
+
+      const disc     = match.category?.discipline || (isKata ? 'kata' : 'kumite');
+      const discColor= disc === 'kata' ? '#b45309' : '#1565c0';
+      const round    = match.round_label || ('Ronda ' + (match.round || ''));
+      document.getElementById('ci-badges').innerHTML = `
+        <span style="background:${discColor};color:#fff;padding:.15rem .45rem;border-radius:4px;font-size:.7rem;font-weight:600;">${disc.toUpperCase()}</span>
+        <span class="badge badge-muted">${round}</span>
+        ${match.category?.gender ? `<span class="badge ${match.category.gender === 'M' ? 'badge-blue' : 'badge-pink'}">${match.category.gender === 'M' ? '♂ Masc.' : '♀ Fem.'}</span>` : ''}
+      `;
+
+      if (isKata) {
+        document.getElementById('ci-fighters').innerHTML = `
+          <div style="flex:1;background:#2d1b69;color:#fff;border-radius:6px;padding:.5rem .75rem;">
+            <div style="font-size:.65rem;text-transform:uppercase;opacity:.7;margin-bottom:.15rem;">🥋 Atleta</div>
+            <div style="font-weight:700;">${nameA}</div>
+            <div style="font-size:.75rem;opacity:.8;">${clubA}</div>
+          </div>`;
+      } else {
+        const nameB = match.competitor_b?.competitors?.full_name || match.competitor_b?.full_name || 'Competidor B';
+        const clubB = Dojos.renderDojoBadge(Dojos.getFromCache(match.competitor_b?.competitors?.dojo_id || match.competitor_b?.dojo_id), 16)
+          + ' ' + Dojos.renderCountryBadge(match.competitor_b?.competitors?.country || match.competitor_b?.country, 13)
+          || match.competitor_b?.competitors?.club || match.competitor_b?.club || '';
+        document.getElementById('ci-fighters').innerHTML = `
+          <div style="flex:1;background:#1565c0;color:#fff;border-radius:6px;padding:.5rem .75rem;text-align:center;">
+            <div style="font-size:.62rem;text-transform:uppercase;opacity:.7;margin-bottom:.1rem;">AO</div>
+            <div style="font-weight:700;font-size:.92rem;">${nameA}</div>
+            <div style="font-size:.72rem;opacity:.8;">${clubA}</div>
+          </div>
+          <div style="display:flex;align-items:center;padding:0 .3rem;font-weight:900;opacity:.5;font-size:.8rem;">VS</div>
+          <div style="flex:1;background:#c62828;color:#fff;border-radius:6px;padding:.5rem .75rem;text-align:center;">
+            <div style="font-size:.62rem;text-transform:uppercase;opacity:.7;margin-bottom:.1rem;">AKA</div>
+            <div style="font-weight:700;font-size:.92rem;">${nameB}</div>
+            <div style="font-size:.72rem;opacity:.8;">${clubB}</div>
+          </div>`;
+      }
+    }
+
+    /* -- Renderizar combate en el panel izquierdo -- */
+    const isKataDuel = isKata && !!match.competitor_b_id;
+    if (isKata) {
+      if (isKataDuel) {
+        const nameB = match.competitor_b?.competitors?.full_name || match.competitor_b?.full_name || 'Competidor B';
+        const clubB = Dojos.renderDojoBadge(Dojos.getFromCache(match.competitor_b?.competitors?.dojo_id || match.competitor_b?.dojo_id), 16)
+          + ' ' + Dojos.renderCountryBadge(match.competitor_b?.competitors?.country || match.competitor_b?.country, 13)
+          || match.competitor_b?.competitors?.club || match.competitor_b?.club || '';
+        const duelSummary = Matches.getKataDuelSummary(match);
+        const scoreA = isLocked && match.score_a != null ? Number(match.score_a).toFixed(2) : '—';
+        const scoreB = isLocked && match.score_b != null ? Number(match.score_b).toFixed(2) : '—';
+        const winnerSide = match.winner_id === match.competitor_a_id ? 'a' : (match.winner_id === match.competitor_b_id ? 'b' : null);
+        const kataResultNote = isLocked
+          ? `<div style="margin-top:.9rem;padding:.55rem .7rem;border-radius:10px;background:#16a34a;color:#fff;font-weight:800;text-align:center;">✅ Duelo terminado · Ganador: ${winnerSide === 'a' ? (nameA + ' (AO)') : (nameB + ' (AKA)')} · Jueces: ${duelSummary.scoreA}-${duelSummary.scoreB}</div>`
+          : '';
+        document.getElementById('current-match-display').innerHTML = `
+          <div class="match-display">
+            <div class="match-header">
+              <span>${match.category?.name || '—'}</span>
+              <span>🥋 ${match.round_label || 'Ronda ' + match.round}</span>
+            </div>
+            <div class="match-body" style="display:grid;grid-template-columns:1fr auto 1fr;padding:1rem;align-items:stretch;">
+              <div class="match-fighter" id="fighter-a" style="background:linear-gradient(135deg,#1565c0,#0f3ea8);color:#fff;">
+                <div class="match-fighter-name">${nameA}</div>
+                <div class="match-fighter-info">AO · ${clubA}</div>
+                <div class="match-fighter-score" id="score-a">${scoreA}</div>
+              </div>
+              <div class="match-vs">VS</div>
+              <div class="match-fighter" id="fighter-b" style="background:linear-gradient(135deg,#c62828,#991b1b);color:#fff;">
+                <div class="match-fighter-name">${nameB}</div>
+                <div class="match-fighter-info">AKA · ${clubB}</div>
+                <div class="match-fighter-score" id="score-b">${scoreB}</div>
+              </div>
+            </div>
+            ${kataResultNote}
+          </div>
+        `;
+      } else {
+        const kataSummaryLive = Matches.getKataSummary(match);
+        const kataScore = match.score_a != null
+          ? Number(match.score_a).toFixed(2)
+          : (kataSummaryLive?.total != null ? Number(kataSummaryLive.total).toFixed(2) : '—');
+        const kataResultNote = isLocked
+          ? `<div style="margin-top:.9rem;padding:.55rem .7rem;border-radius:10px;background:#f59e0b;color:#111827;font-weight:800;text-align:center;">✅ Este participante ya ejecuto su kata · Nota final: ${kataScore}</div>`
+          : '';
+        document.getElementById('current-match-display').innerHTML = `
+          <div class="match-display">
+            <div class="match-header">
+              <span>${match.category?.name || '—'}</span>
+              <span>🥋 ${match.round_label || 'Ronda ' + match.round}</span>
+            </div>
+            <div class="match-body" style="justify-content:center;">
+              <div class="match-fighter" id="fighter-a" style="flex:unset;min-width:260px;text-align:center;">
+                <div class="match-fighter-name">${nameA}</div>
+                <div class="match-fighter-info">${clubA}</div>
+                <div class="match-fighter-score" id="score-a">—</div>
+              </div>
+            </div>
+            ${kataResultNote}
+          </div>
+        `;
+      }
+    } else {
+      const nameB = match.competitor_b?.competitors?.full_name || match.competitor_b?.full_name || 'Competidor B';
+      const clubB = Dojos.renderDojoBadge(Dojos.getFromCache(match.competitor_b?.competitors?.dojo_id || match.competitor_b?.dojo_id), 16)
+          + ' ' + Dojos.renderCountryBadge(match.competitor_b?.competitors?.country || match.competitor_b?.country, 13)
+          || match.competitor_b?.competitors?.club || match.competitor_b?.club || '';
+      const winnerName = match.winner?.competitors?.full_name
+        || (match.winner_id === match.competitor_a_id ? nameA : (match.winner_id === match.competitor_b_id ? nameB : '—'));
+      const scoreText = (match.score_a != null || match.score_b != null)
+        ? `${match.score_a ?? '—'} – ${match.score_b ?? '—'}`
+        : '—';
+      const kumiteResultNote = isLocked
+        ? `<div style="margin-top:.9rem;padding:.55rem .7rem;border-radius:10px;background:#16a34a;color:#fff;font-weight:800;text-align:center;">✅ Este combate ya termino · Ganador: ${winnerName} · Resultado: ${scoreText}</div>`
+        : '';
+      document.getElementById('current-match-display').innerHTML = `
+        <div class="match-display">
+          <div class="match-header">
+            <span>${match.category?.name || '—'}</span>
+            <span>${match.round_label || 'Ronda ' + match.round}</span>
+          </div>
+          <div class="match-body">
+            <div class="match-fighter" id="fighter-a">
+              <div class="match-fighter-name">${nameA}</div>
+              <div class="match-fighter-info">${clubA}</div>
+              <div class="match-fighter-score" id="score-a">0</div>
+            </div>
+            <div class="match-vs">VS</div>
+            <div class="match-fighter" id="fighter-b">
+              <div class="match-fighter-name">${nameB}</div>
+              <div class="match-fighter-info">${clubB}</div>
+              <div class="match-fighter-score" id="score-b">0</div>
+            </div>
+          </div>
+          ${kumiteResultNote}
+        </div>
+      `;
+    }
+
+    _syncMatchActionState(match);
+    document.getElementById('judge-station-card').style.display = 'block';
+    document.getElementById('judges-live-board').style.display = 'none';
+    _renderLiveJudging(match);
+  }
+
+  function _renderKataJudgeGrid(match) {
+    const grid = document.getElementById('kata-judge-grid');
+    if (!grid) return { ready: false, submitted: 0, total: null };
+    const summary = Matches.getKataSummary(match);
+    const seats = ['J1', 'J2', 'J3', 'J4', 'J5'];
+    const judgeMap = Object.fromEntries(summary.judges.map(j => [j.seat, j]));
+    grid.innerHTML = seats.map(seat => {
+      const j = judgeMap[seat] || { judge_name: 'Mesa Tecnica', score: null };
+      const scoreValue = Number.isFinite(Number(j.score)) ? Number(j.score).toFixed(2) : '';
+      return `
+        <div style="background:#fff;border:1px solid #ddd6fe;border-radius:8px;padding:.55rem;text-align:center;color:#111827;">
+          <div style="font-size:.68rem;text-transform:uppercase;color:#7c3aed;letter-spacing:.08em;">${seat}</div>
+          <div style="font-size:.72rem;font-weight:700;min-height:18px;margin:.2rem 0;color:#111827;">Mesa Tecnica</div>
+          <input type="number" class="form-control text-center kata-manual-input" data-seat="${seat}" min="0" max="9.99" step="0.01" value="${scoreValue}" oninput="calcKataTotal()" style="font-size:1.1rem;font-weight:900;color:#6d28d9;" placeholder="0.00" />
+        </div>`;
+    }).join('');
+
+    const totalEl = document.getElementById('kata-total');
+    const detailEl = document.getElementById('kata-detail');
+    totalEl.textContent = summary.total != null ? Number(summary.total).toFixed(2) : '—';
+    detailEl.textContent = summary.ready
+      ? `Descartados ${Number(summary.dropped_low).toFixed(2)} y ${Number(summary.dropped_high).toFixed(2)}. Total final ${Number(summary.total).toFixed(2)}.`
+      : `Faltan ${Math.max(0, 5 - summary.submitted)} juez(ces) por registrar.`;
+    _buildKataOverrideGrid(Object.fromEntries(summary.judges.map(judge => [judge.seat, judge.score])));
+    return summary;
+  }
+
+  function _renderKataDuelGrid(match) {
+    if (!match) return;
+    const duelPanel = document.getElementById('kata-duel-panel');
+    const nameGroup = document.getElementById('kata-name-group');
+    const individualGrid = document.getElementById('kata-judge-grid');
+    if (!duelPanel) return;
+
+    // Mostrar panel de duelo y ocultar el individual
+    duelPanel.style.display = 'block';
+    if (nameGroup) nameGroup.style.display = 'none';
+    if (individualGrid) individualGrid.style.display = 'none';
+
+    const nameA = match.competitor_a?.competitors?.full_name || match.competitor_a?.full_name || 'Competidor A';
+    const nameB = match.competitor_b?.competitors?.full_name || match.competitor_b?.full_name || 'Competidor B';
+    document.getElementById('kata-duel-name-a').textContent = nameA;
+    document.getElementById('kata-duel-name-b').textContent = nameB;
+
+    const seats = ['J1', 'J2', 'J3', 'J4', 'J5'];
+    const summary = Matches.getKataDuelSummary(match);
+
+    const buildSideGrid = (containerId, side) => {
+      const grid = document.getElementById(containerId);
+      if (!grid) return;
+      const judges = side === 'a' ? summary.summaryA.judges : summary.summaryB.judges;
+      grid.innerHTML = seats.map(seat => {
+        const j = judges.find(judge => judge.seat === seat) || { score: null };
+        const scoreValue = Number.isFinite(Number(j.score)) ? Number(j.score).toFixed(2) : '';
+        return `
+          <div style="text-align:center;">
+            <div style="font-size:.62rem;text-transform:uppercase;opacity:.7;">${seat}</div>
+            <input type="number" class="form-control text-center kata-duel-input" data-side="${side}" data-seat="${seat}" min="0" max="9.99" step="0.01" value="${scoreValue}" oninput="calcKataDuelTotal()" style="font-size:1rem;font-weight:800;" placeholder="0.00" />
+          </div>`;
+      }).join('');
+    };
+
+    buildSideGrid('kata-judge-grid-a', 'a');
+    buildSideGrid('kata-judge-grid-b', 'b');
+
+    // Actualizar totales y resumen
+    _updateKataDuelTotals(summary);
+  }
+
+  function _getKataDuelScoresFromInputs() {
+    const scoresA = {};
+    const scoresB = {};
+    document.querySelectorAll('.kata-duel-input').forEach(input => {
+      const side = input.dataset.side;
+      const seat = input.dataset.seat;
+      const rawValue = String(input.value || '').replace(',', '.').trim();
+      const value = Number(rawValue);
+      const valid = /^\d(?:\.\d{1,2})?$/.test(rawValue) && Number.isFinite(value) && value >= 0 && value <= 9.99;
+      const target = side === 'b' ? scoresB : scoresA;
+      target[seat] = valid ? Number(value.toFixed(2)) : null;
+    });
+    return { scoresA, scoresB };
+  }
+
+  function _getKataDuelSummaryFromInputs() {
+    const { scoresA, scoresB } = _getKataDuelScoresFromInputs();
+    const summaryA = _getKataSummaryFromScores(scoresA);
+    const summaryB = _getKataSummaryFromScores(scoresB);
+    const ready = summaryA.ready && summaryB.ready;
+
+    let scoreA = 0, scoreB = 0;
+    const seats = ['J1','J2','J3','J4','J5'];
+    seats.forEach(seat => {
+      const sa = Number(scoresA[seat]);
+      const sb = Number(scoresB[seat]);
+      if (Number.isFinite(sa) && Number.isFinite(sb)) {
+        if (sa > sb) scoreA++;
+        else if (sb > sa) scoreB++;
+      }
+    });
+
+    let winner = null;
+    if (ready) {
+      if (scoreA > scoreB) winner = 'a';
+      else if (scoreB > scoreA) winner = 'b';
+      else if (summaryA.total != null && summaryB.total != null) {
+        if (summaryA.total > summaryB.total) winner = 'a';
+        else if (summaryB.total > summaryA.total) winner = 'b';
+      }
+    }
+
+    return { summaryA, summaryB, ready, scoreA, scoreB, winner };
+  }
+
+  function _updateKataDuelTotals(summary) {
+    const totalAEl = document.getElementById('kata-duel-total-a');
+    const totalBEl = document.getElementById('kata-duel-total-b');
+    const winnerEl = document.getElementById('kata-duel-winner');
+    if (totalAEl) totalAEl.textContent = summary.summaryA?.total != null ? Number(summary.summaryA.total).toFixed(2) : '—';
+    if (totalBEl) totalBEl.textContent = summary.summaryB?.total != null ? Number(summary.summaryB.total).toFixed(2) : '—';
+    if (winnerEl) {
+      if (summary.ready) {
+        if (summary.winner) {
+          const name = summary.winner === 'a' ? (document.getElementById('kata-duel-name-a')?.textContent || 'AO') : (document.getElementById('kata-duel-name-b')?.textContent || 'AKA');
+          winnerEl.textContent = `🏆 Ganador: ${name} (${summary.winner === 'a' ? 'AO' : 'AKA'}) · Jueces ${summary.scoreA}-${summary.scoreB}`;
+        } else {
+          winnerEl.textContent = 'Empate en jueces y total. Decidir manualmente.';
+        }
+      } else {
+        winnerEl.textContent = 'Completa las 5 notas de ambos contendientes...';
+      }
+    }
+    document.getElementById('btn-save-result').disabled = !summary.ready;
+  }
+
+  window.calcKataDuelTotal = function() {
+    const summary = _getKataDuelSummaryFromInputs();
+    _updateKataDuelTotals(summary);
+  };
+
+  function _renderLiveJudging(match) {
+    if (!match) return;
+    const isKata = _isKataMatch(match);
+    const isDuel = isKata && !!match.competitor_b_id;
+    if (isDuel) {
+      _renderKataDuelGrid(match);
+      const summary = Matches.getKataDuelSummary(match);
+      _updateKataDuelTotals(summary);
+      _persistProjectionLiveState();
+      return;
+    }
+    document.getElementById('judge-station-card').style.display = 'block';
+    document.getElementById('judges-live-board').style.display = 'none';
+
+    if (isKata) {
+      const summary = _renderKataJudgeGrid(match);
+      const scoreEl = document.getElementById('score-a');
+      const kataTotal = summary.total != null
+        ? Number(summary.total).toFixed(2)
+        : (match.score_a != null ? Number(match.score_a).toFixed(2) : '—');
+      if (scoreEl) scoreEl.textContent = kataTotal;
+      _persistProjectionLiveState();
+      
+      // Banderas UI
+      const flagBoard = document.getElementById('judge-flag-board');
+      if (flagBoard) {
+        const isFlagMode = match.category?.rules?.kata_mode === 'flag' || match.category?.kata_mode === 'flag';
+        flagBoard.style.display = isFlagMode ? 'block' : 'none';
+        if (isFlagMode) {
+          const flagSummary = Matches.getFlagSummary(match);
+          const contentEl = document.getElementById('judge-flag-content');
+          const summaryEl = document.getElementById('judge-flag-summary');
+          if (contentEl) {
+            contentEl.innerHTML = flagSummary.judges.map(j => `
+              <div style="font-size:.7rem;color:#111827;">
+                <div style="font-weight:700;">${j.seat}</div>
+                <div style="width:20px;height:20px;margin:2px auto;border-radius:3px;background:${j.vote === 'a' ? '#1565 la' : (j.vote === 'b' ? '#c62828' : '#cbd5e1')}"></div>
+              </div>
+            `).join('');
+          }
+          if (summaryEl) {
+            summaryEl.textContent = `AO: ${flagSummary.a} 🚩 | AKA: ${flagSummary.b} 🚩`;
+          }
+        }
+      }
+    } else {
+      const summary = Matches.getKumiteSummary(match);
+      _kumite = {
+        a: match.score_a != null ? Number(match.score_a) : summary.scoreA,
+        b: match.score_b != null ? Number(match.score_b) : summary.scoreB,
+        histA: summary.histA,
+        histB: summary.histB,
+        winner: summary.winner,
+        senshu: summary.senshu,
+        warnA: summary.warnA,
+        warnB: summary.warnB,
+      };
+      if (!_kumite.winner && match.winner_id) {
+        if (match.competitor_a_id && match.winner_id === match.competitor_a_id) _kumite.winner = 'a';
+        if (match.competitor_b_id && match.winner_id === match.competitor_b_id) _kumite.winner = 'b';
+      }
+      const scoreAEl = document.getElementById('score-a');
+      const scoreBEl = document.getElementById('score-b');
+      if (scoreAEl) scoreAEl.textContent = _kumite.a;
+      if (scoreBEl) scoreBEl.textContent = _kumite.b;
+      _updateKumiteUI();
+      if (summary.winner && state.currentMatch) {
+        state.selectedWinnerId = summary.winner === 'a' ? state.currentMatch.competitor_a_id : state.currentMatch.competitor_b_id;
+      } else {
+        state.selectedWinnerId = null;
+      }
+    }
+  }
+
+  function _clearCurrentMatch() {
+    state.currentMatch = null;
+    state.selectedWinnerId = null;
+    state.manualKumiteTouched = false;
+    state.projectionLiveActive = false;
+    _syncProjectionWindow();
+    const liveKey = _getProjectionLiveKey();
+    if (liveKey) {
+      try { localStorage.removeItem(liveKey); } catch (_) {}
+    }
+    document.getElementById('current-match-display').innerHTML = `
+      <div class="empty-state" style="padding:2rem;">
+        <div class="empty-icon">⚔️</div>
+        <h3>Sin combate activo</h3>
+        <p>Llama al primer combate de la cola.</p>
+      </div>
+    `;
+    document.getElementById('match-actions').style.display = 'none';
+    document.getElementById('judge-station-card').style.display = 'block';
+    document.getElementById('judges-live-board').style.display = 'none';
+    _setFinalResultStatus(null);
+    _setSyncIndicator('idle', 'Sin cambios pendientes.');
+    const ciCard = document.getElementById('category-info-card');
+    if (ciCard) ciCard.style.display = 'none';
+  }
+
+  /* ---- Iniciar combate ---- */
+  document.getElementById('btn-start-match').addEventListener('click', async () => {
+    if (!state.currentMatch) return;
+    if (_isResultLocked(state.currentMatch)) {
+      _showLockedResultToast(state.currentMatch);
+      return;
+    }
+    try {
+      await Matches.startMatch(state.currentMatch.id);
+      state.projectionLiveActive = true;
+      await _refreshCurrentMatch();
+      _syncProjectionWindow();
+      Display.toast('Combate iniciado. Registra acciones y confirma resultado cuando corresponda.', 'info');
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  });
+
+  /* ---- Cancelar (devuelve a la cola) ---- */
+  document.getElementById('btn-cancel-match').addEventListener('click', () => {
+    _clearCurrentMatch();
+    Display.toast('Combate devuelto a la cola.', 'info');
+  });
+
+  /* ---- Abrir modal de resultado ---- */
+  document.getElementById('btn-record-result').addEventListener('click', () => {
+    if (!state.currentMatch) return;
+    if (_isResultLocked(state.currentMatch)) {
+      _showLockedResultToast(state.currentMatch);
+      return;
+    }
+    const m       = state.currentMatch;
+    const isKata  = _isKataMatch(m);
+    const nameA   = m.competitor_a?.competitors?.full_name || m.competitor_a?.full_name || 'Competidor A';
+    const nameB   = m.competitor_b?.competitors?.full_name || m.competitor_b?.full_name || 'Competidor B';
+
+    state.selectedWinnerId = null;
+    document.getElementById('result-match-id').value = m.id;
+    document.getElementById('result-notes').value    = '';
+
+    if (isKata) {
+      const isDuel = !!m.competitor_b_id;
+      document.getElementById('modal-result-title').textContent = isDuel ? '🥋 Duelo de Kata' : '🥋 Puntaje de Kata';
+      document.getElementById('panel-kumite-result').style.display = 'none';
+      document.getElementById('panel-kata-result').style.display  = 'block';
+      document.getElementById('kata-athlete-name').textContent = nameA;
+      document.getElementById('kata-athlete-club').innerHTML = Dojos.renderDojoBadge(Dojos.getFromCache(m.competitor_a?.competitors?.dojo_id || m.competitor_a?.dojo_id), 16)
+      + ' ' + Dojos.renderCountryBadge(m.competitor_a?.competitors?.country || m.competitor_a?.country, 13);
+      document.getElementById('kata-notes').value = '';
+
+      if (isDuel) {
+        // --- Modo duelo: dos grids de 5 jueces (A y B) ---
+        _renderKataDuelGrid(m);
+        const duelSummary = Matches.getKataDuelSummary(m);
+        const readyBoth = duelSummary.ready;
+        document.getElementById('btn-save-result').disabled = !readyBoth;
+        // El ganador se calcula automáticamente al completar ambos lados
+        state.selectedWinnerId = null;
+      } else {
+        _renderKataJudgeGrid(m);
+        const overrideSummary = _populateKataOverride(m);
+        document.getElementById('btn-save-result').disabled = !overrideSummary.ready;
+        state.selectedWinnerId = m.competitor_a_id;
+      }
+
+      // Banderas resolution button visibility
+      const isFlagMode = m.category?.rules?.kata_mode === 'flag' || m.category?.kata_mode === 'flag';
+      const resolveBtn = document.getElementById('btn-resolve-flags');
+      if (resolveBtn) resolveBtn.style.display = isFlagMode ? 'block' : 'none';
+    } else {
+      document.getElementById('modal-result-title').textContent = 'Resultado del Combate';
+      document.getElementById('panel-kumite-result').style.display = 'block';
+      document.getElementById('panel-kata-result').style.display  = 'none';
+      document.getElementById('kumite-name-a').textContent = nameA;
+      document.getElementById('kumite-name-b').textContent = nameB;
+      document.getElementById('kumite-club-a').innerHTML = Dojos.renderDojoBadge(Dojos.getFromCache(m.competitor_a?.competitors?.dojo_id || m.competitor_a?.dojo_id), 16)
+      + ' ' + Dojos.renderCountryBadge(m.competitor_a?.competitors?.country || m.competitor_a?.country, 13);
+      document.getElementById('kumite-club-b').innerHTML = Dojos.renderDojoBadge(Dojos.getFromCache(m.competitor_b?.competitors?.dojo_id || m.competitor_b?.dojo_id), 16)
+      + ' ' + Dojos.renderCountryBadge(m.competitor_b?.competitors?.country || m.competitor_b?.country, 13);
+      const summary = Matches.getKumiteSummary(m);
+      _kumite = {
+        a: summary.scoreA,
+        b: summary.scoreB,
+        histA: summary.histA,
+        histB: summary.histB,
+        winner: summary.winner,
+        senshu: summary.senshu,
+        warnA: summary.warnA,
+        warnB: summary.warnB,
+      };
+      _timer.seconds = Math.max(10, Number.parseInt(summary.clockSeconds, 10) || 180);
+      _timer.remaining = Math.max(0, Number.parseInt(summary.clockRemaining, 10) || _timer.seconds);
+      _timer.running = false;
+      if (_timer.interval) { clearInterval(_timer.interval); _timer.interval = null; }
+      _renderTimer();
+      const startBtn = document.getElementById('btn-timer-start');
+      const pauseBtn = document.getElementById('btn-timer-pause');
+      if (startBtn) startBtn.style.display = 'inline-flex';
+      if (pauseBtn) pauseBtn.style.display = 'none';
+      state.manualKumiteTouched = !!(
+        summary.winner ||
+        summary.scoreA ||
+        summary.scoreB ||
+        (summary.histA || []).length ||
+        (summary.histB || []).length ||
+        (summary.warnA?.c1 || 0) ||
+        (summary.warnA?.c2 || 0) ||
+        (summary.warnB?.c1 || 0) ||
+        (summary.warnB?.c2 || 0)
+      );
+      if (summary.winner) {
+        state.selectedWinnerId = summary.winner === 'a' ? m.competitor_a_id : m.competitor_b_id;
+      } else if (summary.scoreA !== summary.scoreB) {
+        state.selectedWinnerId = summary.scoreA > summary.scoreB ? m.competitor_a_id : m.competitor_b_id;
+        _kumite.winner = summary.scoreA > summary.scoreB ? 'a' : 'b';
+      }
+      _updateKumiteUI();
+      document.getElementById('btn-save-result').disabled = !(state.selectedWinnerId && state.manualKumiteTouched);
+    }
+
+    Display.openModal('modal-result');
+  });
+
+  /* ---- Estado del marcador de kumite ---- */
+  let _kumite = { a: 0, b: 0, histA: [], histB: [], winner: null, senshu: null,
+                  warnA: { c1: 0, c2: 0 }, warnB: { c1: 0, c2: 0 } };
+  let _kumiteUndoStack = [];
+
+  function _cloneKumiteState(stateObj) {
+    if (typeof structuredClone === 'function') return structuredClone(stateObj);
+    return JSON.parse(JSON.stringify(stateObj));
+  }
+
+  function _pushKumiteUndo(side = null) {
+    _kumiteUndoStack.push({
+      side,
+      snapshot: _cloneKumiteState(_kumite),
+      winnerId: state.selectedWinnerId || null,
+    });
+    if (_kumiteUndoStack.length > 40) {
+      _kumiteUndoStack = _kumiteUndoStack.slice(-40);
+    }
+  }
+
+  const _WARN_LABELS  = ['', 'Chukoku', 'Keikoku', 'Hansoku-chui', 'Hansoku'];
+  const _WARN_DOTS    = (n) => '●'.repeat(Math.min(n, 4)) + '○'.repeat(Math.max(0, 4 - n));
+  const _WARN_PTS     = [0, 0, 1, 2];
+
+  function _updateWarnUI() {
+    ['a', 'b'].forEach(side => {
+      const W  = _kumite['warn' + side.toUpperCase()];
+      const el = document.getElementById('warn-display-' + side);
+      if (el) el.textContent = 'C1: ' + _WARN_DOTS(W.c1) + '  C2: ' + _WARN_DOTS(W.c2);
+    });
+  }
+
+  function _updateKumiteUI() {
+    const aScore = document.getElementById('kumite-score-a');
+    const bScore = document.getElementById('kumite-score-b');
+    const cardScoreA = document.getElementById('score-a');
+    const cardScoreB = document.getElementById('score-b');
+    const logA   = document.getElementById('kumite-log-a');
+    const logB   = document.getElementById('kumite-log-b');
+    if (aScore) aScore.textContent = _kumite.a;
+    if (bScore) bScore.textContent = _kumite.b;
+    if (cardScoreA) cardScoreA.textContent = _kumite.a;
+    if (cardScoreB) cardScoreB.textContent = _kumite.b;
+    const editA = document.getElementById('kumite-edit-score-a');
+    const editB = document.getElementById('kumite-edit-score-b');
+    if (editA) editA.value = _kumite.a;
+    if (editB) editB.value = _kumite.b;
+    if (logA) logA.textContent = _kumite.histA.join(' · ') || '—';
+    if (logB) logB.textContent = _kumite.histB.join(' · ') || '—';
+    const sA = document.getElementById('senshu-a');
+    const sB = document.getElementById('senshu-b');
+    if (sA) sA.style.opacity = _kumite.senshu === 'a' ? '1' : '.3';
+    if (sB) sB.style.opacity = _kumite.senshu === 'b' ? '1' : '.3';
+    _updateWarnUI();
+    const banner = document.getElementById('kumite-winner-banner');
+    if (!banner) return;
+    if (_kumite.winner) {
+      const nameEl = document.getElementById(_kumite.winner === 'a' ? 'kumite-name-a' : 'kumite-name-b');
+      banner.style.display = 'block';
+      banner.style.background = _kumite.winner === 'a' ? '#1565c0' : '#c62828';
+      banner.style.color = '#fff';
+      banner.textContent = '🏆 Ganador: ' + (nameEl ? nameEl.textContent : '');
+      document.getElementById('kumite-side-a').style.opacity = _kumite.winner === 'b' ? '.6' : '1';
+      document.getElementById('kumite-side-b').style.opacity = _kumite.winner === 'a' ? '.6' : '1';
+    } else {
+      banner.style.display = 'none';
+      document.getElementById('kumite-side-a').style.opacity = '1';
+      document.getElementById('kumite-side-b').style.opacity = '1';
+    }
+    _persistProjectionLiveState();
+  }
+
+  async function _persistManualKumiteState() {
+    if (!state.currentMatch?.id) return;
+    _setSyncIndicator('syncing', `Sincronizando marcador... ${_syncTimeStamp()}`);
+    await Matches.setKumiteScoreboard(state.currentMatch.id, {
+      scoreA: _kumite.a,
+      scoreB: _kumite.b,
+      histA: _kumite.histA,
+      histB: _kumite.histB,
+      warnA: _kumite.warnA,
+      warnB: _kumite.warnB,
+      senshu: _kumite.senshu,
+      winner: _kumite.winner,
+    });
+    _setSyncIndicator('ok', `Marcador sincronizado ${_syncTimeStamp()}`);
+  }
+
+  function _notifySyncPersistenceError(err, contextLabel = 'marcador') {
+    const details = err?.message ? ` (${err.message})` : '';
+    _setSyncIndicator('error', `Error al sincronizar ${contextLabel} ${_syncTimeStamp()}`);
+    Display.toast(`No se pudo sincronizar ${contextLabel} con Supabase${details}.`, 'error');
+  }
+
+  window.kumiteAddPoint = async function(side, type, event) {
+    if (event) event.stopPropagation();
+    _pushKumiteUndo(side);
+    const pts = { yuko: 1, wazaari: 2, ippon: 3 }[type] || 0;
+    _kumite[side] += pts;
+    _kumite['hist' + side.toUpperCase()].push(type.toUpperCase() + ' · Mesa');
+    if (!_kumite.senshu) _kumite.senshu = side;
+    state.manualKumiteTouched = true;
+    _updateKumiteUI();
+    if (state.currentMatch?.id) {
+      try {
+        await _persistManualKumiteState();
+      } catch (err) {
+        _notifySyncPersistenceError(err, 'el puntaje');
+      }
+    }
+  };
+
+  window.kumiteWarn = async function(side, cat, event) {
+    if (event) event.stopPropagation();
+    _pushKumiteUndo(side);
+    const warnKey = 'warn' + side.toUpperCase();
+    const prev    = _kumite[warnKey][cat];
+    if (prev >= 4) { Display.toast('Ya se alcanzó Hansoku para este competidor.', 'warning'); return; }
+    const level   = prev + 1;
+    _kumite[warnKey][cat] = level;
+    const label   = _WARN_LABELS[level] || 'Hansoku';
+    const opp     = side === 'a' ? 'b' : 'a';
+
+    if (level === 4) {
+      _kumite['hist' + side.toUpperCase()].push(label + '(' + cat.toUpperCase() + ') · Mesa');
+      await kumiteSelectWinner(opp);
+      Display.toast('🚨 ¡' + label + '! Victoria automática para el rival.', 'error');
+    } else {
+      const pts = _WARN_PTS[level] || 0;
+      if (pts > 0) {
+        _kumite[opp] += pts;
+        _kumite['hist' + opp.toUpperCase()].push('+' + pts + '(' + label.replace('-', '‑') + ')');
+      }
+      _kumite['hist' + side.toUpperCase()].push(label + '(' + cat.toUpperCase() + ') · Mesa');
+      const penMsg = pts > 0 ? ' → +' + pts + ' pt(s) al rival' : ' (sin penalización de puntos)';
+      Display.toast('⚠️ ' + label + ' a ' + (side === 'a' ? 'AO' : 'AKA') + ' — ' + cat.toUpperCase() + penMsg, 'warning');
+    }
+    state.manualKumiteTouched = true;
+    _updateKumiteUI();
+    if (state.currentMatch?.id) {
+      try {
+        await _persistManualKumiteState();
+      } catch (err) {
+        _notifySyncPersistenceError(err, 'las faltas');
+      }
+    }
+  };
+
+  window.kumiteUndo = async function(side, event) {
+    if (event) event.stopPropagation();
+    if (!_kumiteUndoStack.length) {
+      Display.toast('No hay acciones para deshacer.', 'info');
+      return;
+    }
+
+    // Prioriza acciones del lado seleccionado; si no hay, deshace la última global.
+    let idx = -1;
+    for (let i = _kumiteUndoStack.length - 1; i >= 0; i--) {
+      if (_kumiteUndoStack[i].side === side) { idx = i; break; }
+    }
+    if (idx === -1) idx = _kumiteUndoStack.length - 1;
+
+    const entry = _kumiteUndoStack.splice(idx, 1)[0];
+    _kumite = _cloneKumiteState(entry.snapshot);
+    state.selectedWinnerId = entry.winnerId || null;
+    state.manualKumiteTouched = true;
+    _updateKumiteUI();
+    if (state.currentMatch?.id) {
+      try {
+        await _persistManualKumiteState();
+      } catch (err) {
+        _notifySyncPersistenceError(err, 'el deshacer');
+      }
+    }
+    Display.toast('Se deshizo la última acción.', 'success');
+  };
+
+  window.kumiteSelectWinner = async function(side) {
+    _pushKumiteUndo(side);
+    _kumite.winner = side;
+    // NO se marca manualKumiteTouched aquí — solo se marca por acciones reales
+    // de combate (puntos, faltas, o que el timer termine).
+    state.selectedWinnerId = side === 'a' ? state.currentMatch?.competitor_a_id : state.currentMatch?.competitor_b_id;
+    document.getElementById('btn-save-result').disabled = !(state.selectedWinnerId && state.manualKumiteTouched);
+    _updateKumiteUI();
+    if (state.currentMatch?.id) {
+      try {
+        await _persistManualKumiteState();
+      } catch (err) {
+        _notifySyncPersistenceError(err, 'el ganador');
+      }
+    }
+  };
+
+  window.resetKumiteBoard = function() {
+    _kumiteUndoStack = [];
+    _kumite = { a: 0, b: 0, histA: [], histB: [], winner: null, senshu: null,
+                warnA: { c1: 0, c2: 0 }, warnB: { c1: 0, c2: 0 } };
+    _updateKumiteUI();
+    timerReset();
+  };
+
+  /* ---- Temporizador de combate ---- */
+  let _timer = { seconds: 180, remaining: 180, running: false, interval: null };
+  let _timerSyncBusy = false;
+  let _lastTimerSyncAt = 0;
+
+  async function _syncKumiteClock(force = false) {
+    if (!state.currentMatch?.id || !_isKumiteMatch(state.currentMatch)) return;
+    const now = Date.now();
+    if (!force && (now - _lastTimerSyncAt) < 900) return;
+    if (_timerSyncBusy) return;
+    _timerSyncBusy = true;
+    _lastTimerSyncAt = now;
+    try {
+      await Matches.setKumiteClock(state.currentMatch.id, {
+        seconds: _timer.seconds,
+        remaining: _timer.remaining,
+        running: _timer.running,
+      });
+    } catch (_) {
+      // ignore clock sync failures to keep mesa UX responsive
+    } finally {
+      _timerSyncBusy = false;
+      _persistProjectionLiveState();
+    }
+  }
+
+  function _renderTimer() {
+    const m  = Math.floor(_timer.remaining / 60);
+    const s  = _timer.remaining % 60;
+    const el = document.getElementById('timer-display');
+    if (!el) return;
+    el.textContent = m + ':' + String(s).padStart(2, '0');
+    el.style.color = _timer.remaining <= 30 ? '#ef4444'
+                   : _timer.remaining <= 60 ? '#f59e0b'
+                   : '#4ade80';
+    _persistProjectionLiveState();
+  }
+
+  function _timerBeep() {
+    try {
+      const ctx  = new (window.AudioContext || window.webkitAudioContext)();
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.4, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+      osc.start(); osc.stop(ctx.currentTime + 0.8);
+    } catch (_) {}
+  }
+
+  function _timerTick() {
+    if (!_timer.running) return;
+    _timer.remaining--;
+    _renderTimer();
+    _syncKumiteClock(false);
+    if (_timer.remaining <= 0) {
+      _timer.running = false;
+      clearInterval(_timer.interval); _timer.interval = null;
+      _timerBeep();
+      document.getElementById('timer-display').style.color = '#ef4444';
+      document.getElementById('btn-timer-start').style.display = 'inline-flex';
+      document.getElementById('btn-timer-pause').style.display = 'none';
+      _resolveWinnerOnTimeEnd();
+      _syncKumiteClock(true);
+    }
+  }
+
+  async function _resolveWinnerOnTimeEnd() {
+    if (!state.currentMatch || !_isKumiteMatch(state.currentMatch)) {
+      Display.toast('\u23F1\uFE0F ¡Tiempo!', 'warning');
+      return;
+    }
+
+    // El timer agotarse cuenta como actividad real de combate.
+    state.manualKumiteTouched = true;
+
+    // Regla 1: mayor puntaje gana automáticamente.
+    if (_kumite.a !== _kumite.b) {
+      const winnerSide = _kumite.a > _kumite.b ? 'a' : 'b';
+      await kumiteSelectWinner(winnerSide);
+      Display.toast(`\u23F1\uFE0F ¡Tiempo! Ganador automático por puntaje: ${winnerSide === 'a' ? 'AO' : 'AKA'}. Confirma manualmente el resultado.`, 'success');
+      return;
+    }
+
+    // Regla 2: empate, se define por senshu si existe.
+    if (_kumite.senshu === 'a' || _kumite.senshu === 'b') {
+      await kumiteSelectWinner(_kumite.senshu);
+      Display.toast(`\u23F1\uFE0F ¡Tiempo! Empate resuelto por senshu: ${_kumite.senshu === 'a' ? 'AO' : 'AKA'}. Confirma manualmente el resultado.`, 'success');
+      return;
+    }
+
+    // Regla 3: empate sin senshu: decisión manual de Mesa.
+    state.selectedWinnerId = null;
+    document.getElementById('btn-save-result').disabled = true;
+    Display.toast('\u23F1\uFE0F Tiempo cumplido: empate sin senshu. Mesa debe designar ganador manualmente.', 'warning');
+  }
+
+  window.timerStart = function() {
+    if (_timer.running) return;
+    if (_timer.remaining <= 0) timerReset();
+    _timer.running  = true;
+    _timer.interval = setInterval(_timerTick, 1000);
+    document.getElementById('btn-timer-start').style.display = 'none';
+    document.getElementById('btn-timer-pause').style.display = 'inline-flex';
+    _syncKumiteClock(true);
+  };
+
+  window.timerPause = function() {
+    _timer.running = false;
+    clearInterval(_timer.interval); _timer.interval = null;
+    const startBtn = document.getElementById('btn-timer-start');
+    const pauseBtn = document.getElementById('btn-timer-pause');
+    if (startBtn) startBtn.style.display = 'inline-flex';
+    if (pauseBtn) pauseBtn.style.display = 'none';
+    _syncKumiteClock(true);
+  };
+
+  window.timerReset = function() {
+    timerPause();
+    _timer.remaining = _timer.seconds;
+    const el = document.getElementById('timer-display');
+    if (el) el.style.color = '#4ade80';
+    _renderTimer();
+    _syncKumiteClock(true);
+  };
+
+  window.timerSetPreset = function(val) {
+    const customEl = document.getElementById('timer-custom');
+    if (val === 'custom') {
+      if (customEl) customEl.style.display = 'inline-block';
+    } else {
+      if (customEl) customEl.style.display = 'none';
+      const s = parseInt(val, 10);
+      if (s > 0) { _timer.seconds = s; timerReset(); }
+    }
+  };
+
+  window.timerSetCustom = function() {
+    const v = parseInt(document.getElementById('timer-custom').value, 10);
+    if (v >= 10) { _timer.seconds = v; timerReset(); }
+  };
+
+  // Ping judges button
+  const pingBtn = document.getElementById('btn-ping-judges');
+  if (pingBtn) {
+    pingBtn.addEventListener('click', async () => {
+      if (!state.currentMatch?.id) { Display.toast('No hay combate activo para hacer ping.', 'warning'); return; }
+      try {
+        await Matches.pingMatch(state.currentMatch.id);
+        Display.toast('Ping enviado a jueces.', 'success');
+      } catch (e) {
+        Display.toast(e.message || 'Error al enviar ping.', 'error');
+      }
+    });
+  }
+
+  /* ---- Panel individual del juez ---- */
+  window.judgePreviewKataScore = function(value) {
+    const preview = document.getElementById('judge-kata-preview');
+    const rawValue = String(value || '').replace(',', '.').trim();
+    const numericValue = Number(rawValue);
+    if (preview) preview.textContent = Number.isFinite(numericValue) && numericValue >= 0 && numericValue <= 9.99 ? numericValue.toFixed(2) : '—';
+  };
+
+  window.judgeSetSide = function(side) {
+    state.judgeSide = side === 'b' ? 'b' : 'a';
+    _updateJudgeSideButtons();
+  };
+
+  window.judgeSendKumite = async function(kind, action) {
+    Display.toast('Jueces y arbitros desconectados. Solo Mesa Tecnica puede puntuar.', 'info');
+  };
+
+  document.getElementById('btn-submit-kata-score').addEventListener('click', async () => {
+    Display.toast('Jueces y arbitros desconectados. Solo Mesa Tecnica puede puntuar.', 'info');
+  });
+
+  /* ---- Calcular total kata en tiempo real (5 jueces, descarta extremos) ---- */
+  window.calcKataTotal = function() {
+    const summary = _getKataSummaryFromScores(_getKataOverrideScores());
+    const totalEl = document.getElementById('kata-total');
+    const detailEl = document.getElementById('kata-detail');
+    if (totalEl) totalEl.textContent = summary.total != null ? Number(summary.total).toFixed(2) : '—';
+    if (detailEl) {
+      detailEl.textContent = summary.ready
+        ? `Descartados ${Number(summary.dropped_low).toFixed(2)} y ${Number(summary.dropped_high).toFixed(2)}. Total final ${Number(summary.total).toFixed(2)}.`
+        : `Faltan ${Math.max(0, 5 - summary.submitted)} juez(ces) por registrar.`;
+    }
+    document.getElementById('btn-save-result').disabled = !summary.ready;
+    _persistProjectionLiveState();
+  };
+
+  document.getElementById('btn-reload-kata-from-live').addEventListener('click', () => {
+    if (!state.currentMatch) return;
+    const summary = _populateKataOverride(state.currentMatch);
+    const totalEl = document.getElementById('kata-total');
+    const detailEl = document.getElementById('kata-detail');
+    if (totalEl) totalEl.textContent = summary.total != null ? Number(summary.total).toFixed(2) : '—';
+    if (detailEl) {
+      detailEl.textContent = summary.ready
+        ? `Descartados ${Number(summary.dropped_low).toFixed(2)} y ${Number(summary.dropped_high).toFixed(2)}. Total final ${Number(summary.total).toFixed(2)}.`
+        : `Faltan ${Math.max(0, 5 - summary.submitted)} juez(ces) por registrar.`;
+    }
+    document.getElementById('btn-save-result').disabled = !summary.ready;
+    Display.toast('Notas de kata recargadas desde Mesa Tecnica.', 'info');
+  });
+
+  document.getElementById('btn-sync-kumite-score').addEventListener('click', async () => {
+    if (!state.currentMatch?.id) return;
+    _pushKumiteUndo('mesa');
+    const scoreA = Math.max(0, Number.parseInt(document.getElementById('kumite-edit-score-a').value, 10) || 0);
+    const scoreB = Math.max(0, Number.parseInt(document.getElementById('kumite-edit-score-b').value, 10) || 0);
+    _kumite.a = scoreA;
+    _kumite.b = scoreB;
+    if (_kumite.a !== _kumite.b && !_kumite.winner) {
+      _kumite.winner = _kumite.a > _kumite.b ? 'a' : 'b';
+      state.selectedWinnerId = _kumite.winner === 'a'
+        ? state.currentMatch?.competitor_a_id
+        : state.currentMatch?.competitor_b_id;
+    }
+    state.manualKumiteTouched = true;
+    _updateKumiteUI();
+    document.getElementById('btn-save-result').disabled = !(state.selectedWinnerId && state.manualKumiteTouched);
+    try {
+      await _persistManualKumiteState();
+      Display.toast('Marcador de kumite corregido desde Mesa.', 'success');
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  });
+
+  document.getElementById('btn-apply-kata-override').addEventListener('click', async () => {
+    if (!state.currentMatch) return;
+    try {
+      const summary = await _applyKataOverride(state.currentMatch, true);
+      const totalEl = document.getElementById('kata-total');
+      const detailEl = document.getElementById('kata-detail');
+      const cardScoreEl = document.getElementById('score-a');
+      if (totalEl) totalEl.textContent = summary.total != null ? Number(summary.total).toFixed(2) : '—';
+      if (detailEl) {
+        detailEl.textContent = summary.ready
+          ? `Descartados ${Number(summary.dropped_low).toFixed(2)} y ${Number(summary.dropped_high).toFixed(2)}. Total final ${Number(summary.total).toFixed(2)}.`
+          : `Faltan ${Math.max(0, 5 - summary.submitted)} juez(ces) por registrar.`;
+      }
+      if (cardScoreEl) cardScoreEl.textContent = summary.total != null ? Number(summary.total).toFixed(2) : '—';
+      document.getElementById('btn-save-result').disabled = !summary.ready;
+      Display.toast('Ajuste manual de kata aplicado por Mesa.', 'success');
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  });
+
+  document.getElementById('btn-resolve-flags')?.addEventListener('click', async () => {
+    if (!state.currentMatch) return;
+    try {
+      const winnerSide = await Matches.resolveKataByFlags(state.currentMatch.id);
+      if (!winnerSide) { Display.toast('No hay un ganador claro por banderas.', 'warning'); return; }
+      
+      state.selectedWinnerId = winnerSide === 'a' ? state.currentMatch.competitor_a_id : state.currentMatch.competitor_b_id;
+      document.getElementById('btn-save-result').disabled = false;
+      Display.toast(`Ganador resuelto por banderas: ${winnerSide === 'a' ? 'AO' : 'AKA'}.`, 'success');
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  });
+
+  document.getElementById('btn-enable-projection').addEventListener('click', () => {
+    state.genericModeActive = false;
+    _setGenericStatus('Modo inactivo.', 'muted');
+    state.projectionModeOverride = null;
+    _syncProjectionWindow();
+    _openProjectionWindow();
+    Display.toast('Segunda pantalla habilitada.', 'success');
+  });
+
+  document.getElementById('btn-open-scoreboard').addEventListener('click', async () => {
+    // Siempre mostrar el combate actual en curso primero
+    if (state.currentMatch?.id) {
+      state.projectionModeOverride = null;
+      state.genericModeActive = false;
+      // Forzar persistencia del estado del combate en localStorage
+      _persistProjectionLiveState();
+      _persistProjectionTarget();
+      // Si la ventana ya está abierta, cerrarla y reabrirla para que tome los datos nuevos
+      if (state.projectionWindow && !state.projectionWindow.closed) {
+        try { state.projectionWindow.close(); } catch (_) {}
+        state.projectionWindow = null;
+      }
+      _openProjectionWindow();
+      Display.toast('Pantalla extendida del marcador abierta.', 'success');
+      return;
+    }
+    // Si no hay combate activo pero hay categoría seleccionada, intentar premiación
+    const categoryId = state.selectedCategoryId || null;
+    if (categoryId) {
+      const projection = await _publishCategoryAwardsProjection(categoryId);
+      if (projection.ok) {
+        _openProjectionWindow();
+        Display.toast('Pantalla extendida mostrando premiacion de la categoria seleccionada.', 'success');
+        return;
+      }
+    }
+    state.projectionModeOverride = null;
+    _syncProjectionWindow();
+    _openProjectionWindow();
+    Display.toast('Pantalla extendida del marcador abierta.', 'success');
+  });
+
+  document.getElementById('btn-disable-projection').addEventListener('click', () => {
+    _closeProjectionWindow();
+    _setGenericStatus('Modo inactivo.', 'muted');
+    Display.toast('Segunda pantalla deshabilitada.', 'info');
+  });
+
+  const genericModeSelect = document.getElementById('generic-mode');
+  if (genericModeSelect) {
+    genericModeSelect.addEventListener('change', () => {
+      _syncGenericModeFields();
+    });
+  }
+
+  const genericKataJudgeInputs = [
+    'generic-kata-judge-1',
+    'generic-kata-judge-2',
+    'generic-kata-judge-3',
+    'generic-kata-judge-4',
+    'generic-kata-judge-5',
+  ]
+    .map((id) => document.getElementById(id))
+    .filter(Boolean);
+
+  genericKataJudgeInputs.forEach((input) => {
+    input.addEventListener('input', () => {
+      _refreshGenericKataScoreFromJudges();
+    });
+  });
+
+  const genericPresetKataBtn = document.getElementById('btn-generic-preset-kata');
+  if (genericPresetKataBtn) {
+    genericPresetKataBtn.addEventListener('click', () => {
+      _applyGenericPreset('kata');
+      Display.toast('Preset Kata cargado.', 'info');
+    });
+  }
+
+  const genericPresetKumiteBtn = document.getElementById('btn-generic-preset-kumite');
+  if (genericPresetKumiteBtn) {
+    genericPresetKumiteBtn.addEventListener('click', () => {
+      _applyGenericPreset('kumite');
+      Display.toast('Preset Kumite cargado.', 'info');
+    });
+  }
+
+  const genericOpenBtn = document.getElementById('btn-generic-open');
+  if (genericOpenBtn) {
+    genericOpenBtn.addEventListener('click', () => {
+      try {
+        _publishGenericProjection();
+        _openProjectionWindow();
+        Display.toast('Pantalla generica enviada a pantalla extendida.', 'success');
+      } catch (e) {
+        _setGenericStatus(e.message || 'No se pudo activar el modo generico.', 'error');
+        Display.toast(e.message || 'No se pudo activar el modo generico.', 'error');
+      }
+    });
+  }
+
+  const genericUpdateBtn = document.getElementById('btn-generic-update');
+  if (genericUpdateBtn) {
+    genericUpdateBtn.addEventListener('click', () => {
+      try {
+        _publishGenericProjection();
+        Display.toast('Pantalla generica actualizada.', 'success');
+      } catch (e) {
+        _setGenericStatus(e.message || 'No se pudo actualizar el modo generico.', 'error');
+        Display.toast(e.message || 'No se pudo actualizar el modo generico.', 'error');
+      }
+    });
+  }
+
+  const genericClearBtn = document.getElementById('btn-generic-clear');
+  if (genericClearBtn) {
+    genericClearBtn.addEventListener('click', () => {
+      _clearGenericFields();
+      _setGenericStatus('Campos limpios.', 'muted');
+      Display.toast('Campos de pantalla generica limpiados.', 'info');
+    });
+  }
+
+  const genericExitBtn = document.getElementById('btn-generic-exit');
+  if (genericExitBtn) {
+    genericExitBtn.addEventListener('click', () => {
+      _exitGenericProjection(true);
+    });
+  }
+
+  document.getElementById('btn-save-result').addEventListener('click', async () => {
+    const m = state.currentMatch;
+    if (!m) return;
+    if (!_ensureSupabaseClientForMesa()) {
+      Display.toast('Sin conexión operativa con Supabase. No se puede guardar el resultado.', 'error');
+      return;
+    }
+    const isKata = _isKataMatch(m);
+
+    let result;
+    const isDuel = isKata && !!m.competitor_b_id;
+    if (isKata) {
+      if (isDuel) {
+        // --- Duelo de kata: guardar notas de ambos lados y ganador ---
+        const { scoresA, scoresB } = _getKataDuelScoresFromInputs();
+        const duelSummary = _getKataDuelSummaryFromInputs();
+        if (!duelSummary.ready) { Display.toast('La mesa debe completar las 5 notas de ambos contendientes.', 'warning'); return; }
+        if (!duelSummary.winner) { Display.toast('Empate de jueces y total. Selecciona un ganador manualmente.', 'warning'); return; }
+
+        _setSyncIndicator('syncing', `Sincronizando notas duelo kata... ${_syncTimeStamp()}`);
+        try {
+          await Matches.applyMesaKataDuelOverride(m.id, scoresA, scoresB, {
+            name: 'Mesa Tecnica',
+            code: state.referee.code,
+            tatami: state.tatami,
+          });
+        } catch (err) {
+          _setSyncIndicator('error', `Error al sincronizar notas duelo kata ${_syncTimeStamp()}`);
+          Display.toast(err.message, 'error');
+          return;
+        }
+        _setSyncIndicator('ok', `Notas duelo kata sincronizadas ${_syncTimeStamp()}`);
+
+        await _refreshCurrentMatch();
+        const liveMatch = state.currentMatch?.id === m.id ? state.currentMatch : m;
+        const winnerId = duelSummary.winner === 'a' ? m.competitor_a_id : m.competitor_b_id;
+        result = {
+          winner_id: winnerId,
+          score_a:   duelSummary.summaryA.total,
+          score_b:   duelSummary.summaryB.total,
+          notes: {
+            kata_name: document.getElementById('kata-name')?.value?.trim() || null,
+            live: Matches.getLiveState(liveMatch),
+            judge_summary: { type: 'kata_duel', scoreA: duelSummary.summaryA.total, scoreB: duelSummary.summaryB.total, winner: duelSummary.winner, judgesA: duelSummary.summaryA.judges, judgesB: duelSummary.summaryB.judges },
+          },
+        };
+        state.selectedWinnerId = winnerId;
+      } else {
+        const summary = await _applyKataOverride(m, false);
+        if (!summary.ready) { Display.toast('La mesa debe completar las 5 notas de kata.', 'warning'); return; }
+        await _refreshCurrentMatch();
+        const liveMatch = state.currentMatch?.id === m.id ? state.currentMatch : m;
+        const kNotes = document.getElementById('kata-notes').value || '';
+        const kataName = document.getElementById('kata-name')?.value?.trim() || '';
+        result = {
+          winner_id: m.competitor_a_id,
+          score_a:   summary.total,
+          score_b:   null,
+          notes: {
+            text: kNotes || null,
+            kata_name: kataName || null,
+            live: Matches.getLiveState(liveMatch),
+            judge_summary: { type: 'kata', total: summary.total, judges: summary.judges },
+          },
+        };
+        state.selectedWinnerId = m.competitor_a_id;
+      }
+    } else {
+      if (!state.selectedWinnerId && _kumite.a !== _kumite.b) {
+        _kumite.winner = _kumite.a > _kumite.b ? 'a' : 'b';
+        state.selectedWinnerId = _kumite.winner === 'a'
+          ? m.competitor_a_id
+          : m.competitor_b_id;
+      }
+      if (!state.selectedWinnerId) { Display.toast('Selecciona al ganador.', 'warning'); return; }
+      if (!state.manualKumiteTouched) {
+        Display.toast('El resultado de kumite solo se guarda si Mesa Tecnica lo registra manualmente.', 'warning');
+        return;
+      }
+      await _persistManualKumiteState();
+      const liveMatch = state.currentMatch?.id === m.id ? state.currentMatch : await Matches.getById(m.id);
+      result = {
+        winner_id: state.selectedWinnerId,
+        score_a:   _kumite.a,
+        score_b:   _kumite.b,
+        notes: {
+          text: document.getElementById('result-notes').value || null,
+          live: Matches.getLiveState(liveMatch),
+          judge_summary: {
+            type: 'kumite',
+            score_a: _kumite.a,
+            score_b: _kumite.b,
+            winner: _kumite.winner,
+            senshu: _kumite.senshu,
+          },
+        },
+      };
+    }
+
+    try {
+      _setSyncIndicator('syncing', `Guardando resultado final... ${_syncTimeStamp()}`);
+      const savedResult = await Matches.recordResult(m.id, result);
+      const publishedRoundSummary = isKata
+        ? await _publishKataRoundResultsIfReady(savedResult)
+        : false;
+      _setSyncIndicator('ok', `Resultado final sincronizado ${_syncTimeStamp()}`);
+      if (publishedRoundSummary) {
+        Display.toast('Ronda kata completada: resultados enviados a pantalla extendida.', 'success');
+      }
+      if (savedResult?.status === MATCH_STATUS.FINISHED) _setFinalResultStatus(savedResult);
+      _rememberLastFinishedMatch(m.id);
+      Display.closeModal('modal-result');
+      Display.toast('¡Resultado guardado!', 'success');
+      _kumiteUndoStack = [];
+      _clearCurrentMatch();
+      await _loadQueue();
+    } catch (e) {
+      _setSyncIndicator('error', `Error al guardar resultado final ${_syncTimeStamp()}`);
+      Display.toast(e.message, 'error');
+    }
+  });
+
+  /* ---- Tabla de completados ---- */
+  function _addToCompletedTable(match, result) {
+    state.completedCount++;
+    const tbody = document.getElementById('completed-tbody');
+    const isKata = _isKataMatch(match);
+    let winnerName, score;
+
+    if (isKata) {
+      winnerName = match.competitor_a?.competitors?.full_name || match.competitor_a?.full_name || 'Kata';
+      score = result.score_a != null ? result.score_a.toFixed(2) : '—';
+    } else {
+      winnerName = result.winner_id === match.competitor_a_id
+        ? (match.competitor_a?.competitors?.full_name || match.competitor_a?.full_name || 'A')
+        : (match.competitor_b?.competitors?.full_name || match.competitor_b?.full_name || 'B');
+      score = result.score_a != null ? `${result.score_a} – ${result.score_b}` : '—';
+    }
+
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>${state.completedCount}</td>
+      <td class="text-sm">${match.category?.name || '—'}</td>
+      <td><strong>${winnerName}</strong></td>
+      <td>${score}</td>
+      <td class="text-muted text-sm">${new Date().toLocaleTimeString('es-ES', {hour:'2-digit',minute:'2-digit'})}</td>
+    `;
+    if (tbody.firstChild?.colSpan === 5) tbody.innerHTML = '';
+    tbody.prepend(row);
+  }
+
+  /* ---- 🧪 PRUEBA: abrir modal de jueces con datos ficticios ---- */
+  window.openTestModal = function(type) {
+    const fakeMatch = {
+      id:               'test-match',
+      bracket_type:     type === 'kata' ? 'kata_round' : 'single_elimination',
+      competitor_a_id:  'test-a',
+      competitor_b_id:  type === 'kata' ? null : 'test-b',
+      competitor_a: { competitors: { full_name: 'García, Juan', club: 'Dojo Sakura' } },
+      competitor_b: type !== 'kata' ? { competitors: { full_name: 'López, María', club: 'Club Bushido' } } : null,
+      category: { name: 'Test — Junior Masc. -60kg', discipline: type },
+      round: 1, round_label: type === 'kata' ? 'Ronda Única' : 'Semifinal',
+    };
+    state.currentMatch = fakeMatch;
+
+    // Reusar el handler existente del botón
+    document.getElementById('btn-record-result').disabled = false;
+    document.getElementById('btn-record-result').click();
+  };
+
+  /* ---- Actualizar manualmente ---- */
+  document.getElementById('btn-refresh').addEventListener('click', () => _loadQueue());
+
+  const openGenericPanelBtn = document.getElementById('btn-open-generic-panel');
+  if (openGenericPanelBtn) {
+    openGenericPanelBtn.addEventListener('click', () => {
+      const genericCard = document.getElementById('generic-panel-card');
+      if (!genericCard) return;
+      genericCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const previousShadow = genericCard.style.boxShadow;
+      const previousBorder = genericCard.style.border;
+      genericCard.style.border = '2px solid #3b82f6';
+      genericCard.style.boxShadow = '0 0 0 3px rgba(59,130,246,.18)';
+      setTimeout(() => {
+        genericCard.style.border = previousBorder;
+        genericCard.style.boxShadow = previousShadow;
+      }, 1200);
+    });
+  }
+
+  /* ---- Realtime: se actualiza la cola en tiempo real ---- */
+  function _subscribeRealtime() {
+    if (!state.tournamentId) return;
+    state.realtimeSub = Matches.subscribeToTournament(state.tournamentId, async (payload) => {
+      await _syncCurrentMatchFromPayload(payload);
+      await _loadQueue();
+      await _refreshCurrentMatch();
+      _updateProjectionButtons();
+    });
+  }
+
+  window.addEventListener('beforeunload', () => {
+    _closeProjectionWindow();
+  });
+
+  _updateProjectionButtons();
+
+  /* ---- Logout ---- */
+  let isSigningOut = false;
+  document.getElementById('btn-logout').addEventListener('click', () => {
+    if (isSigningOut) return;
+    isSigningOut = true;
+    _closeProjectionWindow();
+    Auth.logout();
+  });
+
+  function _numOrNull(id) {
+    const v = document.getElementById(id).value;
+    return v !== '' ? parseInt(v, 10) : null;
+  }
+
+  /* ---- Exportación de bitácora ---- */
+  let _cachedBitacoraEntries = [];
+
+  async function _refreshBitacoraCache() {
+    if (!state.tournamentId || !state.tatami) { _cachedBitacoraEntries = []; return; }
+    try {
+      const matches = await Matches.listByTournament(state.tournamentId);
+      const tatamiMatches = (matches || []).filter(
+        m => String(m.tatami ?? m.category?.tatami ?? '') === String(state.tatami)
+      );
+      const filtered = state.selectedCategoryId
+        ? tatamiMatches.filter(m => String(m.category_id || m.category?.id || '') === String(state.selectedCategoryId))
+        : tatamiMatches;
+      _cachedBitacoraEntries = Matches.buildTournamentBitacora(filtered);
+    } catch (_) {
+      _cachedBitacoraEntries = [];
+    }
+  }
+
+  async function _exportBitacoraCSV() {
+    await _refreshBitacoraCache();
+    if (!_cachedBitacoraEntries.length) {
+      Display.toast('No hay eventos en la bitácora para exportar.', 'warning');
+      return;
+    }
+    const csv = Matches.exportBitacoraCSV(_cachedBitacoraEntries);
+    const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    Matches.downloadBlob(csv, `bitacora_tatami_${state.tatami}_${ts}.csv`, 'text/csv;charset=utf-8');
+    Display.toast('Bitácora exportada como CSV.', 'success');
+  }
+
+  async function _exportBitacoraJSON() {
+    await _refreshBitacoraCache();
+    if (!_cachedBitacoraEntries.length) {
+      Display.toast('No hay eventos en la bitácora para exportar.', 'warning');
+      return;
+    }
+    const json = Matches.exportBitacoraJSON(_cachedBitacoraEntries);
+    const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    Matches.downloadBlob(json, `bitacora_tatami_${state.tatami}_${ts}.json`, 'application/json;charset=utf-8');
+    Display.toast('Bitácora exportada como JSON.', 'success');
+  }
+
+  async function _exportFullTournamentCSV() {
+    if (!state.tournamentId) return;
+    try {
+      const matches = await Matches.listByTournament(state.tournamentId);
+      const entries = Matches.buildTournamentBitacora(matches);
+      if (!entries.length) {
+        Display.toast('No hay eventos en el torneo para exportar.', 'warning');
+        return;
+      }
+      const csv = Matches.exportBitacoraCSV(entries);
+      const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      Matches.downloadBlob(csv, `bitacora_torneo_completo_${ts}.csv`, 'text/csv;charset=utf-8');
+      Display.toast('Bitácora completa del torneo exportada como CSV.', 'success');
+    } catch (e) {
+      Display.toast('Error al exportar: ' + (e.message || 'desconocido'), 'error');
+    }
+  }
+
+  async function _exportBitacoraPDF() {
+    await _refreshBitacoraCache();
+    if (!_cachedBitacoraEntries.length) {
+      Display.toast('No hay eventos en la bitácora para exportar.', 'warning');
+      return;
+    }
+    const orderedEntries = Matches.buildTournamentBitacoraOrdered(
+      await Matches.listByTournament(state.tournamentId).then(matches =>
+        (matches || []).filter(m => String(m.tatami ?? m.category?.tatami ?? '') === String(state.tatami))
+      ).catch(() => [])
+    );
+    const title = `Bitácora Tatami ${state.tatami}`;
+    const html = Matches.exportBitacoraPDF(orderedEntries.length ? orderedEntries : _cachedBitacoraEntries, title);
+    const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    Matches.downloadBlob(html, `bitacora_tatami_${state.tatami}_${ts}.html`, 'text/html;charset=utf-8');
+    Display.toast('Bitácora exportada como PDF (imprimible).', 'success');
+  }
+
+  document.getElementById('btn-export-csv').addEventListener('click', _exportBitacoraCSV);
+  document.getElementById('btn-export-pdf').addEventListener('click', _exportBitacoraPDF);
+  document.getElementById('btn-export-full-csv').addEventListener('click', _exportFullTournamentCSV);
+
+  /* ---- Panel de jueces en vivo ---- */
+  function _renderJudgesLiveBoard(match) {
+    const board = document.getElementById('judges-live-board');
+    const content = document.getElementById('judges-live-content');
+    if (!board || !content || !match) return;
+
+    board.style.display = 'block';
+    const isKata = _isKataMatch(match);
+    const discipline = isKata ? 'kata' : 'kumite';
+    const maxSeats = isKata ? 5 : 4;
+    const seats = Array.from({ length: maxSeats }, (_, i) => 'J' + (i + 1));
+    const presence = Matches.getRefereePresence(match, discipline);
+
+    if (isKata) {
+      const summary = Matches.getKataSummary(match);
+      const judgeMap = Object.fromEntries(summary.judges.map(j => [j.seat, j]));
+      content.innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(${maxSeats},1fr);gap:.5rem;">
+          ${seats.map(seat => {
+            const ref = presence[seat];
+            const judge = judgeMap[seat] || {};
+            const active = ref?.active;
+            const name = ref?.name || judge.judge_name || '—';
+            const score = Number.isFinite(Number(judge.score)) ? Number(judge.score).toFixed(2) : '—';
+            const statusColor = active ? '#16a34a' : (ref ? '#b45309' : '#64748b');
+            const statusLabel = active ? '🟢 Conectado' : (ref ? '🟡 Inactivo' : '⚪ Sin conexión');
+            return `
+              <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:.55rem;text-align:center;color:#111827;">
+                <div style="font-size:.7rem;font-weight:800;color:#7c3aed;margin-bottom:.2rem;">${seat}</div>
+                <div style="font-size:.72rem;font-weight:600;margin-bottom:.15rem;">${name}</div>
+                <div style="font-size:.65rem;color:${statusColor};margin-bottom:.3rem;">${statusLabel}</div>
+                <div style="font-size:1.3rem;font-weight:900;color:#6d28d9;">${score}</div>
+              </div>`;
+          }).join('')}
+        </div>
+        <div class="text-xs text-muted mt-2" style="text-align:center;">
+          ${summary.ready ? '✅ Las 5 notas están completas.' : `⏳ ${summary.submitted}/5 jueces han registrado su nota.`}
+        </div>`;
+    } else {
+      const summary = Matches.getKumiteSummary(match);
+      const pending = Array.isArray(summary.pending) ? summary.pending : [];
+      content.innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(${maxSeats},1fr);gap:.5rem;">
+          ${seats.map(seat => {
+            const ref = presence[seat];
+            const active = ref?.active;
+            const name = ref?.name || '—';
+            const statusColor = active ? '#16a34a' : (ref ? '#b45309' : '#64748b');
+            const statusLabel = active ? '🟢 Conectado' : (ref ? '🟡 Inactivo' : '⚪ Sin conexión');
+            const judgePending = pending.filter(p => String(p.seat || '') === String(seat));
+            const lastSignal = judgePending.length ? judgePending[judgePending.length - 1] : null;
+            const sideLabel = lastSignal?.side === 'b' ? 'AKA' : (lastSignal?.side === 'a' ? 'AO' : '');
+            const actionLabel = lastSignal ? (lastSignal.category || lastSignal.action || '').toUpperCase() : '';
+            const signalColor = lastSignal?.kind === 'penalty' ? '#d97706' : '#16a34a';
+            return `
+              <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:.55rem;text-align:center;color:#111827;">
+                <div style="font-size:.7rem;font-weight:800;color:#1565c0;margin-bottom:.2rem;">${seat}</div>
+                <div style="font-size:.72rem;font-weight:600;margin-bottom:.15rem;">${name}</div>
+                <div style="font-size:.65rem;color:${statusColor};margin-bottom:.3rem;">${statusLabel}</div>
+                ${lastSignal ? `
+                  <div style="font-size:.75rem;font-weight:700;color:${signalColor};margin-bottom:.15rem;">
+                    ${sideLabel} ${actionLabel}
+                  </div>
+                  <div class="text-xs text-muted">${judgePending.length} señal(es)</div>
+                ` : `
+                  <div class="text-xs text-muted">Sin señales</div>
+                `}
+              </div>`;
+          }).join('')}
+        </div>
+        <div class="text-xs text-muted mt-2" style="text-align:center;">
+          ${pending.length ? `📨 ${pending.length} señal(es) pendiente(s) de confirmación por Mesa.` : 'Sin señales pendientes.'}
+        </div>`;
+    }
+  }
+
+  // Override _renderLiveJudging to also show the live board
+  const _originalRenderLiveJudging = _renderLiveJudging;
+  _renderLiveJudging = function(match) {
+    _originalRenderLiveJudging(match);
+    if (match) _renderJudgesLiveBoard(match);
+  };
+
+  // Override _clearCurrentMatch to hide the live board
+  const _originalClearCurrentMatch = _clearCurrentMatch;
+  _clearCurrentMatch = function() {
+    _originalClearCurrentMatch();
+    const board = document.getElementById('judges-live-board');
+    if (board) board.style.display = 'none';
+  };
+
+})();
+</script>
+</body>
+</html>

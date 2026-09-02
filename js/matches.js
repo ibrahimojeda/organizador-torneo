@@ -1461,12 +1461,13 @@ const Matches = (() => {
 
   function exportBitacoraCSV(entries = []) {
     const headers = ['Fecha', 'Hora', 'Tipo', 'Etiqueta', 'Mensaje', 'Juez', 'Puesto', 'Lado', 'Acción', 'Categoría', 'Combate', 'Tatami', 'Match ID'];
+    const escapeCsvCell = (value) => String(value ?? '').replace(/"/g, '""');
     const rows = entries.map(e => [
       e.at ? new Date(e.at).toLocaleDateString('es-ES') : '',
       e.at ? new Date(e.at).toLocaleTimeString('es-ES') : '',
       e.type || '',
       e.label || '',
-      (e.message || '').replace(/"/g, '""'),
+      e.message || '',
       e.actor || '',
       e.seat || '',
       e.side || '',
@@ -1475,8 +1476,8 @@ const Matches = (() => {
       e.match_label || '',
       e.tatami || '',
       e.match_id || '',
-    ]);
-    const csv = [headers.join(','), ...rows.map(r => '"' + r.join('","') + '"')].join('\n');
+    ].map(escapeCsvCell));
+    const csv = [headers.map(escapeCsvCell).join(','), ...rows.map(r => '"' + r.join('","') + '"')].join('\n');
     return '\uFEFF' + csv; // BOM for Excel UTF-8
   }
 
@@ -1485,6 +1486,12 @@ const Matches = (() => {
   }
 
   function exportBitacoraPDF(entries = [], title = 'Bitácora del Torneo') {
+    const escapeHtml = (value) => String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\"/g, '&quot;')
+      .replace(/'/g, '&#39;');
     const now = new Date().toLocaleString('es-ES');
     const rows = entries.map((e, i) => {
       const time = e.at ? new Date(e.at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '—';
@@ -1492,24 +1499,26 @@ const Matches = (() => {
       const discipline = e.discipline === 'kata' ? '🥋 KATA' : '🥊 KUMITE';
       return `
         <tr>
-          <td>${i + 1}</td>
-          <td>${date}</td>
-          <td>${time}</td>
-          <td>${discipline}</td>
-          <td>${e.category_name || '—'}</td>
-          <td>${e.match_label || '—'}</td>
-          <td>${e.label || 'Evento'}</td>
-          <td>${e.message || ''}</td>
-          <td>${e.seat || '—'}</td>
-          <td>${e.actor || '—'}</td>
+          <td>${escapeHtml(String(i + 1))}</td>
+          <td>${escapeHtml(date)}</td>
+          <td>${escapeHtml(time)}</td>
+          <td>${escapeHtml(discipline)}</td>
+          <td>${escapeHtml(e.category_name || '—')}</td>
+          <td>${escapeHtml(e.match_label || '—')}</td>
+          <td>${escapeHtml(e.label || 'Evento')}</td>
+          <td>${escapeHtml(e.message || '')}</td>
+          <td>${escapeHtml(e.seat || '—')}</td>
+          <td>${escapeHtml(e.actor || '—')}</td>
         </tr>`;
     }).join('');
 
+    const safeTitle = escapeHtml(title);
+    const safeNow = escapeHtml(now);
     const html = `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>${title}</title>
+  <title>${safeTitle}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0;}
     body{font-family:Arial,sans-serif;font-size:10px;color:#000;background:#fff;padding:12px;}
@@ -1524,8 +1533,8 @@ const Matches = (() => {
   </style>
 </head>
 <body>
-  <h1>${title}</h1>
-  <p class="subtitle">Generado: ${now} · ${entries.length} evento(s)</p>
+  <h1>${safeTitle}</h1>
+  <p class="subtitle">Generado: ${safeNow} · ${escapeHtml(String(entries.length))} evento(s)</p>
   <table>
     <thead>
       <tr>
@@ -1534,7 +1543,7 @@ const Matches = (() => {
     </thead>
     <tbody>${rows}</tbody>
   </table>
-  <div class="footer">Organizador de Torneo · ${now}</div>
+  <div class="footer">Organizador de Torneo · ${safeNow}</div>
   <script>window.onload=()=>{window.print();window.onafterprint=()=>window.close();}<\/script>
 </body>
 </html>`;

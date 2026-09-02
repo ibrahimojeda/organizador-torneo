@@ -1,0 +1,1943 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Torneo Karate — Vista Pública</title>
+  <link rel="stylesheet" href="../css/styles.css" />
+  <style>
+    .projection-shell {
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(59, 130, 246, 0.2), transparent 28%),
+        radial-gradient(circle at top right, rgba(239, 68, 68, 0.18), transparent 30%),
+        linear-gradient(180deg, #020617 0%, #0f172a 45%, #020617 100%);
+      color: #fff;
+    }
+    .projection-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.25rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid rgba(255,255,255,.12);
+    }
+    .projection-label {
+      font-size: .92rem;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      opacity: .72;
+    }
+    .projection-title {
+      font-size: clamp(2rem, 3vw, 3rem);
+      font-weight: 900;
+      line-height: 1.05;
+      margin-top: .35rem;
+    }
+    .projection-clock {
+      font-size: clamp(2.5rem, 4vw, 4rem);
+      font-weight: 800;
+      letter-spacing: .08em;
+      font-variant-numeric: tabular-nums;
+      opacity: .9;
+    }
+    .projection-kata-top {
+      display: grid;
+      grid-template-columns: 1.35fr .85fr;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .projection-card {
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,.14);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 24px 70px rgba(0,0,0,.35);
+    }
+    .projection-athlete {
+      background: linear-gradient(135deg, rgba(91, 33, 182, .92), rgba(59, 7, 100, .88));
+      padding: 1.5rem;
+    }
+    .projection-total {
+      background: linear-gradient(135deg, rgba(250, 245, 255, .98), rgba(233, 213, 255, .94));
+      color: #3b0764;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      text-align: center;
+    }
+    .projection-athlete-name {
+      font-size: clamp(2.2rem, 3.8vw, 4.2rem);
+      font-weight: 900;
+      line-height: 1;
+      margin-top: .4rem;
+    }
+    .projection-athlete-sub {
+      font-size: clamp(1rem, 1.4vw, 1.35rem);
+      opacity: .82;
+      margin-top: .6rem;
+    }
+    .projection-total-label {
+      font-size: .95rem;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      opacity: .7;
+    }
+    .projection-total-value {
+      font-size: clamp(4.5rem, 8vw, 7rem);
+      font-weight: 900;
+      line-height: .95;
+      margin-top: .6rem;
+    }
+    .projection-judges {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: .9rem;
+    }
+    .projection-judge-card {
+      background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(237,233,254,.93));
+      color: #111827;
+      padding: 1rem;
+      border-radius: 18px;
+      text-align: center;
+      border: 1px solid rgba(221,214,254,.9);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.65);
+    }
+    .projection-judge-card.pulse {
+      animation: projectionJudgeCardPulse .75s ease-out 1;
+    }
+    @keyframes projectionJudgeCardPulse {
+      0% { transform: translateY(0) scale(1); box-shadow: inset 0 1px 0 rgba(255,255,255,.65), 0 0 0 rgba(139,92,246,0); }
+      40% { transform: translateY(-2px) scale(1.03); box-shadow: inset 0 1px 0 rgba(255,255,255,.75), 0 0 30px rgba(139,92,246,.5); }
+      100% { transform: translateY(0) scale(1); box-shadow: inset 0 1px 0 rgba(255,255,255,.65), 0 0 0 rgba(139,92,246,0); }
+    }
+    .projection-judge-seat {
+      font-size: .9rem;
+      text-transform: uppercase;
+      letter-spacing: .18em;
+      color: #7c3aed;
+    }
+    .projection-judge-name {
+      min-height: 52px;
+      margin-top: .55rem;
+      font-size: 1.05rem;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+    .projection-judge-score {
+      margin-top: .7rem;
+      font-size: clamp(2.2rem, 3.5vw, 3.2rem);
+      font-weight: 900;
+      color: #5b21b6;
+      line-height: 1;
+    }
+    .projection-judge-score.pulse {
+      animation: projectionJudgePulse .75s ease-out 1;
+    }
+    @keyframes projectionJudgePulse {
+      0% { transform: scale(1); text-shadow: 0 0 0 rgba(139,92,246,0); }
+      35% { transform: scale(1.18); text-shadow: 0 0 28px rgba(139,92,246,.72); }
+      100% { transform: scale(1); text-shadow: 0 0 0 rgba(139,92,246,0); }
+    }
+    .projection-kumite-board {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 1rem;
+      align-items: stretch;
+    }
+    .projection-side {
+      padding: 1.6rem;
+      border-radius: 22px;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 340px;
+      box-shadow: 0 24px 60px rgba(0,0,0,.32);
+    }
+    .projection-side.ao {
+      background: linear-gradient(135deg, #1d4ed8, #0f3ea8);
+    }
+    .projection-side.aka {
+      background: linear-gradient(135deg, #dc2626, #991b1b);
+    }
+    .projection-side-label {
+      font-size: 1rem;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      opacity: .82;
+    }
+    .projection-side-name {
+      font-size: clamp(2rem, 3.2vw, 3.2rem);
+      font-weight: 900;
+      line-height: 1;
+      margin-top: .45rem;
+    }
+    .projection-side-score {
+      font-size: clamp(6rem, 12vw, 9rem);
+      font-weight: 900;
+      line-height: .92;
+      margin-top: 1rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .projection-winner-chip {
+      margin-top: .8rem;
+      display: inline-flex;
+      align-self: center;
+      padding: .28rem .75rem;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #fef08a 0%, #facc15 100%);
+      color: #111827;
+      font-weight: 900;
+      letter-spacing: .08em;
+      font-size: .82rem;
+      box-shadow: 0 6px 16px rgba(250, 204, 21, .45);
+    }
+    .projection-side-meta {
+      margin-top: 1rem;
+      font-size: 1rem;
+      opacity: .88;
+      line-height: 1.35;
+    }
+    .projection-penalties {
+      margin-top: 1rem;
+      display: grid;
+      gap: .5rem;
+    }
+    .projection-penalty-row {
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      align-items: center;
+      gap: .45rem;
+    }
+    .projection-penalty-label {
+      font-size: .88rem;
+      font-weight: 800;
+      letter-spacing: .08em;
+      opacity: .95;
+    }
+    .projection-penalty-track {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: .35rem;
+    }
+    .projection-penalty-seg {
+      height: 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.45);
+      background: rgba(250, 204, 21, .22);
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,.1);
+    }
+    .projection-penalty-seg.active {
+      background: linear-gradient(180deg, #fde047 0%, #eab308 100%);
+      border-color: rgba(120, 53, 15, .65);
+      box-shadow: 0 0 10px rgba(250, 204, 21, .55);
+    }
+    .projection-penalty-seg.pulse {
+      animation: projectionPenaltyPulse .8s ease-out 1;
+    }
+    @keyframes projectionPenaltyPulse {
+      0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 rgba(250, 204, 21, 0);
+      }
+      35% {
+        transform: scale(1.12);
+        box-shadow: 0 0 18px rgba(250, 204, 21, .95);
+      }
+      100% {
+        transform: scale(1);
+        box-shadow: 0 0 10px rgba(250, 204, 21, .55);
+      }
+    }
+    .projection-vs {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-width: 110px;
+      gap: .65rem;
+      color: rgba(255,255,255,.8);
+      font-weight: 900;
+      letter-spacing: .14em;
+    }
+    .projection-vs-mark {
+      font-size: 2.2rem;
+    }
+    .projection-feed {
+      margin-top: 1rem;
+      background: rgba(255,255,255,.96);
+      color: #111827;
+      border-radius: 20px;
+      border: 1px solid rgba(226,232,240,.95);
+      padding: 1rem 1.2rem;
+      max-height: 28vh;
+      overflow: auto;
+      box-shadow: 0 16px 40px rgba(0,0,0,.22);
+    }
+    .projection-feed-title {
+      font-size: .9rem;
+      text-transform: uppercase;
+      letter-spacing: .15em;
+      color: #64748b;
+      margin-bottom: .6rem;
+      font-weight: 800;
+    }
+    @media (max-width: 900px) {
+      .projection-kata-top,
+      .projection-kumite-board {
+        grid-template-columns: 1fr;
+      }
+      .projection-vs {
+        min-width: 0;
+        padding: .5rem 0;
+      }
+      .projection-judges {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Navbar pública (sin login) -->
+<nav class="navbar">
+  <div class="navbar-brand">
+    <div class="logo-icon">🥋</div>
+    <span id="nav-tournament-name">Cargando torneo...</span>
+  </div>
+  <div class="navbar-menu">
+    <span class="badge badge-blue mr-2">Vista Pública</span>
+    <span class="status-dot green" id="live-indicator" title="En vivo"></span>
+    <span class="text-xs text-muted ml-1" id="live-text">En vivo</span>
+    <button class="btn btn-ghost btn-sm ml-2" id="btn-logout">Cerrar sesión</button>
+  </div>
+</nav>
+
+<!-- Hero del torneo -->
+<div id="tournament-hero" class="tournament-hero" style="display:none;">
+  <div class="tournament-hero-inner">
+    <div class="tournament-hero-date" id="hero-date">—</div>
+    <h1 class="tournament-hero-title" id="hero-name">Cargando...</h1>
+    <p class="tournament-hero-place" id="hero-location">—</p>
+    <div class="flex gap-2 justify-center mt-2 flex-wrap">
+      <span class="badge badge-muted" id="hero-status">—</span>
+      <span class="badge badge-muted" id="hero-cats">—</span>
+      <span class="badge badge-muted" id="hero-competitors">—</span>
+    </div>
+  </div>
+</div>
+
+<!-- Página no encontrada -->
+<div id="view-not-found" class="container mt-4" style="display:none;">
+  <div class="empty-state">
+    <div class="empty-icon">🔍</div>
+    <h2>Torneo no encontrado</h2>
+    <p class="text-muted">El enlace puede ser incorrecto o el torneo es privado.</p>
+    <a href="../index.html" class="btn btn-primary mt-2">Ver torneos públicos</a>
+  </div>
+</div>
+
+<!-- Selección de torneos (cuando no hay ID en URL) -->
+<div id="view-select-tournament" class="container mt-4">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Torneos</h1>
+      <p class="page-subtitle">Sigue las llaves en tiempo real.</p>
+    </div>
+    <input type="text" class="form-control" id="search-tournaments" placeholder="🔍 Buscar torneo..." oninput="filterTournaments(this.value)" />
+  </div>
+
+  <div id="tournaments-grid" class="grid-3 gap-3">
+    <div class="card text-center p-4"><span class="spinner"></span></div>
+  </div>
+</div>
+
+<!-- Vista de categorías del torneo -->
+<div id="view-tournament" style="display:none;" class="container mt-3">
+  <div id="live-technical-board" class="card mb-3" style="display:none;">
+    <div class="flex items-center justify-between gap-2 flex-wrap">
+      <div>
+        <h3 style="margin:0;font-size:1.05rem;">📡 Mesa técnica en vivo</h3>
+        <p class="text-xs text-muted" style="margin:.2rem 0 0;">Proyección pública de resultados y señales arbitrales.</p>
+      </div>
+      <div class="flex gap-1 flex-wrap items-center">
+        <span class="badge badge-green">En directo</span>
+        <button class="btn btn-outline btn-sm" id="btn-display-fullscreen" style="display:none;" type="button">Pantalla completa</button>
+      </div>
+    </div>
+    <div id="live-technical-content" class="mt-2"></div>
+  </div>
+
+  <div class="tabs" id="main-tabs">
+    <div class="tabs-list" id="tabs-list">
+      <button class="tab-btn active" data-tab="tab-categories">Categorías</button>
+      <button class="tab-btn" data-tab="tab-schedule">Programa</button>
+      <button class="tab-btn" data-tab="tab-results">Resultados</button>
+      <button class="tab-btn" data-tab="tab-dojos">🏘 Dojos</button>
+    </div>
+
+    <!-- Tab: Categorías + Llaves -->
+    <div class="tab-panel active" id="tab-categories">
+      <div class="flex gap-2 mb-3 flex-wrap" id="filter-bar">
+        <select class="form-control form-control-sm" id="filter-discipline" onchange="filterCategories()">
+          <option value="">Todas las disciplinas</option>
+          <option value="kumite">Kumite</option>
+          <option value="kata">Kata</option>
+        </select>
+        <select class="form-control form-control-sm" id="filter-gender" onchange="filterCategories()">
+          <option value="">Ambos géneros</option>
+          <option value="M">Masculino</option>
+          <option value="F">Femenino</option>
+        </select>
+        <input type="text" class="form-control form-control-sm" id="filter-cat-search"
+               placeholder="🔍 Buscar categoría..." oninput="filterCategories()" />
+      </div>
+
+      <div id="categories-list" class="grid-2 gap-2">
+        <div class="card text-center p-4"><span class="spinner"></span></div>
+      </div>
+    </div>
+
+    <!-- Tab: Programa del día -->
+    <div class="tab-panel" id="tab-schedule">
+      <div id="schedule-content">
+        <div class="card text-center p-4"><span class="spinner"></span></div>
+      </div>
+    </div>
+
+    <!-- Tab: Resultados finales -->
+    <div class="tab-panel" id="tab-results">
+      <div id="results-content">
+        <div class="empty-state" style="padding:2.5rem;">
+          <div class="empty-icon">🏆</div>
+          <p class="text-muted">Los resultados estarán disponibles al finalizar el torneo.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Dojos inscritos -->
+    <div class="tab-panel" id="tab-dojos">
+      <div class="form-group mb-3" style="max-width:340px;">
+        <label class="form-label">Seleccionar Dojo / Club</label>
+        <select class="form-control" id="dojo-select" onchange="onDojoSelect(this.value)">
+          <option value="">Selecciona un dojo...</option>
+        </select>
+      </div>
+      <div id="dojo-content">
+        <div class="empty-state" style="padding:2rem;">
+          <div class="empty-icon">🏘</div>
+          <p class="text-muted">Selecciona un dojo para ver sus competidores y categorías.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Vista del bracket de una categoría -->
+<div id="view-bracket" style="display:none;" class="container mt-3">
+  <div class="page-header">
+    <button class="btn btn-outline btn-sm" id="btn-back-categories">← Categorías</button>
+    <div>
+      <h2 id="bracket-category-name" class="page-title" style="font-size:1.4rem;margin-bottom:.1rem;">—</h2>
+      <p id="bracket-category-meta" class="text-muted text-sm">—</p>
+    </div>
+    <div class="flex gap-1 flex-wrap" id="bracket-header-badges"></div>
+  </div>
+
+  <div id="bracket-display-area">
+    <div class="card text-center p-4"><span class="spinner"></span></div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
+<script src="../js/config.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/tournament.js"></script>
+<script src="../js/categories.js"></script>
+<script src="../js/competitors.js"></script>
+<script src="../js/bracket.js"></script>
+<script src="../js/matches.js?v=20260421c"></script>
+<script src="../js/display.js"></script>
+<script src="../js/dojos.js"></script>
+<script>
+(function () {
+  if (SUPABASE_URL && SUPABASE_ANON_KEY && typeof supabase.from !== 'function') {
+    window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+
+  /* ---- MODO SOLO-LECTURA: bloquear todos los métodos de escritura ---- */
+
+  // Botón de cerrar sesión
+  let isSigningOut = false;
+  document.getElementById('btn-logout').addEventListener('click', async () => {
+    if (isSigningOut) return;
+    isSigningOut = true;
+    try {
+      await Auth.logout();
+    } catch (_) {}
+    window.location.href = '../index.html';
+  });
+  const _ERR_READONLY = () => { throw new Error('Esta vista es de solo lectura.'); };
+  try {
+    // Matches
+    Matches.startMatch    = _ERR_READONLY;
+    Matches.saveResult    = _ERR_READONLY;
+    Matches.assignSchedule= _ERR_READONLY;
+    // Bracket
+    Bracket.generate      = _ERR_READONLY;
+    Bracket.regenerate    = _ERR_READONLY;
+    // Categories
+    Categories.create     = _ERR_READONLY;
+    Categories.update     = _ERR_READONLY;
+    Categories.remove     = _ERR_READONLY;
+    Categories.autoGenerate = _ERR_READONLY;
+    // Tournament
+    Tournament.create     = _ERR_READONLY;
+    Tournament.update     = _ERR_READONLY;
+    Tournament.setStatus  = _ERR_READONLY;
+    Tournament.remove     = _ERR_READONLY;
+    // Competitors
+    Competitors.create    = _ERR_READONLY;
+    Competitors.update    = _ERR_READONLY;
+    Competitors.remove    = _ERR_READONLY;
+  } catch (_) {} // los módulos pueden no exponer todos — ignorar
+
+  const state = {
+    tournamentId:    null,
+    tournament:      null,
+    categories:      [],
+    allTournaments:  [],
+    realtimeSub:     null,
+    activeCategoryId: null,
+    dojoCompetitors: [],
+    displayMode: false,
+    displayTatami: null,
+    displayMatchId: null,
+    displayProjectionActive: false,
+    projectionTargetKey: null,
+    displayPollInterval: null,
+    projectionWarnCache: null,
+    projectionWarnMatchId: null,
+    projectionKataCache: null,
+    projectionKataMatchId: null,
+  };
+
+  function _getProjectionTargetKey() {
+    if (!state.tournamentId || !state.displayTatami) return null;
+    return `ot_projection_target_${state.tournamentId}_${state.displayTatami}`;
+  }
+
+  function _getProjectionLiveKey() {
+    if (!state.tournamentId || !state.displayTatami) return null;
+    return `ot_projection_live_${state.tournamentId}_${state.displayTatami}`;
+  }
+
+  function _readProjectionTarget() {
+    const key = state.projectionTargetKey || _getProjectionTargetKey();
+    if (!key) return null;
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function _syncProjectionTargetFromStorage() {
+    const target = _readProjectionTarget();
+    if (target && Object.prototype.hasOwnProperty.call(target, 'matchId')) {
+      state.displayMatchId = target.matchId || null;
+      state.displayProjectionActive = !!target.active;
+      return;
+    }
+    if (state.displayMode) {
+      state.displayMatchId = null;
+      state.displayProjectionActive = false;
+    }
+  }
+
+  function _readProjectionLive() {
+    const key = _getProjectionLiveKey();
+    if (!key) return null;
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /* ---- Parsear URL params ---- */
+  const params = new URLSearchParams(window.location.search);
+  const tid = params.get('t') || params.get('tournament');
+  state.displayMode = params.get('display') === 'mesa';
+  state.displayTatami = params.get('tatami') || null;
+  state.displayMatchId = params.get('match') || null;
+
+  if (state.displayMode) {
+    _applyProjectionMode();
+  }
+
+  if (tid) {
+    state.tournamentId = tid;
+    state.projectionTargetKey = _getProjectionTargetKey();
+    _syncProjectionTargetFromStorage();
+    document.getElementById('view-select-tournament').style.display = 'none';
+    _loadTournament(tid);
+  } else {
+    // Fallback: si hay sesión con torneo, cargarlo directamente
+    const session = Auth.getSession();
+    if (session?.tournamentId) {
+      state.tournamentId = session.tournamentId;
+      state.projectionTargetKey = _getProjectionTargetKey();
+      _syncProjectionTargetFromStorage();
+      document.getElementById('view-select-tournament').style.display = 'none';
+      _loadTournament(session.tournamentId);
+    } else {
+      _loadPublicList();
+    }
+  }
+
+  /* ---- Cargar torneo específico ---- */
+  function _applyDisplayModeFallback(id) {
+    // Crear objeto torneo mínimo desde datos de localStorage
+    const projectionLive = _readProjectionLive();
+    const tournamentName = projectionLive?.categoryName
+      ? (projectionLive.categoryName + ' — Torneo')
+      : 'Torneo Karate';
+    state.tournament = { id: id, name: tournamentName, status: 'ongoing' };
+    document.getElementById('view-tournament').style.display = 'block';
+    document.getElementById('tournament-hero').style.display = 'none';
+    _loadLiveBoard(id);
+    _subscribeRealtime(id);
+  }
+
+  async function _loadTournament(id) {
+    try {
+      const t = await Tournament.getById(id);
+      if (!t || t.status === 'draft') {
+        if (state.displayMode) { _applyDisplayModeFallback(id); return; }
+        document.getElementById('view-not-found').style.display = 'block';
+        return;
+      }
+      state.tournament = t;
+      _renderHero(t);
+      document.getElementById('view-tournament').style.display = 'block';
+      document.getElementById('tournament-hero').style.display = state.displayMode ? 'none' : 'block';
+      if (!state.displayMode) {
+        Display.initTabs(document.getElementById('main-tabs'));
+        await _loadCategories(id);
+        await _loadSchedule(id);
+        await _loadDojos(id);
+      }
+      await _loadLiveBoard(id);
+      if (!state.displayMode) _loadResults();
+      _subscribeRealtime(id);
+    } catch (e) {
+      if (state.displayMode) { _applyDisplayModeFallback(id); return; }
+      document.getElementById('view-not-found').style.display = 'block';
+    }
+  }
+
+  function _applyProjectionMode() {
+    document.body.style.background = '#020617';
+    document.body.classList.add('projection-shell');
+    const nav = document.querySelector('.navbar');
+    const selectView = document.getElementById('view-select-tournament');
+    const hero = document.getElementById('tournament-hero');
+    const tabs = document.getElementById('main-tabs');
+    const board = document.getElementById('live-technical-board');
+    const viewTournament = document.getElementById('view-tournament');
+    const fullscreenBtn = document.getElementById('btn-display-fullscreen');
+    if (nav) nav.style.display = 'none';
+    if (selectView) selectView.style.display = 'none';
+    if (hero) hero.style.display = 'none';
+    if (tabs) tabs.style.display = 'none';
+    if (board) {
+      board.style.display = 'block';
+      board.style.minHeight = '100vh';
+      board.style.margin = '0';
+      board.style.borderRadius = '0';
+      board.style.border = 'none';
+      board.style.background = 'linear-gradient(180deg,#0f172a 0%,#020617 100%)';
+      board.style.color = '#fff';
+      board.style.padding = '1.25rem';
+    }
+    if (viewTournament) {
+      viewTournament.className = '';
+      viewTournament.style.maxWidth = '100vw';
+      viewTournament.style.margin = '0';
+      viewTournament.style.padding = '0';
+    }
+    if (fullscreenBtn) fullscreenBtn.style.display = 'inline-flex';
+    document.title = 'Marcador Mesa Tecnica';
+  }
+
+  function _projectionClockText(kumiteSummary = null) {
+    let remaining = Number.isFinite(Number(kumiteSummary?.clockRemaining))
+      ? Number(kumiteSummary.clockRemaining)
+      : null;
+
+    const running = !!kumiteSummary?.clockRunning;
+    const syncedAt = kumiteSummary?.clockUpdatedAt
+      ? new Date(kumiteSummary.clockUpdatedAt).getTime()
+      : null;
+
+    if (remaining != null && running && Number.isFinite(syncedAt)) {
+      const elapsed = Math.max(0, Math.floor((Date.now() - syncedAt) / 1000));
+      remaining = Math.max(0, remaining - elapsed);
+    }
+
+    if (remaining != null) {
+      const mm = Math.floor(remaining / 60);
+      const ss = remaining % 60;
+      return `${mm}:${String(ss).padStart(2, '0')}`;
+    }
+    return new Date().toLocaleTimeString('es-ES', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  }
+
+  function _renderPenaltyBars(warn = {}, prevWarn = {}) {
+    const c1 = Math.min(4, Math.max(0, Number.parseInt(warn?.c1, 10) || 0));
+    const c2 = Math.min(4, Math.max(0, Number.parseInt(warn?.c2, 10) || 0));
+    const p1 = Math.min(4, Math.max(0, Number.parseInt(prevWarn?.c1, 10) || 0));
+    const p2 = Math.min(4, Math.max(0, Number.parseInt(prevWarn?.c2, 10) || 0));
+    const segs = (count, prev) => Array.from({ length: 4 }, (_, idx) => {
+      const active = idx < count;
+      const pulse = active && idx >= prev && count > prev;
+      const classes = `projection-penalty-seg${active ? ' active' : ''}${pulse ? ' pulse' : ''}`;
+      return `<span class="${classes}"></span>`;
+    }).join('');
+
+    return `
+      <div class="projection-penalties">
+        <div class="projection-penalty-row">
+          <div class="projection-penalty-label">C1</div>
+          <div class="projection-penalty-track">${segs(c1, p1)}</div>
+        </div>
+        <div class="projection-penalty-row">
+          <div class="projection-penalty-label">C2</div>
+          <div class="projection-penalty-track">${segs(c2, p2)}</div>
+        </div>
+      </div>`;
+  }
+
+  function _isActiveKataRoundProjection(payload) {
+    if (!payload || payload.mode !== 'kata_round_results') return false;
+    if (!payload.showUntil) return true;
+    const until = Date.parse(payload.showUntil);
+    if (!Number.isFinite(until)) return true;
+    return until > Date.now();
+  }
+
+  function _isCategoryAwardsProjection(payload) {
+    return !!(payload && payload.mode === 'category_awards' && Array.isArray(payload.podium) && payload.podium.length);
+  }
+
+  function _isGenericBoardProjection(payload) {
+    return !!(payload && payload.mode === 'generic_board' && (payload.boardType === 'kata' || payload.boardType === 'kumite'));
+  }
+
+  function _formatProjectionSeconds(seconds) {
+    const total = Number.isFinite(Number(seconds)) ? Math.max(0, Number(seconds)) : 0;
+    const mm = Math.floor(total / 60);
+    const ss = total % 60;
+    return `${mm}:${String(ss).padStart(2, '0')}`;
+  }
+
+  function _computeWkfKataScore(judgeScores = []) {
+    const valid = (Array.isArray(judgeScores) ? judgeScores : [])
+      .map((n) => Number(n))
+      .filter((n) => Number.isFinite(n));
+    if (!valid.length) return null;
+    if (valid.length < 5) {
+      const total = valid.reduce((sum, n) => sum + n, 0);
+      return Number(total.toFixed(2));
+    }
+    const ordered = [...valid].sort((a, b) => a - b);
+    const middle = ordered.slice(1, -1);
+    if (!middle.length) return null;
+    const total = middle.reduce((sum, n) => sum + n, 0);
+    return Number(total.toFixed(2));
+  }
+
+  function _renderGenericBoardProjection(payload) {
+    const boardType = payload?.boardType === 'kumite' ? 'kumite' : 'kata';
+    const title = payload?.title || (boardType === 'kata' ? 'Pantalla Generica Kata' : 'Pantalla Generica Kumite');
+
+    if (boardType === 'kata') {
+      const headerClock = new Date().toLocaleTimeString('es-ES', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
+      const name = payload?.kata?.name || 'Competidor Kata';
+      const judgeScoresRaw = Array.isArray(payload?.kata?.judgeScores) ? payload.kata.judgeScores : [];
+      const judgeScores = judgeScoresRaw.slice(0, 5).map((s) => {
+        const n = Number(s);
+        return Number.isFinite(n) ? n : null;
+      });
+      while (judgeScores.length < 5) judgeScores.push(null);
+      const validJudges = judgeScores.filter((n) => Number.isFinite(n));
+      const scoreNum = Number(payload?.kata?.score);
+      const scoreFromJudges = _computeWkfKataScore(validJudges);
+      const resolvedScore = Number.isFinite(scoreNum)
+        ? scoreNum
+        : (Number.isFinite(scoreFromJudges) ? scoreFromJudges : Number.NaN);
+      const scoreText = Number.isFinite(resolvedScore) ? resolvedScore.toFixed(2) : '—';
+      const judgesHtml = judgeScores.map((score, idx) => {
+        const text = Number.isFinite(score) ? Number(score).toFixed(2) : '—';
+        return `
+          <div style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:.5rem .4rem;">
+            <div style="font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;opacity:.8;">J${idx + 1}</div>
+            <div style="margin-top:.15rem;font-size:clamp(1.1rem,2.3vw,1.7rem);font-weight:900;line-height:1;">${text}</div>
+          </div>`;
+      }).join('');
+      return `
+        <div class="projection-header">
+          <div>
+            <div class="projection-label">Tatami ${payload?.tatami || state.displayTatami || '—'} · Modo libre</div>
+            <div class="projection-title">${title}</div>
+          </div>
+          <div class="projection-clock">${headerClock}</div>
+        </div>
+        <div class="match-display" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:24px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.35);">
+          <div class="match-header" style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:1rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);">
+            <span>Kata</span>
+            <span>Captura manual de Mesa</span>
+          </div>
+          <div style="padding:2rem 1.5rem;text-align:center;">
+            <div style="font-size:clamp(2rem,4vw,3.4rem);font-weight:900;line-height:1.1;">${name}</div>
+            <div style="margin-top:1rem;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.55rem;">${judgesHtml}</div>
+            <div style="margin-top:.75rem;font-size:clamp(4rem,9vw,7rem);font-weight:900;line-height:1;color:#c4b5fd;">${scoreText}</div>
+          </div>
+        </div>`;
+    }
+
+    const nameA = payload?.kumite?.competitorAName || 'AO';
+    const nameB = payload?.kumite?.competitorBName || 'AKA';
+    const scoreA = Math.max(0, Number.parseInt(payload?.kumite?.scoreA, 10) || 0);
+    const scoreB = Math.max(0, Number.parseInt(payload?.kumite?.scoreB, 10) || 0);
+    const assignedSeconds = Number.isFinite(Number(payload?.kumite?.assignedSeconds))
+      ? Math.max(10, Number(payload.kumite.assignedSeconds))
+      : 180;
+    const warnA = {
+      c1: Math.min(4, Math.max(0, Number.parseInt(payload?.kumite?.warnA?.c1, 10) || 0)),
+      c2: Math.min(4, Math.max(0, Number.parseInt(payload?.kumite?.warnA?.c2, 10) || 0)),
+    };
+    const warnB = {
+      c1: Math.min(4, Math.max(0, Number.parseInt(payload?.kumite?.warnB?.c1, 10) || 0)),
+      c2: Math.min(4, Math.max(0, Number.parseInt(payload?.kumite?.warnB?.c2, 10) || 0)),
+    };
+    return `
+      <div class="projection-header">
+        <div>
+          <div class="projection-label">Tatami ${payload?.tatami || state.displayTatami || '—'} · Modo libre</div>
+          <div class="projection-title">${title}</div>
+        </div>
+        <div class="projection-clock">${_formatProjectionSeconds(assignedSeconds)}</div>
+      </div>
+      <div class="match-display" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:24px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.35);">
+        <div class="match-header" style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:1rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);">
+          <span>Kumite</span>
+          <span>Captura manual de Mesa</span>
+        </div>
+        <div style="padding:1.5rem;display:grid;grid-template-columns:1fr auto 1fr;gap:1rem;align-items:stretch;">
+          <div style="background:linear-gradient(135deg,#1d4ed8,#0f3ea8);border-radius:20px;padding:1.2rem;display:flex;flex-direction:column;justify-content:center;text-align:center;">
+            <div style="font-size:.9rem;opacity:.85;letter-spacing:.06em;text-transform:uppercase;">AO</div>
+            <div style="font-size:clamp(1.8rem,3vw,2.8rem);font-weight:900;line-height:1.1;margin-top:.3rem;">${nameA}</div>
+            <div style="font-size:clamp(4rem,8vw,6rem);font-weight:900;line-height:1;margin-top:.65rem;">${scoreA}</div>
+            ${_renderPenaltyBars(warnA)}
+          </div>
+          <div style="display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;opacity:.7;">VS</div>
+          <div style="background:linear-gradient(135deg,#dc2626,#991b1b);border-radius:20px;padding:1.2rem;display:flex;flex-direction:column;justify-content:center;text-align:center;">
+            <div style="font-size:.9rem;opacity:.85;letter-spacing:.06em;text-transform:uppercase;">AKA</div>
+            <div style="font-size:clamp(1.8rem,3vw,2.8rem);font-weight:900;line-height:1.1;margin-top:.3rem;">${nameB}</div>
+            <div style="font-size:clamp(4rem,8vw,6rem);font-weight:900;line-height:1;margin-top:.65rem;">${scoreB}</div>
+            ${_renderPenaltyBars(warnB)}
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function _awardLabel(position) {
+    if (position === 1) return 'ORO';
+    if (position === 2) return 'PLATA';
+    if (position === 3) return 'BRONCE';
+    return `TOP ${position}`;
+  }
+
+  function _awardColors(position) {
+    if (position === 1) return { bg: 'linear-gradient(135deg,#f59e0b,#b45309)', border: 'rgba(250,204,21,.85)' };
+    if (position === 2) return { bg: 'linear-gradient(135deg,#94a3b8,#475569)', border: 'rgba(226,232,240,.7)' };
+    if (position === 3) return { bg: 'linear-gradient(135deg,#d97706,#92400e)', border: 'rgba(251,191,36,.65)' };
+    return { bg: 'linear-gradient(135deg,#334155,#1e293b)', border: 'rgba(148,163,184,.45)' };
+  }
+
+  function _renderCategoryAwardsProjection(payload) {
+    const podium = [...(payload?.podium || [])]
+      .filter((p) => Number.isFinite(Number(p?.position)))
+      .sort((a, b) => Number(a.position) - Number(b.position));
+    const first = podium.find((p) => Number(p.position) === 1) || null;
+    const second = podium.find((p) => Number(p.position) === 2) || null;
+    const third = podium.find((p) => Number(p.position) === 3) || null;
+    const others = podium.filter((p) => Number(p.position) > 3).slice(0, 4);
+    const isKata = String(payload?.discipline || '').toLowerCase() === 'kata';
+    const headerClock = new Date().toLocaleTimeString('es-ES', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+
+    const renderPodiumCard = (item, fallbackPos) => {
+      const pos = Number(item?.position || fallbackPos || 0);
+      const colors = _awardColors(pos);
+      if (!item) {
+        return `
+          <div style="background:rgba(15,23,42,.4);border:2px dashed rgba(148,163,184,.35);border-radius:16px;padding:1rem;min-height:180px;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-weight:700;">
+            Puesto #${fallbackPos}
+          </div>`;
+      }
+      const score = Number(item?.score);
+      const hasScore = Number.isFinite(score);
+      return `
+        <div style="background:${colors.bg};border:2px solid ${colors.border};border-radius:16px;padding:1rem;box-shadow:0 12px 24px rgba(0,0,0,.25);min-height:180px;display:flex;flex-direction:column;justify-content:space-between;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;">
+            <div style="font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;opacity:.95;font-weight:800;">${_awardLabel(pos)}</div>
+            <div style="font-size:1.45rem;font-weight:900;line-height:1;">#${pos}</div>
+          </div>
+          <div style="margin-top:.55rem;font-size:1.45rem;font-weight:900;line-height:1.08;">${item.athleteName || 'Competidor'}</div>
+          <div style="margin-top:.35rem;font-size:.95rem;opacity:.9;">${item.club || '—'}</div>
+          ${isKata
+            ? `<div style="margin-top:.65rem;padding:.35rem .55rem;border-radius:10px;background:rgba(2,6,23,.28);font-size:1rem;font-weight:900;letter-spacing:.02em;">Puntaje: ${hasScore ? score.toFixed(2) : 'No disponible'}</div>`
+            : ''}
+        </div>`;
+    };
+
+    return `
+      <div class="projection-header">
+        <div>
+          <div class="projection-label">Tatami ${payload?.tatami || state.displayTatami || '—'} · Premiacion oficial</div>
+          <div class="projection-title">${payload?.categoryName || 'Categoria'}</div>
+        </div>
+        <div class="projection-clock">${headerClock}</div>
+      </div>
+      <div class="match-display" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:24px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.35);">
+        <div class="match-header" style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:1rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);">
+          <span>Ceremonia de premiacion</span>
+          <span>${(payload?.discipline || '').toUpperCase() || 'CATEGORIA'}${isKata ? ' · Puntajes oficiales' : ''}</span>
+        </div>
+        <div style="padding:1.25rem;display:grid;grid-template-columns:1fr;gap:.85rem;">
+          <div style="display:grid;grid-template-columns:1fr minmax(260px,1.2fr) 1fr;gap:.75rem;align-items:end;">
+            <div style="transform:translateY(18px);">${renderPodiumCard(second, 2)}</div>
+            <div>${renderPodiumCard(first, 1)}</div>
+            <div style="transform:translateY(32px);">${renderPodiumCard(third, 3)}</div>
+          </div>
+          ${others.length
+            ? `<div style="margin-top:.45rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.6rem;">${others.map((item) => renderPodiumCard(item, item.position)).join('')}</div>`
+            : ''}
+        </div>
+      </div>`;
+  }
+
+  function _renderAthleteWithBadges(competitor, showClub = true) {
+    if (!competitor) return '<span class="text-muted">—</span>';
+    const c = competitor.competitors || competitor;
+    const name = c.full_name || competitor.full_name || '—';
+    // Dojo info
+    const dojoInfo = c.dojo_id ? Dojos.getFromCache(c.dojo_id) : null;
+    const dojoName = c.club || (dojoInfo ? dojoInfo.name : '');
+    const dojoLogo = dojoInfo?.logo_url || null;
+    // Country info
+    const countryInfo = getCountryInfo(c.country);
+    const parts = [];
+    // Top row: logo + dojo name + flag + country
+    const topParts = [];
+    if (dojoLogo) {
+      topParts.push(`<img src="${dojoLogo}" alt="" style="width:22px;height:22px;object-fit:contain;border-radius:3px;display:inline-block;vertical-align:middle;" />`);
+    }
+    if (dojoName && showClub) {
+      topParts.push(`<span style="font-size:0.75em;opacity:0.85;">${dojoName}</span>`);
+    }
+    if (countryInfo.flag) {
+      topParts.push(`<span style="font-size:1em;">${countryInfo.flag}</span>`);
+    }
+    if (countryInfo.name) {
+      topParts.push(`<span style="font-size:0.75em;opacity:0.75;">${countryInfo.name}</span>`);
+    }
+    const topLine = topParts.length ? `<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">${topParts.join('')}</div>` : '';
+    return `${topLine}<div style="font-weight:700;">${name}</div>`;
+  }
+function _renderAthleteBadgesCompact(competitor) {
+    if (!competitor) return '';
+    const c = competitor.competitors || competitor;
+    const dojoInfo = c.dojo_id ? Dojos.getFromCache(c.dojo_id) : null;
+    const dojoName = c.club || (dojoInfo ? dojoInfo.name : '');
+    const dojoLogo = dojoInfo?.logo_url || null;
+    const countryInfo = getCountryInfo(c.country);
+    const parts = [];
+    if (dojoLogo) parts.push(`<img src="${dojoLogo}" alt="" style="width:16px;height:16px;object-fit:contain;border-radius:2px;display:inline-block;vertical-align:middle;" />`);
+    if (dojoName) parts.push(`<span style="opacity:0.8;">${dojoName}</span>`);
+    if (countryInfo.flag) parts.push(`<span>${countryInfo.flag}</span>`);
+    if (countryInfo.name) parts.push(`<span style="opacity:0.7;">${countryInfo.name}</span>`);
+    if (!parts.length) return '';
+    return parts.join(' · ');
+  }
+
+  function _renderKataRoundResultsProjection(payload) {
+    const ranking = Array.isArray(payload?.ranking) ? payload.ranking : [];
+    const winner = payload?.winner || ranking[0] || null;
+    const headerClock = new Date().toLocaleTimeString('es-ES', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+    return `
+      <div class="projection-header">
+        <div>
+          <div class="projection-label">Tatami ${payload?.tatami || state.displayTatami || '—'}</div>
+          <div class="projection-title">${payload?.categoryName || 'Kata'} · ${payload?.roundLabel || `Ronda ${payload?.round ?? '—'}`}</div>
+        </div>
+        <div class="projection-clock">${headerClock}</div>
+      </div>
+      <div class="match-display" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:24px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.35);">
+        <div class="match-header" style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:1rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);">
+          <span>Resultados de ronda</span>
+          <span>${winner ? `🏆 Ganador: ${winner.athleteName} (${Number(winner.score).toFixed(2)})` : 'Sin ganador definido'}</span>
+        </div>
+        <div style="padding:1.1rem 1.25rem 1.25rem;">
+          <div style="display:grid;grid-template-columns:84px 1fr 120px;gap:.55rem;color:#cbd5e1;text-transform:uppercase;letter-spacing:.06em;font-size:.8rem;font-weight:800;padding:.25rem .6rem;">
+            <div>Pos.</div>
+            <div>Competidor</div>
+            <div style="text-align:right;">Puntaje</div>
+          </div>
+          ${ranking.map(item => {
+            const isWinner = winner && item.athleteId && winner.athleteId && String(item.athleteId) === String(winner.athleteId);
+            const rowBg = isWinner ? 'linear-gradient(90deg,rgba(250,204,21,.35),rgba(250,204,21,.12))' : 'rgba(15,23,42,.45)';
+            return `
+              <div style="display:grid;grid-template-columns:84px 1fr 120px;gap:.55rem;align-items:center;background:${rowBg};border:1px solid ${isWinner ? 'rgba(250,204,21,.75)' : 'rgba(148,163,184,.2)'};border-radius:12px;padding:.62rem .7rem;margin-top:.45rem;">
+                <div style="font-size:1rem;font-weight:900;color:${isWinner ? '#fde047' : '#e2e8f0'};">#${item.position || '—'}</div>
+                <div style="font-size:1.15rem;font-weight:800;color:#f8fafc;line-height:1.1;">${item.athleteName || 'Competidor'}</div>
+                <div style="font-size:1.25rem;font-weight:900;color:${isWinner ? '#fde047' : '#f8fafc'};text-align:right;">${Number(item.score).toFixed(2)}</div>
+              </div>`;
+          }).join('') || '<div style="padding:1rem;color:#cbd5e1;">Sin puntajes para mostrar.</div>'}
+        </div>
+      </div>`;
+  }
+
+  function _renderHero(t) {
+    const navName = document.getElementById('nav-tournament-name');
+    if (navName) navName.textContent = t.name;
+    if (!state.displayMode) document.title = `${t.name} — Torneo Karate`;
+    document.getElementById('hero-name').textContent = t.name;
+    document.getElementById('hero-location').textContent = t.location || '';
+    document.getElementById('hero-date').textContent = t.date_start ? formatDate(t.date_start) : '';
+    document.getElementById('hero-status').textContent = STATUS_LABELS[t.status] || t.status;
+    document.getElementById('hero-cats').textContent = '— categorías';
+    document.getElementById('hero-competitors').textContent = '— competidores';
+    if (t.status !== 'active') {
+      document.getElementById('live-indicator').className = 'status-dot gray';
+      document.getElementById('live-text').textContent = STATUS_LABELS[t.status] || t.status;
+    }
+  }
+
+  /* ---- Mesa técnica en vivo / proyección pública ---- */
+  async function _loadLiveBoard(tid) {
+    const wrap = document.getElementById('live-technical-board');
+    await Dojos.ensureCache();
+    const content = document.getElementById('live-technical-content');
+    if (!wrap || !content) return;
+    try {
+      let matches = [];
+      try {
+        matches = await Matches.listByTournament(tid);
+      } catch (_) {
+        // Si la consulta a Supabase falla (RLS, red, etc.), continuar con array vacío.
+        // Los datos del combate actual se obtienen de localStorage (projectionLive).
+      }
+      const scopedMatches = state.displayTatami
+        ? matches.filter(m => String(m.tatami || m.category?.tatami || '') === String(state.displayTatami))
+        : matches;
+      _syncProjectionTargetFromStorage();
+      const projectionLive = state.displayMode ? _readProjectionLive() : null;
+      if (state.displayMode && _isGenericBoardProjection(projectionLive)) {
+        wrap.style.display = 'block';
+        content.innerHTML = _renderGenericBoardProjection(projectionLive);
+        return;
+      }
+      if (state.displayMode && _isCategoryAwardsProjection(projectionLive)) {
+        wrap.style.display = 'block';
+        content.innerHTML = _renderCategoryAwardsProjection(projectionLive);
+        return;
+      }
+      if (state.displayMode && _isActiveKataRoundProjection(projectionLive)) {
+        wrap.style.display = 'block';
+        content.innerHTML = _renderKataRoundResultsProjection(projectionLive);
+        return;
+      }
+      const selectedMatch = state.displayMatchId
+        ? (scopedMatches.find(m => String(m.id) === String(state.displayMatchId))
+          || matches.find(m => String(m.id) === String(state.displayMatchId)))
+        : null;
+      const mirroredMatch = projectionLive?.matchId
+        ? (scopedMatches.find(m => String(m.id) === String(projectionLive.matchId))
+          || matches.find(m => String(m.id) === String(projectionLive.matchId)))
+        : null;
+      // Si no se encontró el match en la DB pero hay datos en projectionLive, crear un objeto virtual
+      const virtualFromProjection = (!mirroredMatch && projectionLive?.matchId && projectionLive?.competitorAName)
+        ? {
+            id: projectionLive.matchId,
+            category_id: projectionLive.categoryId || null,
+            category: { name: projectionLive.categoryName || '', discipline: projectionLive.discipline || 'kumite' },
+            round_label: projectionLive.roundLabel || '',
+            status: projectionLive.status || 'pending',
+            tatami: projectionLive.tatami || state.displayTatami,
+            competitor_a_id: null,
+            competitor_b_id: null,
+            competitor_a: { competitors: { full_name: projectionLive.competitorAName, club: projectionLive.clubA || '' }, full_name: projectionLive.competitorAName, club: projectionLive.clubA || '' },
+            competitor_b: { competitors: { full_name: projectionLive.competitorBName || 'Competidor B', club: projectionLive.clubB || '' }, full_name: projectionLive.competitorBName || 'Competidor B', club: projectionLive.clubB || '' },
+            score_a: projectionLive.kumite?.scoreA ?? projectionLive.kata?.total ?? null,
+            score_b: projectionLive.kumite?.scoreB ?? null,
+            bracket_type: projectionLive.discipline === 'kata' ? 'kata_round' : 'single_elimination',
+            _fromProjection: true,
+          }
+        : null;
+      const recentResultMatches = [...scopedMatches]
+        .filter((m) => m.status === MATCH_STATUS.FINISHED && (m.winner_id || m.score_a != null || m.score_b != null))
+        .sort((a, b) => {
+          const ta = a.finished_at ? Date.parse(a.finished_at) : 0;
+          const tb = b.finished_at ? Date.parse(b.finished_at) : 0;
+          return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
+        });
+      const latestFinished = recentResultMatches[0] || null;
+      const pendingMatches = scopedMatches.filter(m => m.status === MATCH_STATUS.ONGOING || m.status === MATCH_STATUS.PENDING);
+      const ongoingMatch = pendingMatches.find(m => m.status === MATCH_STATUS.ONGOING) || null;
+      const liveMatch = state.displayMode
+        ? (selectedMatch
+          || mirroredMatch
+          || virtualFromProjection
+          || ongoingMatch
+          || latestFinished
+          || pendingMatches[0]
+          || scopedMatches.find(m => {
+            const kata = Matches.getKataSummary(m);
+            const kumi = Matches.getKumiteSummary(m);
+            return kata.submitted > 0 || (kumi.events || []).length > 0;
+          }))
+        : (selectedMatch
+          || ongoingMatch
+          || latestFinished
+          || pendingMatches[0]
+          || scopedMatches.find(m => {
+            const kata = Matches.getKataSummary(m);
+            const kumi = Matches.getKumiteSummary(m);
+            return kata.submitted > 0 || (kumi.events || []).length > 0;
+          }));
+
+      if (!liveMatch) {
+        wrap.style.display = 'block';
+        const waitText = state.displayMode
+          ? `Esperando que Mesa Tecnica inicie el combate en Tatami ${state.displayTatami || 'actual'}.`
+          : `Esperando actividad en Tatami ${state.displayTatami || 'actual'}.`;
+        content.innerHTML = `<div style="min-height:${state.displayMode ? '85vh' : '180px'};display:flex;flex-direction:column;align-items:center;justify-content:center;color:${state.displayMode ? '#fff' : '#64748b'};font-size:${state.displayMode ? '2rem' : '1rem'};font-weight:800;"><div>${waitText}</div></div>`;
+        return;
+      }
+
+      wrap.style.display = 'block';
+      const isKata = liveMatch.category?.discipline === 'kata' || liveMatch.bracket_type === 'kata_round';
+      const mirrorForLiveMatch = projectionLive && String(projectionLive.matchId || '') === String(liveMatch.id || '')
+        ? projectionLive
+        : null;
+      const nameA = mirrorForLiveMatch?.competitorAName || liveMatch.competitor_a?.competitors?.full_name || 'Competidor A';
+      const nameB = mirrorForLiveMatch?.competitorBName || liveMatch.competitor_b?.competitors?.full_name || 'Competidor B';
+      const clubA = mirrorForLiveMatch?.clubA || liveMatch.competitor_a?.competitors?.club || liveMatch.competitor_a?.club || '';
+      const clubB = mirrorForLiveMatch?.clubB || liveMatch.competitor_b?.competitors?.club || liveMatch.competitor_b?.club || '';
+      const heading = (clockText = _projectionClockText()) => state.displayMode
+        ? `<div class="projection-header"><div><div class="projection-label">Tatami ${liveMatch.tatami || liveMatch.category?.tatami || state.displayTatami || '—'}</div><div class="projection-title">${liveMatch.category?.name || (isKata ? 'Kata' : 'Kumite')}</div></div><div class="projection-clock">${clockText}</div></div>`
+        : '';
+
+      if (state.displayMode && String(state.projectionWarnMatchId || '') !== String(liveMatch.id || '')) {
+        state.projectionWarnMatchId = liveMatch.id || null;
+        state.projectionWarnCache = {
+          a: { c1: 0, c2: 0 },
+          b: { c1: 0, c2: 0 },
+        };
+      }
+      if (state.displayMode && String(state.projectionKataMatchId || '') !== String(liveMatch.id || '')) {
+        state.projectionKataMatchId = liveMatch.id || null;
+        state.projectionKataCache = {};
+      }
+
+      if (state.displayMode) {
+        if (isKata) {
+          // --- KATA POR DUELOS: dos contendientes con sus notas de jueces ---
+          const isDuel = !!projectionLive?.kataDuel || !!liveMatch?.competitor_b_id;
+          if (isDuel) {
+            const duel = projectionLive?.kataDuel || {
+              winner: liveMatch.winner_id === liveMatch.competitor_a_id ? 'a' : (liveMatch.winner_id === liveMatch.competitor_b_id ? 'b' : null),
+              scoreA: 0, scoreB: 0, ready: false,
+              totalA: liveMatch.score_a != null ? Number(liveMatch.score_a) : null,
+              totalB: liveMatch.score_b != null ? Number(liveMatch.score_b) : null,
+              judgesA: projectionLive?.kata?.judges || [],
+              judgesB: [],
+            };
+            const nameA2 = nameA;
+            const nameB2 = nameB;
+            const clubA2 = clubA;
+            const clubB2 = projectionLive?.clubB || liveMatch.competitor_b?.competitors?.club || liveMatch.competitor_b?.club || '';
+            const totalA = duel.totalA != null ? Number(duel.totalA).toFixed(2) : '—';
+            const totalB = duel.totalB != null ? Number(duel.totalB).toFixed(2) : '—';
+            const winnerLabel = duel.winner ? (duel.winner === 'a' ? 'AO' : 'AKA') : null;
+            const judgesA = Array.isArray(duel.judgesA) ? duel.judgesA : [];
+            const judgesB = Array.isArray(duel.judgesB) ? duel.judgesB : [];
+            const seats = ['J1','J2','J3','J4','J5'];
+            const renderJudgeRow = (judges) => `
+              <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:.4rem;margin-top:.5rem;">
+                ${seats.map(seat => {
+                  const j = judges.find(jj => jj?.seat === seat) || {};
+                  const score = Number.isFinite(Number(j.score)) ? Number(j.score).toFixed(2) : '—';
+                  return `<div style="text-align:center;background:rgba(255,255,255,.08);border-radius:8px;padding:.35rem;">
+                    <div style="font-size:.65rem;opacity:.7;">${seat}</div>
+                    <div style="font-size:1rem;font-weight:800;">${score}</div>
+                  </div>`;
+                }).join('')}
+              </div>`;
+            content.innerHTML = `
+              ${heading()}
+              <div class="match-display" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:24px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.35);">
+                <div class="match-header" style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:1rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);">
+                  <span>${liveMatch.category?.name || '—'}</span>
+                  <span>🥋 Duelo de Kata · ${liveMatch.round_label || 'Ronda ' + liveMatch.round}</span>
+                </div>
+                <div class="match-body" style="display:grid;grid-template-columns:1fr auto 1fr;padding:1.5rem;align-items:stretch;">
+                  <div class="match-fighter" style="background:linear-gradient(135deg,#1565c0,#0f3ea8);border-radius:24px;padding:1.5rem;text-align:center;${winnerLabel === 'AKA' ? 'opacity:.7;' : ''}">
+                    <div class="match-fighter-name" style="font-size:clamp(1.6rem,3vw,2.6rem);font-weight:900;line-height:1;">${nameA2}</div>
+                    <div class="match-fighter-info" style="margin-top:.45rem;font-size:.95rem;opacity:.82;">AO · ${clubA2}</div>
+                    <div class="match-fighter-score" style="font-size:clamp(3.5rem,6vw,5rem);font-weight:900;line-height:1;margin-top:1rem;">${totalA}</div>
+                    ${winnerLabel === 'AO' ? '<div style="margin-top:.5rem;font-size:1rem;font-weight:800;color:#facc15;">🏆 GANADOR</div>' : ''}
+                    ${renderJudgeRow(judgesA)}
+                  </div>
+                  <div class="match-vs" style="display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;opacity:.72;padding:0 1rem;">VS</div>
+                  <div class="match-fighter" style="background:linear-gradient(135deg,#c62828,#991b1b);border-radius:24px;padding:1.5rem;text-align:center;${winnerLabel === 'AO' ? 'opacity:.7;' : ''}">
+                    <div class="match-fighter-name" style="font-size:clamp(1.6rem,3vw,2.6rem);font-weight:900;line-height:1;">${nameB2}</div>
+                    <div class="match-fighter-info" style="margin-top:.45rem;font-size:.95rem;opacity:.82;">AKA · ${clubB2}</div>
+                    <div class="match-fighter-score" style="font-size:clamp(3.5rem,6vw,5rem);font-weight:900;line-height:1;margin-top:1rem;">${totalB}</div>
+                    ${winnerLabel === 'AKA' ? '<div style="margin-top:.5rem;font-size:1rem;font-weight:800;color:#facc15;">🏆 GANADOR</div>' : ''}
+                    ${renderJudgeRow(judgesB)}
+                  </div>
+                </div>
+              </div>
+              <div style="margin-top:1rem;text-align:center;font-size:1.2rem;font-weight:800;color:#facc15;">
+                ${winnerLabel ? `🏆 Ganador: ${nameA2} (AO) ${duel.scoreA}-${duel.scoreB} ${nameB2} (AKA)` : 'Esperando notas de ambos contendientes...'}
+              </div>`;
+            return;
+          }
+          const summary = mirrorForLiveMatch?.discipline === 'kata' && mirrorForLiveMatch?.kata
+            ? {
+                total: mirrorForLiveMatch.kata.total,
+                judges: Array.isArray(mirrorForLiveMatch.kata.judges) ? mirrorForLiveMatch.kata.judges : [],
+                submitted: Number.isFinite(Number(mirrorForLiveMatch.kata.submitted)) ? Number(mirrorForLiveMatch.kata.submitted) : null,
+                ready: !!mirrorForLiveMatch.kata.ready,
+              }
+            : Matches.getKataSummary(liveMatch);
+          const submitted = Number.isFinite(Number(summary.submitted))
+            ? Number(summary.submitted)
+            : (Array.isArray(summary.judges) ? summary.judges.filter(j => Number.isFinite(Number(j?.score))).length : 0);
+          const ready = typeof summary.ready === 'boolean' ? summary.ready : submitted >= 5;
+          const prevKataScores = state.projectionKataCache || {};
+          content.innerHTML = `
+            ${heading()}
+            <div class="match-display" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:24px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.35);">
+              <div class="match-header" style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:1rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);">
+                <span>${liveMatch.category?.name || '—'}</span>
+                <span>${ready ? '✅ Notas completas' : `🥋 Jueces ${submitted}/5`} · ${liveMatch.round_label || 'Ronda ' + liveMatch.round}</span>
+              </div>
+              <div class="match-body" style="display:flex;justify-content:center;padding:1.5rem;">
+                <div class="match-fighter" style="flex:unset;min-width:min(720px,100%);text-align:center;background:linear-gradient(135deg,rgba(91,33,182,.92),rgba(59,7,100,.88));border-radius:24px;padding:1.5rem;">
+                  <div class="match-fighter-name" style="font-size:clamp(2.2rem,4vw,4rem);font-weight:900;line-height:1;">${nameA}</div>
+                  <div class="match-fighter-info" style="margin-top:.45rem;font-size:1rem;opacity:.82;">${clubA}</div>
+                  <div class="match-fighter-score" style="font-size:clamp(5rem,9vw,7rem);font-weight:900;line-height:1;margin-top:1rem;">${summary.total != null ? Number(summary.total).toFixed(2) : '—'}</div>
+                </div>
+              </div>
+            </div>
+            <div class="projection-judges" style="margin-top:1rem;">
+              ${['J1','J2','J3','J4','J5'].map(seat => {
+                const judge = summary.judges.find(j => j.seat === seat);
+                const scoreNum = Number.isFinite(Number(judge?.score)) ? Number(judge.score) : null;
+                const hadPrev = Object.prototype.hasOwnProperty.call(prevKataScores, seat);
+                const prevScore = hadPrev ? prevKataScores[seat] : null;
+                const pulse = hadPrev && scoreNum != null && (prevScore == null || Math.abs(scoreNum - Number(prevScore)) > 0.0001);
+                return `<div class="projection-judge-card${pulse ? ' pulse' : ''}">
+                  <div class="projection-judge-seat">${seat}</div>
+                  <div class="projection-judge-name">${judge?.judge_name || 'Pendiente'}</div>
+                  <div class="projection-judge-score${pulse ? ' pulse' : ''}">${judge?.score != null ? Number(judge.score).toFixed(2) : '—'}</div>
+                </div>`;
+              }).join('')}
+            </div>`;
+          state.projectionKataCache = Object.fromEntries(
+            ['J1','J2','J3','J4','J5'].map((seat) => {
+              const judge = summary.judges.find(j => j.seat === seat);
+              const score = Number.isFinite(Number(judge?.score)) ? Number(judge.score) : null;
+              return [seat, score];
+            })
+          );
+          return;
+        }
+
+        const summary = mirrorForLiveMatch?.discipline === 'kumite' && mirrorForLiveMatch?.kumite
+          ? {
+              scoreA: Number.isFinite(Number(mirrorForLiveMatch.kumite.scoreA)) ? Number(mirrorForLiveMatch.kumite.scoreA) : 0,
+              scoreB: Number.isFinite(Number(mirrorForLiveMatch.kumite.scoreB)) ? Number(mirrorForLiveMatch.kumite.scoreB) : 0,
+              warnA: mirrorForLiveMatch.kumite.warnA || { c1: 0, c2: 0 },
+              warnB: mirrorForLiveMatch.kumite.warnB || { c1: 0, c2: 0 },
+              winner: mirrorForLiveMatch.kumite.winner || null,
+              senshu: mirrorForLiveMatch.kumite.senshu || null,
+              events: [],
+              clockRemaining: Number.isFinite(Number(mirrorForLiveMatch.kumite.clockRemaining)) ? Number(mirrorForLiveMatch.kumite.clockRemaining) : null,
+              clockSeconds: Number.isFinite(Number(mirrorForLiveMatch.kumite.clockSeconds)) ? Number(mirrorForLiveMatch.kumite.clockSeconds) : null,
+              clockRunning: !!mirrorForLiveMatch.kumite.clockRunning,
+              clockUpdatedAt: mirrorForLiveMatch.updatedAt || null,
+            }
+          : Matches.getKumiteSummary(liveMatch);
+        const winnerSide = (summary.winner === 'a' || summary.winner === 'b')
+          ? summary.winner
+          : (liveMatch.winner_id && liveMatch.competitor_a_id && liveMatch.winner_id === liveMatch.competitor_a_id)
+            ? 'a'
+            : (liveMatch.winner_id && liveMatch.competitor_b_id && liveMatch.winner_id === liveMatch.competitor_b_id)
+              ? 'b'
+              : null;
+        const aoWinner = winnerSide === 'a';
+        const akaWinner = winnerSide === 'b';
+        const aoCardStyle = aoWinner
+          ? 'background:linear-gradient(135deg,#1d4ed8,#0f3ea8);border-radius:24px;padding:1.5rem;text-align:center;display:flex;flex-direction:column;justify-content:center;border:3px solid #facc15;box-shadow:0 0 28px rgba(250,204,21,.45);'
+          : `background:linear-gradient(135deg,#1d4ed8,#0f3ea8);border-radius:24px;padding:1.5rem;text-align:center;display:flex;flex-direction:column;justify-content:center;${akaWinner ? 'opacity:.72;' : ''}`;
+        const akaCardStyle = akaWinner
+          ? 'background:linear-gradient(135deg,#dc2626,#991b1b);border-radius:24px;padding:1.5rem;text-align:center;display:flex;flex-direction:column;justify-content:center;border:3px solid #facc15;box-shadow:0 0 28px rgba(250,204,21,.45);'
+          : `background:linear-gradient(135deg,#dc2626,#991b1b);border-radius:24px;padding:1.5rem;text-align:center;display:flex;flex-direction:column;justify-content:center;${aoWinner ? 'opacity:.72;' : ''}`;
+        const prevWarn = state.projectionWarnCache || {
+          a: { c1: 0, c2: 0 },
+          b: { c1: 0, c2: 0 },
+        };
+        content.innerHTML = `
+          ${heading(_projectionClockText(summary))}
+          <div class="match-display" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:24px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.35);">
+            <div class="match-header" style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:1rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);">
+              <span>${liveMatch.category?.name || '—'}</span>
+              <span>${winnerSide ? `🏆 Ganador: ${aoWinner ? 'AO' : 'AKA'}` : (liveMatch.round_label || 'Ronda ' + liveMatch.round)}</span>
+            </div>
+            <div class="match-body" style="display:grid;grid-template-columns:1fr auto 1fr;gap:1rem;padding:1.5rem;align-items:stretch;">
+              <div class="match-fighter" style="${aoCardStyle}">
+                <div class="match-fighter-name" style="font-size:clamp(2rem,3.4vw,3.2rem);font-weight:900;line-height:1;">${nameA}</div>
+                <div class="match-fighter-info" style="margin-top:.45rem;font-size:1rem;opacity:.82;">${clubA}</div>
+                <div class="match-fighter-score" style="font-size:clamp(5rem,9vw,7rem);font-weight:900;line-height:1;margin-top:1rem;">${summary.scoreA}</div>
+                ${_renderPenaltyBars(summary.warnA, prevWarn.a)}
+                ${aoWinner ? '<div class="projection-winner-chip">GANADOR</div>' : ''}
+              </div>
+              <div class="match-vs" style="display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;opacity:.72;">VS</div>
+              <div class="match-fighter" style="${akaCardStyle}">
+                <div class="match-fighter-name" style="font-size:clamp(2rem,3.4vw,3.2rem);font-weight:900;line-height:1;">${nameB}</div>
+                <div class="match-fighter-info" style="margin-top:.45rem;font-size:1rem;opacity:.82;">${clubB}</div>
+                <div class="match-fighter-score" style="font-size:clamp(5rem,9vw,7rem);font-weight:900;line-height:1;margin-top:1rem;">${summary.scoreB}</div>
+                ${_renderPenaltyBars(summary.warnB, prevWarn.b)}
+                ${akaWinner ? '<div class="projection-winner-chip">GANADOR</div>' : ''}
+              </div>
+            </div>
+          </div>
+          <div class="projection-feed">
+            <div class="projection-feed-title">Actividad reciente</div>
+            ${(summary.events || []).slice(-8).reverse().map(evt => {
+              const label = evt.kind === 'point'
+                ? `${(evt.action || '').toUpperCase()} → ${evt.side === 'a' ? 'AO' : 'AKA'}`
+                : `Falta ${String(evt.category || '').toUpperCase()} → ${evt.side === 'a' ? 'AO' : 'AKA'}`;
+              return `<div style="padding:.45rem 0;border-bottom:1px solid #e2e8f0;font-size:1.05rem;"><strong>${evt.seat || 'J?'}</strong> · ${evt.judge_name || 'Juez'} · ${label}</div>`;
+            }).join('') || '<div class="text-sm text-muted">Sin acciones registradas aún.</div>'}
+          </div>`;
+        state.projectionWarnCache = {
+          a: {
+            c1: Math.min(4, Math.max(0, Number.parseInt(summary.warnA?.c1, 10) || 0)),
+            c2: Math.min(4, Math.max(0, Number.parseInt(summary.warnA?.c2, 10) || 0)),
+          },
+          b: {
+            c1: Math.min(4, Math.max(0, Number.parseInt(summary.warnB?.c1, 10) || 0)),
+            c2: Math.min(4, Math.max(0, Number.parseInt(summary.warnB?.c2, 10) || 0)),
+          },
+        };
+        return;
+      }
+
+      if (isKata) {
+        const summary = Matches.getKataSummary(liveMatch);
+        if (state.displayMode) {
+          content.innerHTML = `
+            ${heading()}
+            <div class="projection-kata-top">
+              <div class="projection-card projection-athlete">
+                <div class="projection-label">Atleta en tatami</div>
+                <div class="projection-athlete-name">${nameA}</div>
+                <div class="projection-athlete-sub">${liveMatch.category?.name || 'Kata'}</div>
+                <div class="projection-athlete-sub" style="font-size:0.85rem;margin-top:.15rem;">${_renderAthleteBadgesCompact(liveMatch.competitor_a)}</div>
+              </div>
+              <div class="projection-card projection-total">
+                <div class="projection-total-label">Total oficial</div>
+                <div class="projection-total-value">${summary.total != null ? Number(summary.total).toFixed(2) : '—'}</div>
+              </div>
+            </div>
+            <div class="projection-judges">
+              ${['J1','J2','J3','J4','J5'].map(seat => {
+                const judge = summary.judges.find(j => j.seat === seat);
+                return `<div class="projection-judge-card">
+                  <div class="projection-judge-seat">${seat}</div>
+                  <div class="projection-judge-name">${judge?.judge_name || 'Pendiente'}</div>
+                  <div class="projection-judge-score">${judge?.score != null ? Number(judge.score).toFixed(2) : '—'}</div>
+                </div>`;
+              }).join('')}
+            </div>`;
+        } else {
+          content.innerHTML = `
+            ${heading(_projectionClockText(summary))}
+            <div class="flex items-center justify-between gap-2 flex-wrap mb-2">
+              <div>
+                <strong>${liveMatch.category?.name || 'Kata'}</strong>
+                <div class="text-sm text-muted">${_renderAthleteBadgesCompact(liveMatch.competitor_a)}</div>
+              </div>
+              <div style="font-size:2rem;font-weight:900;color:#7c3aed;">${summary.total != null ? Number(summary.total).toFixed(2) : '—'}</div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:.4rem;">
+              ${['J1','J2','J3','J4','J5'].map(seat => {
+                const judge = summary.judges.find(j => j.seat === seat);
+                return `<div style="background:#faf5ff;border:1px solid #ddd6fe;border-radius:12px;padding:.45rem;text-align:center;color:#111827;">
+                  <div class="text-xs text-muted">${seat}</div>
+                  <div style="font-size:.72rem;font-weight:700;min-height:28px;">${judge?.judge_name || 'Pendiente'}</div>
+                  <div style="font-size:1.15rem;font-weight:900;color:${judge?.score != null ? '#6d28d9' : '#94a3b8'};">${judge?.score != null ? Number(judge.score).toFixed(2) : '—'}</div>
+                </div>`;
+              }).join('')}
+            </div>`;
+        }
+      } else {
+        const summary = Matches.getKumiteSummary(liveMatch);
+        const recent = (summary.events || []).slice(-6).reverse().map(evt => {
+          const label = evt.kind === 'point'
+            ? `${(evt.action || '').toUpperCase()} → ${evt.side === 'a' ? 'AO' : 'AKA'}`
+            : `Falta ${String(evt.category || '').toUpperCase()} → ${evt.side === 'a' ? 'AO' : 'AKA'}`;
+          return `<div style="padding:${state.displayMode ? '.45rem 0' : '.25rem 0'};border-bottom:1px solid #e2e8f0;font-size:${state.displayMode ? '1.05rem' : '.8rem'};"><strong>${evt.seat || 'J?'}</strong> · ${evt.judge_name || 'Juez'} · ${label}</div>`;
+        }).join('') || '<div class="text-sm text-muted">Sin acciones registradas aún.</div>';
+        if (state.displayMode) {
+          content.innerHTML = `
+            ${heading(_projectionClockText(summary))}
+            <div class="projection-kumite-board">
+              <div class="projection-side ao">
+                <div>
+                  <div class="projection-side-label">AO</div>
+                  <div style="font-size:0.7rem;opacity:0.7;margin-bottom:2px;">${_renderAthleteBadgesCompact(liveMatch.competitor_a)}</div>
+                  <div class="projection-side-name">${nameA}</div>
+                </div>
+                <div class="projection-side-score">${summary.scoreA}</div>
+                ${_renderPenaltyBars(summary.warnA)}
+              </div>
+              <div class="projection-vs">
+                <div class="projection-vs-mark">VS</div>
+                <div>TATAMI</div>
+                <div>${liveMatch.tatami || liveMatch.category?.tatami || state.displayTatami || '—'}</div>
+              </div>
+              <div class="projection-side aka">
+                <div>
+                  <div class="projection-side-label">AKA</div>
+                  <div style="font-size:0.7rem;opacity:0.7;margin-bottom:2px;">${_renderAthleteBadgesCompact(liveMatch.competitor_b)}</div>
+                  <div class="projection-side-name">${nameB}</div>
+                </div>
+                <div class="projection-side-score">${summary.scoreB}</div>
+                ${_renderPenaltyBars(summary.warnB)}
+              </div>
+            </div>
+            <div class="projection-feed">
+              <div class="projection-feed-title">Actividad reciente</div>
+              ${recent}
+            </div>`;
+        } else {
+          content.innerHTML = `
+            ${heading()}
+            <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:.5rem;align-items:center;">
+              <div style="background:#1565c0;color:#fff;border-radius:12px;padding:.75rem;text-align:center;">
+                <div class="text-xs" style="opacity:.8;">AO</div>
+                <div style="font-size:0.65rem;opacity:0.6;line-height:1.2;">${_renderAthleteBadgesCompact(liveMatch.competitor_a)}</div>
+                <div style="font-size:1rem;font-weight:700;">${nameA}</div>
+                <div style="font-size:2.2rem;font-weight:900;">${summary.scoreA}</div>
+              </div>
+              <div style="font-weight:900;opacity:.55;font-size:1rem;">VS</div>
+              <div style="background:#c62828;color:#fff;border-radius:12px;padding:.75rem;text-align:center;">
+                <div class="text-xs" style="opacity:.8;">AKA</div>
+                <div style="font-size:0.65rem;opacity:0.6;line-height:1.2;">${_renderAthleteBadgesCompact(liveMatch.competitor_b)}</div>
+                <div style="font-size:1rem;font-weight:700;">${nameB}</div>
+                <div style="font-size:2.2rem;font-weight:900;">${summary.scoreB}</div>
+              </div>
+            </div>
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:.55rem;margin-top:.8rem;max-height:170px;overflow:auto;color:#111827;">${recent}</div>`;
+        }
+      }
+    } catch (e) {
+      if (state.displayMode) {
+        wrap.style.display = 'block';
+        content.innerHTML = `<div style="min-height:60vh;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#f87171;font-size:1.5rem;font-weight:800;text-align:center;padding:2rem;">
+          <div style="font-size:3rem;margin-bottom:1rem;">⚠️</div>
+          <div>Error al cargar datos del marcador</div>
+          <div style="font-size:.85rem;color:#94a3b8;margin-top:.5rem;font-weight:400;">${e.message || 'Reintentando automáticamente...'}</div>
+        </div>`;
+      } else {
+        wrap.style.display = 'none';
+      }
+    }
+  }
+
+  /* ---- Cargar lista pública de torneos ---- */
+  async function _loadPublicList() {
+    try {
+      const list = await Tournament.listPublic();
+      state.allTournaments = list;
+      _renderTournamentGrid(list);
+    } catch (e) {
+      document.getElementById('tournaments-grid').innerHTML =
+        `<div class="alert alert-danger">${e.message}</div>`;
+    }
+  }
+
+  function _renderTournamentGrid(list) {
+    const grid = document.getElementById('tournaments-grid');
+    if (!list.length) {
+      grid.innerHTML = `<div class="empty-state"><div class="empty-icon">🏆</div><p>No hay torneos públicos activos.</p></div>`;
+      return;
+    }
+    grid.innerHTML = list.map(t => `
+      <a href="?t=${t.id}" class="card card-hover" style="display:block;text-decoration:none;">
+        <div class="flex items-center justify-between mb-1">
+          <span class="badge ${STATUS_BADGE[t.status] || 'badge-muted'}">${STATUS_LABELS[t.status] || t.status}</span>
+          <span class="text-xs text-muted">${t.date_start ? formatDate(t.date_start) : ''}</span>
+        </div>
+        <div class="font-semibold mt-1" style="font-size:1.05rem;">${t.name}</div>
+        <div class="text-sm text-muted mt-0">${t.location || ''}</div>
+      </a>
+    `).join('');
+  }
+
+  window.filterTournaments = function(q) {
+    const f = q.toLowerCase();
+    _renderTournamentGrid(state.allTournaments.filter(t =>
+      t.name.toLowerCase().includes(f) || (t.location || '').toLowerCase().includes(f)
+    ));
+  };
+
+  /* ---- Categorías ---- */
+  async function _loadCategories(tid) {
+    try {
+      const cats = await Categories.listByTournament(tid);
+      state.categories = cats;
+      document.getElementById('hero-cats').textContent = `${cats.length} categorías`;
+      _renderCategoriesGrid(cats);
+    } catch (e) {
+      document.getElementById('categories-list').innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
+  }
+
+  function _renderCategoriesGrid(cats) {
+    const el = document.getElementById('categories-list');
+    if (!cats.length) {
+      el.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><p>Sin categorías generadas aún.</p></div>`;
+      return;
+    }
+    el.innerHTML = cats.map(c => {
+      const total  = c.registrations?.[0]?.count ?? c.registrations?.length ?? 0;
+      const totalM = c.matches?.length || 0;
+      const doneM  = c.matches?.filter(m => m.status === 'finished' || m.status === 'bye').length || 0;
+      const pct    = totalM ? Math.min(100, Math.round(doneM / totalM * 100)) : 0;
+      const finished = totalM > 0 && doneM === totalM;
+      return `
+      <div class="card card-hover category-card" style="cursor:pointer;" onclick="openBracket('${c.id}')">
+        <div class="category-card-header">
+          <span class="badge ${DISC_BADGE[c.discipline] || 'badge-muted'}">${c.discipline?.toUpperCase() || '—'}</span>
+          <span class="badge ${c.gender === 'M' ? 'badge-blue' : 'badge-pink'}">${c.gender === 'M' ? '♂ Masc.' : '♀ Fem.'}</span>
+          ${finished ? '<span class="badge badge-green" style="margin-left:auto;">✓ Final</span>' : ''}
+        </div>
+        <div class="category-card-name mt-1">${c.name || Categories.buildLabel(c)}</div>
+        <div class="flex items-center justify-between mt-2">
+          <span class="text-sm text-muted">${total} inscritos</span>
+          <span class="badge ${BRACKET_BADGE[c.bracket_system] || 'badge-muted'} text-xs">${BRACKET_LABELS[c.bracket_system] || c.bracket_system || '—'}</span>
+        </div>
+        <div class="progress-bar mt-2">
+          <div class="progress-fill" style="width:${pct}%"></div>
+        </div>
+        ${totalM > 0 ? `<div class="text-xs text-muted mt-1">${doneM}/${totalM} combates</div>` : ''}
+      </div>`;
+    }).join('');
+  }
+
+  window.filterCategories = function() {
+    const disc   = document.getElementById('filter-discipline').value;
+    const gender = document.getElementById('filter-gender').value;
+    const q      = document.getElementById('filter-cat-search').value.toLowerCase();
+    _renderCategoriesGrid(state.categories.filter(c =>
+      (!disc   || c.discipline === disc) &&
+      (!gender || c.gender === gender) &&
+      (!q      || (c.name || '').toLowerCase().includes(q))
+    ));
+  };
+
+  /* ---- Abrir bracket de categoría ---- */
+  window.openBracket = async function(categoryId) {
+    state.activeCategoryId = categoryId;
+    const cat = state.categories.find(c => c.id === categoryId);
+    document.getElementById('view-tournament').style.display = 'none';
+    document.getElementById('tournament-hero').style.display = 'none';
+    document.getElementById('view-bracket').style.display = 'block';
+    document.getElementById('bracket-category-name').textContent = cat?.name || '—';
+    document.getElementById('bracket-category-meta').textContent = cat ? (Categories.buildLabel(cat) || '') : '';
+    const area = document.getElementById('bracket-display-area');
+    area.innerHTML = '<div class="card text-center p-4"><span class="spinner"></span></div>';
+    try {
+      const matches = await Matches.listByCategory(categoryId);
+      if (!matches.length) {
+        // No brackets yet — show registered competitors
+        let regs = [];
+        try { regs = await Competitors.listByCategory(categoryId); } catch (_) {}
+        if (regs.length) {
+          const rows = regs.map((r, i) => `<tr>
+            <td class="text-sm text-muted">${i + 1}</td>
+            <td class="text-sm font-semibold">${r.full_name || '—'}</td>
+            <td class="text-sm">${r.club || '—'}</td>
+            <td class="text-sm">${r.belt_id || '—'}</td>
+          </tr>`).join('');
+          area.innerHTML = `
+            <div class="alert alert-info mb-2">⏳ Las llaves serán generadas cuando el organizador lo indique.</div>
+            <div class="card p-0">
+              <div class="card-header"><h4 class="card-title">Inscritos (${regs.length})</h4></div>
+              <div class="table-wrapper">
+                <table class="table">
+                  <thead><tr><th>#</th><th>Nombre</th><th>Club</th><th>Cinturón</th></tr></thead>
+                  <tbody>${rows}</tbody>
+                </table>
+              </div>
+            </div>`;
+        } else {
+          area.innerHTML = `<div class="empty-state" style="padding:2rem;"><div class="empty-icon">📋</div><h3>Sin datos</h3><p>No hay competidores inscritos ni llaves generadas aún.</p></div>`;
+        }
+        return;
+      }
+      Display.renderBracket(area, matches, cat, { readonly: true });
+      if (cat?.bracket_system === 'round_robin') {
+        const standings = Matches.getRoundRobinStandings(matches);
+        const standEl = document.createElement('div');
+        standEl.className = 'mt-3';
+        Display.renderStandings(standEl, standings);
+        area.appendChild(standEl);
+      }
+      // Mostrar podio si categoría finalizada
+      const podio = await Bracket.getPodio(categoryId);
+      if (podio?.positions?.length) {
+        const medals = ['🥇','🥈','🥉'];
+        const podioEl = document.createElement('div');
+        podioEl.className = 'mt-3';
+        podioEl.innerHTML = `
+          <h4 class="text-sm text-muted mb-2" style="text-transform:uppercase;">🏆 Podio Final</h4>
+          <div class="flex gap-2 flex-wrap">
+            ${podio.positions.map(p => `
+              <div class="card text-center" style="min-width:130px;padding:.6rem;">
+                <div style="font-size:1.8rem;">${medals[p.position - 1] || p.position + '°'}</div>
+                <div class="font-semibold mt-1">${p.full_name || '—'}</div>
+                <div class="text-xs text-muted">${p.club || ''}</div>
+              </div>`).join('')}
+          </div>`;
+        area.appendChild(podioEl);
+      }
+    } catch (e) {
+      area.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
+  };
+
+  document.getElementById('btn-back-categories').addEventListener('click', () => {
+    document.getElementById('view-bracket').style.display = 'none';
+    document.getElementById('view-tournament').style.display = 'block';
+    document.getElementById('tournament-hero').style.display = 'block';
+    state.activeCategoryId = null;
+  });
+
+  /* ---- Programa ---- */
+  async function _loadSchedule(tid) {
+    const el = document.getElementById('schedule-content');
+    try {
+      const matches = await Matches.listScheduled(tid);
+      if (!matches.length) {
+        // Fallback: show category overview with tatami assignment
+        const cats = state.categories;
+        if (!cats.length) {
+          el.innerHTML = `<div class="empty-state" style="padding:2.5rem;"><div class="empty-icon">📅</div><p>Sin programa disponible aún.</p></div>`;
+          return;
+        }
+        const byTatami = {};
+        cats.forEach(c => {
+          const k = c.tatami ? `Tatami ${c.tatami}` : 'Sin tatami asignado';
+          if (!byTatami[k]) byTatami[k] = [];
+          byTatami[k].push(c);
+        });
+        el.innerHTML = `<p class="text-muted text-sm mb-3">Horarios de combates aún no asignados. Categorías por tatami:</p>` +
+          Object.entries(byTatami).map(([label, cs]) => `
+          <div class="mb-3">
+            <h4 class="text-sm text-muted mb-1" style="text-transform:uppercase;">${label}</h4>
+            <div class="card p-0">
+              <table class="table table-sm">
+                <thead><tr><th>Categoría</th><th>Disciplina</th><th>Inscritos</th><th>Estado llaves</th></tr></thead>
+                <tbody>${cs.map(c => {
+                  const totalM = c.matches?.length || 0;
+                  const doneM  = c.matches?.filter(m => m.status === 'finished' || m.status === 'bye').length || 0;
+                  const total  = c.registrations?.[0]?.count ?? c.registrations?.length ?? 0;
+                  return `<tr>
+                    <td class="text-sm">${c.name || Categories.buildLabel(c)}</td>
+                    <td><span class="badge ${DISC_BADGE[c.discipline] || 'badge-muted'}">${c.discipline?.toUpperCase() || '—'}</span></td>
+                    <td class="text-sm">${total}</td>
+                    <td><span class="badge ${totalM > 0 ? 'badge-blue' : 'badge-muted'}">${totalM > 0 ? `${doneM}/${totalM} combates` : 'Pendiente'}</span></td>
+                  </tr>`;
+                }).join('')}</tbody>
+              </table>
+            </div>
+          </div>`).join('');
+        return;
+      }
+      // Agrupar por tatami
+      const byTatami = {};
+      matches.forEach(m => {
+        const k = m.tatami ? `Tatami ${m.tatami}` : 'Sin tatami';
+        if (!byTatami[k]) byTatami[k] = [];
+        byTatami[k].push(m);
+      });
+      el.innerHTML = Object.entries(byTatami).map(([tatamiLabel, ms]) => `
+        <div class="mb-3">
+          <h4 class="text-sm text-muted mb-1" style="text-transform:uppercase;">${tatamiLabel}</h4>
+          <div class="card p-0">
+            <div class="table-wrapper">
+              <table class="table table-sm">
+                <thead><tr><th>Hora</th><th>Categoría</th><th>Competidores</th><th>Estado</th></tr></thead>
+                <tbody>
+                  ${ms.map(m => `<tr>
+                    <td class="text-sm">${m.scheduled_time ? m.scheduled_time.slice(11,16) : '—'}</td>
+                    <td class="text-sm">${m.category?.name || '—'}</td>
+                    <td class="text-sm">
+                      ${m.competitor_a?.competitors?.full_name || '?'}
+                      <span class="text-muted">vs</span>
+                      ${m.competitor_b?.competitors?.full_name || '?'}
+                    </td>
+                    <td><span class="badge ${MATCH_STATUS_BADGE[m.status] || 'badge-muted'}">${MATCH_STATUS_LABELS[m.status] || m.status}</span></td>
+                  </tr>`).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    } catch (e) {
+      el.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
+  }
+
+  /* ---- Resultados ---- */
+  function _loadResults() {
+    const el = document.getElementById('results-content');
+    const cats = state.categories;
+    if (!cats.length) {
+      el.innerHTML = `<div class="empty-state" style="padding:2.5rem;"><div class="empty-icon">🏆</div><p class="text-muted">No hay categorías disponibles.</p></div>`;
+      return;
+    }
+    const hasAny = cats.some(c => (c.matches?.length || 0) > 0);
+    if (!hasAny) {
+      el.innerHTML = `<div class="empty-state" style="padding:2.5rem;"><div class="empty-icon">🏆</div><p class="text-muted">Las llaves aún no han sido generadas. Los resultados estarán disponibles una vez que inicien los combates.</p></div>`;
+      return;
+    }
+    el.innerHTML = cats.map(c => {
+      const totalM    = c.matches?.length || 0;
+      const doneM     = c.matches?.filter(m => m.status === 'finished' || m.status === 'bye').length || 0;
+      const pct       = totalM ? Math.round(doneM / totalM * 100) : 0;
+      const finished  = totalM > 0 && doneM === totalM;
+      const inProgress = doneM > 0 && !finished;
+      const badgeClass = finished ? 'badge-green' : inProgress ? 'badge-orange' : 'badge-muted';
+      const badgeText  = finished ? '✓ Finalizado' : inProgress ? `${pct}% completado` : totalM > 0 ? 'Pendiente' : 'Sin llaves';
+      return `
+      <div class="card mb-2" style="cursor:pointer;" onclick="openBracket('${c.id}')">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="badge ${DISC_BADGE[c.discipline] || 'badge-muted'}">${c.discipline?.toUpperCase() || '—'}</span>
+          <span class="badge ${c.gender === 'M' ? 'badge-blue' : 'badge-pink'}">${c.gender === 'M' ? '♂' : '♀'}</span>
+          <strong class="flex-1">${c.name || Categories.buildLabel(c)}</strong>
+          <span class="badge ${badgeClass}">${badgeText}</span>
+        </div>
+        ${totalM > 0 ? `<div class="progress-bar mt-2"><div class="progress-fill" style="width:${pct}%"></div></div>` : ''}
+      </div>`;
+    }).join('');
+  }
+
+  /* ---- Realtime ---- */
+  function _subscribeRealtime(tid) {
+    state.realtimeSub = Matches.subscribeToTournament(tid, async () => {
+      if (!state.displayMode) {
+        await _loadCategories(tid);
+        await _loadSchedule(tid);
+      }
+      await _loadLiveBoard(tid);
+      if (!state.displayMode) {
+        _loadResults();
+        if (state.activeCategoryId) openBracket(state.activeCategoryId);
+      }
+    });
+    if (Auth.isDevMode()) {
+      setInterval(async () => {
+        if (!state.displayMode) {
+          await _loadCategories(tid);
+          await _loadSchedule(tid);
+        }
+        await _loadLiveBoard(tid);
+        if (!state.displayMode) {
+          _loadResults();
+          if (state.activeCategoryId) openBracket(state.activeCategoryId);
+        }
+      }, state.displayMode ? 1000 : 10000);
+    }
+
+    // Fallback adicional: en pantalla extendida siempre hacemos refresh frecuente
+    // para que refleje instantáneamente lo que marca Mesa Técnica.
+    if (state.displayMode && !state.displayPollInterval) {
+      state.displayPollInterval = setInterval(async () => {
+        await _loadLiveBoard(tid);
+      }, 500);
+    }
+  }
+
+  document.getElementById('btn-display-fullscreen').addEventListener('click', async () => {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+        return;
+      }
+      await document.documentElement.requestFullscreen();
+    } catch (_) {}
+  });
+
+  window.addEventListener('storage', async (event) => {
+    if (!state.displayMode || !state.tournamentId) return;
+    const key = state.projectionTargetKey || _getProjectionTargetKey();
+    const liveKey = _getProjectionLiveKey();
+    if ((!key || event.key !== key) && (!liveKey || event.key !== liveKey)) return;
+    try {
+      if (event.key === key) {
+        const nextTarget = event.newValue ? JSON.parse(event.newValue) : null;
+        state.displayMatchId = nextTarget?.matchId || null;
+        state.displayProjectionActive = !!nextTarget?.active;
+      }
+    } catch (_) {
+      if (event.key === key) {
+        state.displayMatchId = null;
+        state.displayProjectionActive = false;
+      }
+    }
+    await _loadLiveBoard(state.tournamentId);
+  });
+
+  /* ---- Tab Dojos ---- */
+  async function _loadDojos(tid) {
+    try {
+      const competitors = await Competitors.listByTournament(tid);
+      // Guardar competidores en state para filtrado
+      state.dojoCompetitors = competitors;
+      // Extraer clubs únicos
+      const clubs = [...new Set(competitors.map(c => c.club).filter(Boolean))].sort();
+      const sel = document.getElementById('dojo-select');
+      sel.innerHTML = '<option value="">Selecciona un dojo...</option>';
+      clubs.forEach(club => {
+        const opt = document.createElement('option');
+        opt.value = club;
+        opt.textContent = `${club} (${competitors.filter(c => c.club === club).length})`;
+        sel.appendChild(opt);
+      });
+      // If no clubs, show all competitors summary directly
+      const content = document.getElementById('dojo-content');
+      if (!clubs.length && competitors.length) {
+        const rows = competitors.map((c, i) => {
+          const cat = state.categories.find(cat => cat.id === c.category_id);
+          return `<tr>
+            <td class="text-sm">${i + 1}</td>
+            <td class="text-sm font-semibold">${c.full_name || '—'}</td>
+            <td class="text-sm">${c.gender === 'M' ? '♂' : '♀'}</td>
+            <td class="text-sm">${c.belt_id || '—'}</td>
+            <td class="text-sm">${cat ? (cat.name || Categories.buildLabel(cat)) : '—'}</td>
+          </tr>`;
+        }).join('');
+        content.innerHTML = `
+          <div class="alert alert-info mb-2">Los competidores no tienen club/dojo asignado.</div>
+          <div class="card p-0">
+            <div class="card-header"><h4 class="card-title">Todos los competidores (${competitors.length})</h4></div>
+            <div class="table-wrapper">
+              <table class="table">
+                <thead><tr><th>#</th><th>Nombre</th><th>Gén.</th><th>Cinturón</th><th>Categoría</th></tr></thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+          </div>`;
+      }
+    } catch (e) {
+      document.getElementById('dojo-content').innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
+  }
+
+  window.onDojoSelect = function(club) {
+    const el = document.getElementById('dojo-content');
+    if (!club) {
+      el.innerHTML = `<div class="empty-state" style="padding:2rem;"><div class="empty-icon">\ud83c\udfd8</div><p class="text-muted">Selecciona un dojo para ver sus competidores y categorías.</p></div>`;
+      return;
+    }
+    const comps = (state.dojoCompetitors || []).filter(c => c.club === club);
+    if (!comps.length) {
+      el.innerHTML = `<div class="alert alert-info">Sin competidores para este dojo.</div>`;
+      return;
+    }
+    // Para cada competidor, mostrar su categoría y posición en el bracket
+    const cats = state.categories || [];
+    const rows = comps.map(c => {
+      const cat = cats.find(cat => cat.id === c.category_id);
+      const catLabel = cat ? (cat.name || Categories.buildLabel(cat)) : '—';
+      const discipline = cat?.discipline || '—';
+      const discBadge = discipline === 'kata' ? 'badge-gold' : 'badge-blue';
+      return `<tr>
+        <td class="text-sm font-semibold">${c.full_name || '—'}</td>
+        <td class="text-sm">${c.gender === 'M' ? '\u2642 Masc.' : '\u2640 Fem.'}</td>
+        <td class="text-sm">${c.belt_id || '—'}</td>
+        <td class="text-sm"><span class="badge ${discBadge}">${discipline.toUpperCase()}</span></td>
+        <td class="text-sm" style="cursor:pointer;" onclick="openBracket('${c.category_id}')">${catLabel} <span style="opacity:.5;font-size:.7rem;">🔗</span></td>
+      </tr>`;
+    }).join('');
+    el.innerHTML = `
+      <div class="card p-0">
+        <div class="card-header"><h4 class="card-title">${club} — ${comps.length} competidor(es)</h4></div>
+        <div class="table-wrapper">
+          <table class="table">
+            <thead><tr><th>Nombre</th><th>Gén.</th><th>Cinturón</th><th>Disciplina</th><th>Categoría / Llave</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>`;
+  };
+
+  /* ---- Constantes de UI ---- */
+  const STATUS_LABELS = { draft: 'Borrador', open: 'Inscripciones', closed: 'Inscr. Cerrada', ongoing: 'En Curso', finished: 'Finalizado', cancelled: 'Cancelado' };
+  const STATUS_BADGE  = { draft: 'badge-muted', open: 'badge-blue', closed: 'badge-orange', ongoing: 'badge-green', finished: 'badge-gold', cancelled: 'badge-red' };
+  const DISC_BADGE    = { kumite: 'badge-blue', kata: 'badge-purple' };
+  const BRACKET_BADGE = { single_elimination: 'badge-muted', repechage: 'badge-muted', round_robin: 'badge-muted', double_elimination: 'badge-muted' };
+  const BRACKET_LABELS= { single_elimination: 'Elim. Simple', repechage: 'Repesca WKF', round_robin: 'Round-Robin', double_elimination: 'Elim. Doble', auto: 'Auto' };
+  const MATCH_STATUS_LABELS = { pending: 'Pendiente', in_progress: 'En curso', finished: 'Finalizado', bye: 'BYE' };
+  const MATCH_STATUS_BADGE  = { pending: 'badge-muted', in_progress: 'badge-blue', finished: 'badge-green', bye: 'badge-muted' };
+
+})();
+</script>
+</body>
+</html>

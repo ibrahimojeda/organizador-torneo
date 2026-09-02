@@ -1,0 +1,69 @@
+/* ============================================================
+   PRINT-STYLES.CSS — Estilos específicos para impresión A4
+   ============================================================ */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+    font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .page-break {
+    page-break-after: always;
+  }
+  .bracket-container {
+    width: 100%;
+    display: block !important;
+  }
+  .bracket-match {
+    border: 1px solid #000 !important;
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+    margin: 5px 0 !important;
+    padding: 2px !important;
+    font-size: 10px !important;
+  }
+  .bracket-competitor {
+    color: black !important;
+    border-bottom: 1px solid #eee !important;
+  }
+  .bracket-winner {
+    font-weight: bold !important;
+    text-decoration: underline !important;
+  }
+  .print-header {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .print-header h1 {
+    font-size: 24px;
+    margin: 0;
+  }
+  .print-header p {
+    font-size: 14px;
+    margin: 5px 0;
+  }
+}
+
+/* Estilos para la vista de impresión en pantalla (preview) */
+.bracket-print-preview {
+  background: #f3f4f6;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.a4-page {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 10mm;
+  background: white;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  box-sizing: border-box;
+  position: relative;
+}
