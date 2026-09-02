@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
@@ -53,9 +53,6 @@
       </div>
       <div class="sidebar-item" data-panel="categories">
         <span class="icon">🗂</span> Categorías
-      </div>
-      <div class="sidebar-item" data-panel="dojos">
-        <span class="icon">🏛️</span> Dojos
       </div>
       <div class="sidebar-item" data-panel="brackets">
         <span class="icon">⚔️</span> Llaves
@@ -255,28 +252,6 @@
     </section>
 
 <!-- ========================================================
-         PANEL: DOJOS
-    ========================================================== -->
-    <section id="panel-dojos" class="panel" style="display:none;">
-      <div class="page-header">
-        <div>
-          <h1 class="page-title">🏛️ Dojos</h1>
-          <p class="page-subtitle">Gestiona los dojos y sus logos</p>
-        </div>
-        <div class="flex gap-2">
-          <button class="btn btn-primary" id="btn-panel-new-dojo">➕ Nuevo Dojo</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <div id="panel-dojos-list">
-          <div class="text-muted text-sm" style="padding:2rem;text-align:center;">Cargando dojos...</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ========================================================
-    <!-- =========================================================
          PANEL: CATEGORÍAS
     ========================================================== -->
     <section id="panel-categories" class="panel" style="display:none;">
@@ -773,12 +748,7 @@
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Club / Dojo</label>
-            <div style="display:flex;gap:4px;">
-              <select class="form-control" id="c-club" style="flex:1;">
-                <option value="">— Seleccionar Dojo —</option>
-              </select>
-              <button type="button" class="btn btn-ghost btn-sm" id="btn-add-dojo" title="Nuevo Dojo" style="padding:0 .6rem;font-size:1.2rem;">➕</button>
-            </div>
+            <input type="text" class="form-control" id="c-club" placeholder="Ej: Dojo Sakura" />
           </div>
           <div class="form-group">
             <label class="form-label">País</label>
@@ -1113,33 +1083,6 @@
   </div>
 </div>
 
-<!-- Modal: Gestión de Dojos -->
-<div class="modal-overlay" id="modal-dojos">
-  <div class="modal" style="max-width:560px;">
-    <div class="modal-header">
-      <h3 class="modal-title">🏛️ Gestión de Dojos</h3>
-      <button class="btn btn-ghost btn-icon" onclick="Display.closeModal('modal-dojos')">✕</button>
-    </div>
-    <div class="modal-body">
-      <div id="dojos-list" style="max-height:320px;overflow-y:auto;"></div>
-      <div class="divider"></div>
-      <div class="form-row">
-        <div class="form-group" style="flex:1;">
-          <label class="form-label">Nuevo Dojo</label>
-          <input type="text" class="form-control" id="input-new-dojo" placeholder="Nombre del dojo" />
-        </div>
-        <div class="form-group" style="max-width:140px;">
-          <label class="form-label">&nbsp;</label>
-          <button class="btn btn-primary" id="btn-create-dojo" style="width:100%;">Crear</button>
-        </div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="Display.closeModal('modal-dojos')">Cerrar</button>
-    </div>
-  </div>
-</div>
-
 <!-- Modal: Subir logo de Dojo -->
 <div class="modal-overlay" id="modal-dojo-logo">
   <div class="modal" style="max-width:420px;">
@@ -1418,7 +1361,6 @@
     if (panelId === 'categories')   await _loadCategories();
     if (panelId === 'brackets')     { await _loadBracketPanel(); _startBracketPolling(); }
     if (panelId === 'schedule')     await _loadSchedule();
-    if (panelId === 'dojos')        await _loadDojosPanel();
     if (panelId === 'medals')       { await _loadMedals(); _startBracketPolling(); }
     if (panelId === 'codes')        await _loadCodes();
     if (panelId === 'settings')     { if (Auth.isSuperAdmin()) _loadUsersList(); }
@@ -1514,6 +1456,15 @@
     return parts.length ? parts.join(' ') : '—';
   }
 
+  /* Helper: botón para subir logo del dojo del competidor */
+  function _compDojoLogoBtn(c) {
+    if (!c || !c.dojo_id) return '';
+    const dojo = (typeof Dojos !== 'undefined') ? Dojos.getFromCache(c.dojo_id) : null;
+    if (!dojo) return '';
+    const hasLogo = dojo.logo_url ? '✅' : '📷';
+    return `<button class="btn btn-ghost btn-sm" style="padding:0 4px;font-size:.75rem;" onclick="event.stopPropagation();openDojoLogoModal('${c.dojo_id}','${(dojo.name || c.club || '').replace(/'/g, "\\'")}')" title="${hasLogo === '✅' ? 'Cambiar logo' : 'Subir logo'}">${hasLogo}</button>`;
+  }
+
   async function _loadCompetitors() {
     if (!state.activeTournament) return;
     document.getElementById('competitors-count-label').textContent = 'Cargando...';
@@ -1594,7 +1545,7 @@
             ${belt?.label || c.belt_id}
           </span>
         </td>
-        <td class="text-muted">${_compClubBadge(c)}</td>
+        <td class="text-muted">${_compClubBadge(c)} ${_compDojoLogoBtn(c)}</td>
         <td class="text-muted text-xs">${c.category_id ? '1 categoría' : '—'}</td>
         <td>
           <select class="form-control form-control-sm" style="font-size:.75rem;padding:.15rem .3rem;min-width:100px;"
@@ -2596,8 +2547,6 @@
     document.getElementById('btn-save-competitor').textContent = 'Registrar';
     document.getElementById('form-competitor').reset();
     document.getElementById('c-discipline-kumite').checked = true;
-    // Poblar selects de dojo y país
-    await _populateDojoSelect();
     _populateCountrySelect();
     Display.openModal('modal-competitor');
   });
@@ -2609,8 +2558,6 @@
     document.getElementById('modal-competitor').querySelector('.modal-title').textContent = 'Editar Competidor';
     document.getElementById('btn-save-competitor').textContent = 'Guardar cambios';
     // Poblar selects primero
-    await _populateDojoSelect();
-    _populateCountrySelect();
     // Prefill
     document.getElementById('c-name').value    = comp.full_name || '';
     document.getElementById('c-doc').value     = comp.document_id || '';
@@ -2618,14 +2565,10 @@
     document.getElementById('c-dob').value     = comp.dob || '';
     document.getElementById('c-weight').value  = comp.weight || '';
     document.getElementById('c-belt').value    = comp.belt_id || '';
-    // Set dojo select value if dojo_id exists
-    if (comp.dojo_id) {
-      document.getElementById('c-club').value = comp.dojo_id;
-    } else if (comp.club) {
-      const dojoSelect = document.getElementById('c-club');
-      const match = [...dojoSelect.options].find(o => o.dataset.dojoName && o.dataset.dojoName.toLowerCase() === comp.club.toLowerCase());
-      if (match) document.getElementById('c-club').value = match.value;
-    }
+    // Club: usar el nombre del dojo o el club del competidor
+    const dojoInfo = (typeof Dojos !== 'undefined') ? Dojos.getFromCache(comp.dojo_id) : null;
+    document.getElementById('c-club').value    = dojoInfo?.name || comp.club || '';
+    _populateCountrySelect();
     document.getElementById('c-country').value = comp.country || '';
     const disc = comp.discipline || 'kumite';
     document.querySelectorAll('input[name="c-discipline"]').forEach(r => r.checked = r.value === disc);
@@ -2743,8 +2686,17 @@
   });
 
   document.getElementById('btn-save-competitor').addEventListener('click', async () => {
-    const dojoSelect = document.getElementById('c-club');
-    const dojoOption = dojoSelect.options[dojoSelect.selectedIndex];
+    const clubName = document.getElementById('c-club').value.trim();
+    let dojoId = null;
+    // Auto-crear dojo si se especificó un club
+    if (clubName) {
+      try {
+        const dojo = await Dojos.create(clubName);
+        dojoId = dojo?.id || null;
+      } catch (e) {
+        console.warn('No se pudo crear dojo automáticamente:', e);
+      }
+    }
     const data = {
       full_name:   document.getElementById('c-name').value,
       document_id: document.getElementById('c-doc').value,
@@ -2752,9 +2704,9 @@
       dob:         document.getElementById('c-dob').value,
       weight:      document.getElementById('c-weight').value,
       belt_id:     document.getElementById('c-belt').value,
-      club:        dojoOption?.dataset?.dojoName || document.getElementById('c-club').value || '',
+      club:        clubName,
       country:     document.getElementById('c-country').value,
-      dojo_id:     document.getElementById('c-club').value || null,
+      dojo_id:     dojoId,
       discipline:  document.querySelector('input[name="c-discipline"]:checked')?.value || 'kumite',
     };
     try {
@@ -2767,6 +2719,7 @@
         Display.closeModal('modal-competitor');
         Display.toast('Competidor registrado.', 'success');
       }
+      await Dojos.invalidateCache();
       await _loadCompetitors();
     } catch (e) {
       Display.toast(e.message, 'error');
@@ -3576,164 +3529,6 @@
       if (match) openResultModal(match);
     } catch (err) { Display.toast('Error al cargar el combate.', 'error'); }
   });
-
-  /* ---- GESTIÓN DE DOJOS ---- */
-async function _loadDojosPanel() {
-    const container = document.getElementById('panel-dojos-list');
-    try {
-      const dojos = await Dojos.list();
-      if (!dojos.length) {
-        container.innerHTML = '<div class="text-muted text-sm" style="padding:2rem;text-align:center;">No hay dojos registrados. Crea el primer dojo para comenzar.</div>';
-        return;
-      }
-      container.innerHTML = dojos.map(d => `
-        <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);">
-          <div style="width:40px;height:40px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--bg-card);border-radius:8px;overflow:hidden;font-size:1.2rem;">
-            ${d.logo_url ? `<img src="${d.logo_url}" alt="" style="width:100%;height:100%;object-fit:contain;" />` : '🥋'}
-          </div>
-          <div style="flex:1;">
-            <div style="font-weight:600;">${d.name}</div>
-            <div style="font-size:.8rem;color:var(--text-muted);">${d.logo_url ? '✅ Con logo' : '📷 Sin logo'}</div>
-          </div>
-          <button class="btn btn-ghost btn-sm" onclick="openDojoLogoModal('${d.id}','${d.name.replace(/'/g, "\\'")}')" title="Subir logo">📷</button>
-          <button class="btn btn-ghost btn-sm" onclick="deleteDojo('${d.id}','${d.name.replace(/'/g, "\\'")}')" title="Eliminar" style="color:#ef4444;">✕</button>
-        </div>
-      `).join('');
-    } catch (e) {
-      container.innerHTML = `<div class="alert alert-danger">Error: ${e.message}</div>`;
-    }
-  }
-
-  // Botón "Nuevo Dojo" del panel
-  document.getElementById('btn-panel-new-dojo').addEventListener('click', () => {
-    const input = document.getElementById('input-new-dojo');
-    if (!input) {
-      // Si no existe el input, abrimos el modal directamente
-      _openDojoManager();
-      return;
-    }
-    _openDojoManager();
-    setTimeout(() => document.getElementById('input-new-dojo')?.focus(), 100);
-  });
-  async function _populateDojoSelect() {
-    const select = document.getElementById('c-club');
-    try {
-      const dojos = await Dojos.list();
-      select.innerHTML = '<option value="">— Seleccionar Dojo —</option>' +
-        dojos.map(d => `<option value="${d.id}" data-dojo-name="${d.name.replace(/"/g, '&quot;')}">${d.logo_url ? '🏛️' : '🥋'} ${d.name}</option>`).join('');
-    } catch (e) {
-      console.warn('Error al cargar dojos:', e);
-    }
-  }
-
-  function _populateCountrySelect() {
-    const select = document.getElementById('c-country');
-    select.innerHTML = '<option value="">— Seleccionar País —</option>' +
-      COUNTRIES.map(c => `<option value="${c.name}">${c.flag} ${c.name}</option>`).join('');
-  }
-
-  // Botón ➕ para abrir gestión de dojos
-  document.getElementById('btn-add-dojo').addEventListener('click', () => {
-    _openDojoManager();
-  });
-
-  async function _openDojoManager() {
-    await _renderDojoList();
-    Display.openModal('modal-dojos');
-  }
-
-  async function _renderDojoList() {
-    const container = document.getElementById('dojos-list');
-    try {
-      const dojos = await Dojos.list();
-      if (!dojos.length) {
-        container.innerHTML = '<div class="text-muted text-sm" style="padding:1rem;text-align:center;">No hay dojos registrados aún.</div>';
-        return;
-      }
-      container.innerHTML = dojos.map(d => `
-        <div style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid rgba(255,255,255,.08);">
-          <span style="flex-shrink:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.08);border-radius:6px;overflow:hidden;">
-            ${d.logo_url ? `<img src="${d.logo_url}" alt="" style="width:100%;height:100%;object-fit:contain;" />` : '🥋'}
-          </span>
-          <span style="flex:1;">${d.name}</span>
-          <button class="btn btn-ghost btn-sm" onclick="openDojoLogoModal('${d.id}','${d.name.replace(/'/g, "\\'")}')" title="Subir logo">📷</button>
-          <button class="btn btn-ghost btn-sm" onclick="deleteDojo('${d.id}','${d.name.replace(/'/g, "\\'")}')" title="Eliminar" style="color:#ef4444;">✕</button>
-        </div>
-      `).join('');
-    } catch (e) {
-      container.innerHTML = `<div class="alert alert-danger">Error: ${e.message}</div>`;
-    }
-  }
-
-  // Crear dojo
-  document.getElementById('btn-create-dojo').addEventListener('click', async () => {
-    const nameInput = document.getElementById('input-new-dojo');
-    const name = nameInput.value.trim();
-    if (!name) { Display.toast('Ingresa un nombre para el dojo.', 'warning'); return; }
-    try {
-      await Dojos.create(name);
-      nameInput.value = '';
-      await _renderDojoList();
-      await _populateDojoSelect();
-      if (document.getElementById('panel-dojos')?.style.display !== 'none') await _loadDojosPanel();
-      Display.toast(`Dojo "${name}" creado.`, 'success');
-    } catch (e) {
-      Display.toast(e.message, 'error');
-    }
-  });
-
-  // Subir logo de dojo
-  window.openDojoLogoModal = function(dojoId, dojoName) {
-    document.getElementById('dojo-logo-id').value = dojoId;
-    document.getElementById('dojo-logo-name').textContent = '📷 ' + dojoName;
-    document.getElementById('dojo-logo-preview').innerHTML = '';
-    document.getElementById('dojo-logo-file').value = '';
-    Display.openModal('modal-dojo-logo');
-  };
-
-  document.getElementById('btn-upload-dojo-logo').addEventListener('click', async () => {
-    const dojoId = document.getElementById('dojo-logo-id').value;
-    const file = document.getElementById('dojo-logo-file').files[0];
-    if (!dojoId || !file) { Display.toast('Selecciona un archivo.', 'warning'); return; }
-    if (file.size > 2 * 1024 * 1024) { Display.toast('La imagen supera los 2MB.', 'error'); return; }
-    try {
-      Display.toast('Subiendo logo...', 'info');
-      await Dojos.uploadLogo(dojoId, file);
-      Display.closeModal('modal-dojo-logo');
-      await _renderDojoList();
-      await _populateDojoSelect();
-      if (document.getElementById('panel-dojos')?.style.display !== 'none') await _loadDojosPanel();
-      Display.toast('Logo subido correctamente.', 'success');
-    } catch (e) {
-      Display.toast('Error al subir logo: ' + e.message, 'error');
-    }
-  });
-
-  // Mostrar preview del logo al seleccionar archivo
-  document.getElementById('dojo-logo-file').addEventListener('change', function() {
-    const file = this.files[0];
-    if (!file) { document.getElementById('dojo-logo-preview').innerHTML = ''; return; }
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      document.getElementById('dojo-logo-preview').innerHTML =
-        `<img src="${e.target.result}" alt="Preview" style="max-width:120px;max-height:120px;border-radius:8px;object-fit:contain;" />`;
-    };
-    reader.readAsDataURL(file);
-  });
-
-  // Eliminar dojo
-  window.deleteDojo = async function(dojoId, dojoName) {
-    if (!confirm(`¿Eliminar el dojo "${dojoName}"? Esta acción no se puede deshacer.`)) return;
-    try {
-      await supabase.from('dojos').delete().eq('id', dojoId);
-      await _renderDojoList();
-      await _populateDojoSelect();
-      if (document.getElementById('panel-dojos')?.style.display !== 'none') await _loadDojosPanel();
-      Display.toast(`Dojo "${dojoName}" eliminado.`, 'success');
-    } catch (e) {
-      Display.toast('Error al eliminar: ' + e.message, 'error');
-    }
-  };
 
   /* ---- Arrancar ---- */
   init();
