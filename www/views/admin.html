@@ -3530,6 +3530,50 @@
     } catch (err) { Display.toast('Error al cargar el combate.', 'error'); }
   });
 
+/* ---- SUBIR LOGO DE DOJO ---- */
+  function _populateCountrySelect() {
+    const select = document.getElementById('c-country');
+    if (!select) return;
+    select.innerHTML = '<option value="">— Seleccionar País —</option>' +
+      COUNTRIES.map(c => `<option value="${c.name}">${c.flag} ${c.name}</option>`).join('');
+  }
+
+  window.openDojoLogoModal = function(dojoId, dojoName) {
+    document.getElementById('dojo-logo-id').value = dojoId;
+    document.getElementById('dojo-logo-name').textContent = '📷 ' + (dojoName || 'Dojo');
+    document.getElementById('dojo-logo-preview').innerHTML = '';
+    document.getElementById('dojo-logo-file').value = '';
+    Display.openModal('modal-dojo-logo');
+  };
+
+  document.getElementById('btn-upload-dojo-logo').addEventListener('click', async () => {
+    const dojoId = document.getElementById('dojo-logo-id').value;
+    const file = document.getElementById('dojo-logo-file').files[0];
+    if (!dojoId || !file) { Display.toast('Selecciona un archivo.', 'warning'); return; }
+    if (file.size > 2 * 1024 * 1024) { Display.toast('La imagen supera los 2MB.', 'error'); return; }
+    try {
+      Display.toast('Subiendo logo...', 'info');
+      await Dojos.uploadLogo(dojoId, file);
+      Dojos.invalidateCache();
+      Display.closeModal('modal-dojo-logo');
+      await _loadCompetitors();
+      Display.toast('Logo subido correctamente.', 'success');
+    } catch (e) {
+      Display.toast('Error al subir logo: ' + e.message, 'error');
+    }
+  });
+
+  document.getElementById('dojo-logo-file').addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) { document.getElementById('dojo-logo-preview').innerHTML = ''; return; }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      document.getElementById('dojo-logo-preview').innerHTML =
+        `<img src="${e.target.result}" alt="Preview" style="max-width:120px;max-height:120px;border-radius:8px;object-fit:contain;" />`;
+    };
+    reader.readAsDataURL(file);
+  });
+
   /* ---- Arrancar ---- */
   init();
 })();
