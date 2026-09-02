@@ -208,12 +208,12 @@ const Display = (() => {
     const isBye     = match.status === MATCH_STATUS.BYE;
 
     card.innerHTML = `
-      <div class="bracket-competitor ${isWinnerA ? 'winner' : ''} ${!isBye && !isWinnerA && match.winner_id ? 'loser' : ''}">
+      <div class="bracket-competitor ${isWinnerA ? 'winner' : ''} ${!isWinnerA && match.winner_id ? 'loser' : ''}">
         <span class="bracket-competitor-name">${nameA || (isBye ? '—' : 'Por definir')}</span>
         ${nameA && clubA ? `<span style="font-size:.65rem;opacity:.6;display:block;line-height:1.2;">${_renderDojoBadgeSmall(match.competitor_a)}</span>` : ''}
         ${match.score_a != null ? `<span class="bracket-competitor-score">${match.score_a}</span>` : ''}
       </div>
-      <div class="bracket-competitor ${isWinnerB ? 'winner' : ''} ${!isBye && !isWinnerB && match.winner_id ? 'loser' : ''} ${isBye ? 'bye' : ''}">
+      <div class="bracket-competitor ${isWinnerB ? 'winner' : ''} ${!isWinnerB && match.winner_id ? 'loser' : ''} ${isBye ? 'bye' : ''}">
         <span class="bracket-competitor-name">${nameB || (isBye ? 'BYE' : 'Por definir')}</span>
         ${nameB && clubB ? `<span style="font-size:.65rem;opacity:.6;display:block;line-height:1.2;">${_renderDojoBadgeSmall(match.competitor_b)}</span>` : ''}
         ${match.score_b != null ? `<span class="bracket-competitor-score">${match.score_b}</span>` : ''}

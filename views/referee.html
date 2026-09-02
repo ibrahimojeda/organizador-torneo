@@ -2581,15 +2581,6 @@
     if (nameGroup) nameGroup.style.display = 'none';
     if (individualGrid) individualGrid.style.display = 'none';
 
-    const existingValues = {};
-    document.querySelectorAll('.kata-duel-input').forEach(input => {
-      const side = input.dataset.side;
-      const seat = input.dataset.seat;
-      if (side && seat && input.dataset.edited === 'true') {
-        existingValues[`${side}:${seat}`] = input.value;
-      }
-    });
-
     const nameA = match.competitor_a?.competitors?.full_name || match.competitor_a?.full_name || 'Competidor A';
     const nameB = match.competitor_b?.competitors?.full_name || match.competitor_b?.full_name || 'Competidor B';
     document.getElementById('kata-duel-name-a').textContent = nameA;
@@ -2604,14 +2595,11 @@
       const judges = side === 'a' ? summary.summaryA.judges : summary.summaryB.judges;
       grid.innerHTML = seats.map(seat => {
         const j = judges.find(judge => judge.seat === seat) || { score: null };
-        const rawValue = existingValues[`${side}:${seat}`];
-        const scoreValue = rawValue != null && rawValue !== ''
-          ? rawValue
-          : (Number.isFinite(Number(j.score)) ? Number(j.score).toFixed(2) : '');
+        const scoreValue = Number.isFinite(Number(j.score)) ? Number(j.score).toFixed(2) : '';
         return `
           <div style="text-align:center;">
             <div style="font-size:.62rem;text-transform:uppercase;opacity:.7;">${seat}</div>
-            <input type="number" class="form-control text-center kata-duel-input" data-side="${side}" data-seat="${seat}" min="0" max="9.99" step="0.01" value="${scoreValue}" oninput="this.dataset.edited='true';calcKataDuelTotal()" style="font-size:1rem;font-weight:800;" placeholder="0.00" />
+            <input type="number" class="form-control text-center kata-duel-input" data-side="${side}" data-seat="${seat}" min="0" max="9.99" step="0.01" value="${scoreValue}" oninput="calcKataDuelTotal()" style="font-size:1rem;font-weight:800;" placeholder="0.00" />
           </div>`;
       }).join('');
     };
@@ -2911,12 +2899,7 @@
         _kumite.winner = summary.scoreA > summary.scoreB ? 'a' : 'b';
       }
       _updateKumiteUI();
-      _refreshSaveResultButton();
-    }
-
-    const resultNotes = document.getElementById('result-notes');
-    if (resultNotes) {
-      resultNotes.oninput = () => _refreshSaveResultButton();
+      document.getElementById('btn-save-result').disabled = !(state.selectedWinnerId && state.manualKumiteTouched);
     }
 
     Display.openModal('modal-result');
@@ -2953,13 +2936,6 @@
       const el = document.getElementById('warn-display-' + side);
       if (el) el.textContent = 'C1: ' + _WARN_DOTS(W.c1) + '  C2: ' + _WARN_DOTS(W.c2);
     });
-  }
-
-  function _refreshSaveResultButton() {
-    const notesValue = String(document.getElementById('result-notes')?.value || '').trim();
-    const canSave = !!state.selectedWinnerId && (state.manualKumiteTouched || notesValue.length > 0);
-    const saveBtn = document.getElementById('btn-save-result');
-    if (saveBtn) saveBtn.disabled = !canSave;
   }
 
   function _updateKumiteUI() {
@@ -3113,7 +3089,7 @@
     // NO se marca manualKumiteTouched aquí — solo se marca por acciones reales
     // de combate (puntos, faltas, o que el timer termine).
     state.selectedWinnerId = side === 'a' ? state.currentMatch?.competitor_a_id : state.currentMatch?.competitor_b_id;
-    _refreshSaveResultButton();
+    document.getElementById('btn-save-result').disabled = !(state.selectedWinnerId && state.manualKumiteTouched);
     _updateKumiteUI();
     if (state.currentMatch?.id) {
       try {

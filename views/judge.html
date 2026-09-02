@@ -579,6 +579,10 @@
         $('judge-kata-scores-b').innerHTML = '';
       }
     }
+    renderKataDuelBoard();
+    // Re-render on refresh
+    $('btn-refresh-kata').addEventListener('click', renderKataDuelBoard);
+
     // Send kata score
     $('btn-send-kata-score').addEventListener('click', async () => {
       const raw = String($('judge-kata-score-input').value || '').replace(',', '.').trim();
@@ -643,7 +647,6 @@
         } else {
           $('judge-kata-refresh-status').textContent = `Tu nota aún no ha sido registrada. ${summary.submitted}/5 jueces completados.`;
         }
-        renderKataDuelBoard();
       } catch (e) {
         $('judge-kata-refresh-status').textContent = `Error al actualizar: ${e.message}`;
       }

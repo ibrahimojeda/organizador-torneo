@@ -1143,7 +1143,7 @@ function _renderAthleteBadgesCompact(competitor) {
             return kata.submitted > 0 || (kumi.events || []).length > 0;
           }));
 
-      if (!liveMatch && !projectionLive?.kataDuel) {
+      if (!liveMatch) {
         wrap.style.display = 'block';
         const waitText = state.displayMode
           ? `Esperando que Mesa Tecnica inicie el combate en Tatami ${state.displayTatami || 'actual'}.`
@@ -1153,28 +1153,27 @@ function _renderAthleteBadgesCompact(competitor) {
       }
 
       wrap.style.display = 'block';
-      const isKata = liveMatch?.category?.discipline === 'kata' || liveMatch?.bracket_type === 'kata_round' || !!projectionLive?.kataDuel;
-      const mirrorForLiveMatch = projectionLive && (!liveMatch || String(projectionLive.matchId || '') === String(liveMatch.id || ''))
+      const isKata = liveMatch.category?.discipline === 'kata' || liveMatch.bracket_type === 'kata_round';
+      const mirrorForLiveMatch = projectionLive && String(projectionLive.matchId || '') === String(liveMatch.id || '')
         ? projectionLive
         : null;
-      const nameA = mirrorForLiveMatch?.competitorAName || liveMatch?.competitor_a?.competitors?.full_name || 'Competidor A';
-      const nameB = mirrorForLiveMatch?.competitorBName || liveMatch?.competitor_b?.competitors?.full_name || 'Competidor B';
-      const clubA = mirrorForLiveMatch?.clubA || liveMatch?.competitor_a?.competitors?.club || liveMatch?.competitor_a?.club || '';
-      const clubB = mirrorForLiveMatch?.clubB || liveMatch?.competitor_b?.competitors?.club || liveMatch?.competitor_b?.club || '';
+      const nameA = mirrorForLiveMatch?.competitorAName || liveMatch.competitor_a?.competitors?.full_name || 'Competidor A';
+      const nameB = mirrorForLiveMatch?.competitorBName || liveMatch.competitor_b?.competitors?.full_name || 'Competidor B';
+      const clubA = mirrorForLiveMatch?.clubA || liveMatch.competitor_a?.competitors?.club || liveMatch.competitor_a?.club || '';
+      const clubB = mirrorForLiveMatch?.clubB || liveMatch.competitor_b?.competitors?.club || liveMatch.competitor_b?.club || '';
       const heading = (clockText = _projectionClockText()) => state.displayMode
-        ? `<div class="projection-header"><div><div class="projection-label">Tatami ${liveMatch?.tatami || liveMatch?.category?.tatami || state.displayTatami || '—'}</div><div class="projection-title">${liveMatch?.category?.name || projectionLive?.categoryName || (isKata ? 'Kata' : 'Kumite')}</div></div><div class="projection-clock">${clockText}</div></div>`
+        ? `<div class="projection-header"><div><div class="projection-label">Tatami ${liveMatch.tatami || liveMatch.category?.tatami || state.displayTatami || '—'}</div><div class="projection-title">${liveMatch.category?.name || (isKata ? 'Kata' : 'Kumite')}</div></div><div class="projection-clock">${clockText}</div></div>`
         : '';
 
-      const liveMatchId = liveMatch?.id || projectionLive?.matchId || null;
-      if (state.displayMode && String(state.projectionWarnMatchId || '') !== String(liveMatchId || '')) {
-        state.projectionWarnMatchId = liveMatchId;
+      if (state.displayMode && String(state.projectionWarnMatchId || '') !== String(liveMatch.id || '')) {
+        state.projectionWarnMatchId = liveMatch.id || null;
         state.projectionWarnCache = {
           a: { c1: 0, c2: 0 },
           b: { c1: 0, c2: 0 },
         };
       }
-      if (state.displayMode && String(state.projectionKataMatchId || '') !== String(liveMatchId || '')) {
-        state.projectionKataMatchId = liveMatchId;
+      if (state.displayMode && String(state.projectionKataMatchId || '') !== String(liveMatch.id || '')) {
+        state.projectionKataMatchId = liveMatch.id || null;
         state.projectionKataCache = {};
       }
 
@@ -1183,29 +1182,18 @@ function _renderAthleteBadgesCompact(competitor) {
           // --- KATA POR DUELOS: dos contendientes con sus notas de jueces ---
           const isDuel = !!projectionLive?.kataDuel || !!liveMatch?.competitor_b_id;
           if (isDuel) {
-            const duel = projectionLive?.kataDuel || (liveMatch ? {
-              winner: liveMatch?.winner_id === liveMatch?.competitor_a_id ? 'a' : (liveMatch?.winner_id === liveMatch?.competitor_b_id ? 'b' : null),
+            const duel = projectionLive?.kataDuel || {
+              winner: liveMatch.winner_id === liveMatch.competitor_a_id ? 'a' : (liveMatch.winner_id === liveMatch.competitor_b_id ? 'b' : null),
               scoreA: 0, scoreB: 0, ready: false,
-              totalA: liveMatch?.score_a != null ? Number(liveMatch.score_a) : null,
-              totalB: liveMatch?.score_b != null ? Number(liveMatch.score_b) : null,
+              totalA: liveMatch.score_a != null ? Number(liveMatch.score_a) : null,
+              totalB: liveMatch.score_b != null ? Number(liveMatch.score_b) : null,
               judgesA: projectionLive?.kata?.judges || [],
               judgesB: [],
-            } : {
-              winner: projectionLive?.kataDuel?.winner ?? null,
-              scoreA: projectionLive?.kataDuel?.scoreA ?? 0,
-              scoreB: projectionLive?.kataDuel?.scoreB ?? 0,
-              ready: !!projectionLive?.kataDuel?.winner,
-              totalA: projectionLive?.kataDuel?.totalA ?? null,
-              totalB: projectionLive?.kataDuel?.totalB ?? null,
-              judgesA: projectionLive?.kata?.judges || [],
-              judgesB: [],
-            });
-            const categoryName = liveMatch?.category?.name || projectionLive?.categoryName || '—';
-            const roundLabel = liveMatch?.round_label || (liveMatch?.round != null ? `Ronda ${liveMatch.round}` : projectionLive?.roundLabel || 'Ronda');
+            };
             const nameA2 = nameA;
             const nameB2 = nameB;
             const clubA2 = clubA;
-            const clubB2 = projectionLive?.clubB || liveMatch?.competitor_b?.competitors?.club || liveMatch?.competitor_b?.club || '';
+            const clubB2 = projectionLive?.clubB || liveMatch.competitor_b?.competitors?.club || liveMatch.competitor_b?.club || '';
             const totalA = duel.totalA != null ? Number(duel.totalA).toFixed(2) : '—';
             const totalB = duel.totalB != null ? Number(duel.totalB).toFixed(2) : '—';
             const winnerLabel = duel.winner ? (duel.winner === 'a' ? 'AO' : 'AKA') : null;
@@ -1227,8 +1215,8 @@ function _renderAthleteBadgesCompact(competitor) {
               ${heading()}
               <div class="match-display" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:24px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.35);">
                 <div class="match-header" style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:1rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);">
-                  <span>${categoryName}</span>
-                  <span>🥋 Duelo de Kata · ${roundLabel}</span>
+                  <span>${liveMatch.category?.name || '—'}</span>
+                  <span>🥋 Duelo de Kata · ${liveMatch.round_label || 'Ronda ' + liveMatch.round}</span>
                 </div>
                 <div class="match-body" style="display:grid;grid-template-columns:1fr auto 1fr;padding:1.5rem;align-items:stretch;">
                   <div class="match-fighter" style="background:linear-gradient(135deg,#1565c0,#0f3ea8);border-radius:24px;padding:1.5rem;text-align:center;${winnerLabel === 'AKA' ? 'opacity:.7;' : ''}">
@@ -1249,7 +1237,7 @@ function _renderAthleteBadgesCompact(competitor) {
                 </div>
               </div>
               <div style="margin-top:1rem;text-align:center;font-size:1.2rem;font-weight:800;color:#facc15;">
-                ${duel.winner && (duel.ready || duel.totalA != null || duel.totalB != null || Number(duel.scoreA || 0) !== 0 || Number(duel.scoreB || 0) !== 0) ? `🏆 Ganador: ${duel.winner === 'a' ? `${nameA2} (AO)` : `${nameB2} (AKA)`} ${duel.scoreA}-${duel.scoreB} ${duel.winner === 'a' ? `${nameB2} (AKA)` : `${nameA2} (AO)`}` : 'Esperando notas de ambos contendientes...'}
+                ${winnerLabel ? `🏆 Ganador: ${nameA2} (AO) ${duel.scoreA}-${duel.scoreB} ${nameB2} (AKA)` : 'Esperando notas de ambos contendientes...'}
               </div>`;
             return;
           }
