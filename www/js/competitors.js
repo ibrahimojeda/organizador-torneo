@@ -428,8 +428,9 @@ const Competitors = (() => {
   async function _attachDojo(data) {
     const club = data.club?.trim();
     if (!club || typeof Dojos === 'undefined' || !Dojos.create) return { ...data, dojo_id: data.dojo_id || null };
-    const dojo = await Dojos.create(club);
-    return { ...data, dojo_id: dojo?.id || data.dojo_id || null };
+    const country = getCountryInfo(data.country);
+    const dojo = await Dojos.create(club, country.code ? { country_code: country.code } : {});
+    return { ...data, country: data.country || dojo?.country_code || '', dojo_id: dojo?.id || data.dojo_id || null };
   }
 
   async function _createCompetitor(data) {

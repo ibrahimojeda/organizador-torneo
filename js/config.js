@@ -281,11 +281,17 @@ const COUNTRIES = [
 /** Busca país por nombre y devuelve { code, name, flag } */
 function getCountryInfo(name) {
   if (!name) return { code: '', name: '', flag: '' };
-  const found = COUNTRIES.find(c => c.name.toLowerCase() === name.trim().toLowerCase());
+  const value = name.trim().toLowerCase();
+  const found = COUNTRIES.find(c => c.name.toLowerCase() === value || c.code.toLowerCase() === value);
   if (found) return found;
   const fuzzy = COUNTRIES.find(c => c.name.toLowerCase().includes(name.trim().toLowerCase()) || name.trim().toLowerCase().includes(c.name.toLowerCase()));
   if (fuzzy) return fuzzy;
   return { code: '', name: name.trim(), flag: '' };
+}
+
+function getCountryFlagUrl(country, width = 40) {
+  const info = getCountryInfo(country);
+  return info.code ? `https://flagcdn.com/w${width}/${info.code.toLowerCase()}.png` : '';
 }
 
 /** Obtiene la bandera emoji de un país por nombre */

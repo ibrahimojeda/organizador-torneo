@@ -51,6 +51,9 @@
       <div class="sidebar-item" data-panel="competitors">
         <span class="icon">👤</span> Competidores
       </div>
+      <div class="sidebar-item" data-panel="dojos">
+        <span class="icon">🥋</span> Dojos
+      </div>
       <div class="sidebar-item" data-panel="categories">
         <span class="icon">🗂</span> Categorías
       </div>
@@ -165,6 +168,49 @@
     </section>
 
     <!-- =========================================================
+         PANEL: DOJOS
+    ========================================================== -->
+    <section id="panel-dojos" class="panel" style="display:none;">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Dojos</h1>
+          <p class="page-subtitle">Configura el país y sube manualmente el logo de cada dojo.</p>
+        </div>
+        <button class="btn btn-primary" id="btn-new-dojo">+ Nuevo Dojo</button>
+      </div>
+      <div id="dojos-form-card" class="card mb-3" style="display:none;">
+        <input type="hidden" id="dojo-form-id" />
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="card-title" id="dojo-form-title">Nuevo Dojo</h3>
+          <button class="btn btn-ghost btn-sm" id="btn-cancel-dojo">Cancelar</button>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Nombre del dojo *</label>
+            <input type="text" class="form-control" id="dojo-form-name" placeholder="Ej: Dojo Sakura" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">País *</label>
+            <select class="form-control" id="dojo-form-country"></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Logo (subida manual)</label>
+            <input type="file" class="form-control" id="dojo-form-logo" accept="image/png,image/jpeg,image/svg+xml,image/webp" />
+            <p class="text-xs text-muted">No se genera ningún logo automáticamente. PNG, JPG, SVG o WEBP · Máx. 2 MB.</p>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Vista previa</label>
+            <div id="dojo-form-preview" style="min-height:52px;padding:.5rem;border:1px dashed var(--border);border-radius:8px;"></div>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="btn-save-dojo">Guardar Dojo</button>
+      </div>
+      <div id="dojos-list"><div class="text-center p-4"><span class="spinner"></span></div></div>
+    </section>
+
+    <!-- =========================================================
          PANEL: MIS TORNEOS
     ========================================================== -->
     <section id="panel-tournaments" class="panel" style="display:none;">
@@ -237,14 +283,15 @@
                 <th>Edad</th>
                 <th>Peso</th>
                 <th>Cinturón</th>
-                <th>Club</th>
+                <th>Dojo</th>
+                <th>País</th>
                 <th>Categorías</th>
                 <th>Estado</th>
                 <th></th>
               </tr>
             </thead>
             <tbody id="competitors-table-body">
-              <tr><td colspan="10" class="text-center text-muted p-4">Cargando...</td></tr>
+              <tr><td colspan="11" class="text-center text-muted p-4">Cargando...</td></tr>
             </tbody>
           </table>
         </div>
@@ -1350,7 +1397,7 @@
 
   /* ---- Acciones por panel ---- */
   async function _onPanelLoad(panelId) {
-    if (!state.activeTournament && panelId !== 'tournaments' && panelId !== 'settings' && panelId !== 'system') {
+    if (!state.activeTournament && panelId !== 'tournaments' && panelId !== 'settings' && panelId !== 'system' && panelId !== 'dojos') {
       Display.toast('Primero crea o selecciona un torneo.', 'warning');
       switchPanel('tournaments');
       return;
@@ -1358,6 +1405,7 @@
     if (panelId === 'dashboard')    await _refreshDashboard();
     if (panelId === 'tournaments')  await _loadTournamentList();
     if (panelId === 'competitors')  await _loadCompetitors();
+    if (panelId === 'dojos')       await _loadDojos();
     if (panelId === 'categories')   await _loadCategories();
     if (panelId === 'brackets')     { await _loadBracketPanel(); _startBracketPolling(); }
     if (panelId === 'schedule')     await _loadSchedule();
@@ -1441,7 +1489,6 @@
   function _compClubBadge(c) {
     if (!c) return '—';
     const dojo = (typeof Dojos !== 'undefined') ? Dojos.getFromCache(c.dojo_id) : null;
-    const country = (typeof getCountryInfo !== 'undefined') ? getCountryInfo(c.country) : { flag: '', name: '' };
     const parts = [];
     if (dojo?.logo_url) {
       parts.push('<img src="' + dojo.logo_url + '" alt="" style="width:14px;height:14px;object-fit:contain;border-radius:2px;vertical-align:middle;" />');
@@ -1451,8 +1498,6 @@
     } else if (c.club) {
       parts.push('<span style="font-size:.85em;">' + c.club + '</span>');
     }
-    if (country.flag) parts.push('<span style="font-size:1em;">' + country.flag + '</span>');
-    if (country.name) parts.push('<span style="font-size:.8em;opacity:.75;">' + country.name + '</span>');
     return parts.length ? parts.join(' ') : '—';
   }
 
@@ -1476,7 +1521,7 @@
       _competitorsList = await Competitors.listByTournament(state.activeTournament.id);
       await Dojos.ensureCache();
       if (!_competitorsList.length) {
-        tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">👤</div><h3>Sin competidores</h3><p>Registra el primer competidor del torneo.</p></div></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="11"><div class="empty-state"><div class="empty-icon">👤</div><h3>Sin competidores</h3><p>Registra el primer competidor del torneo.</p></div></td></tr>`;
         document.getElementById('competitors-count-label').textContent = '0 competidor(es) inscrito(s)';
         return;
       }
@@ -1496,9 +1541,88 @@
       }
       _filterAndRenderCompetitors();
     } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="9"><div class="alert alert-danger">${e.message}</div></td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="11"><div class="alert alert-danger">${e.message}</div></td></tr>`;
     }
   }
+
+  let _editingDojoId = null;
+
+  function _countryOptions(selected = '') {
+    return '<option value="">— Seleccionar país —</option>' + COUNTRIES.map(c =>
+      `<option value="${c.code}"${c.code === selected ? ' selected' : ''}>${c.flag} ${c.name}</option>`
+    ).join('');
+  }
+
+  function _renderDojoCountry(code) {
+    const info = getCountryInfo(code);
+    const url = getCountryFlagUrl(info.code, 80);
+    return url ? `<img src="${url}" alt="" title="${info.name}" style="width:36px;height:24px;object-fit:cover;border-radius:3px;vertical-align:middle;" />` : '<span class="text-muted">—</span>';
+  }
+
+  async function _loadDojos() {
+    const el = document.getElementById('dojos-list');
+    if (!el) return;
+    el.innerHTML = '<div class="text-center p-4"><span class="spinner"></span></div>';
+    try {
+      const dojos = await Dojos.list();
+      el.innerHTML = dojos.length ? `<div class="card p-0"><div class="table-wrapper"><table class="table"><thead><tr><th>Logo</th><th>Dojo</th><th>País</th><th>Acciones</th></tr></thead><tbody>${dojos.map(d => `
+        <tr><td>${d.logo_url ? `<img src="${d.logo_url}" alt="" style="width:42px;height:42px;object-fit:contain;border-radius:5px;" />` : '<span class="text-muted">Sin logo</span>'}</td>
+        <td><strong>${d.name}</strong></td><td>${_renderDojoCountry(d.country_code)}</td>
+        <td><button class="btn btn-outline btn-sm" onclick="_editDojo('${d.id}')">✏️ Editar</button></td></tr>`).join('')}</tbody></table></div></div>` : '<div class="empty-state"><div class="empty-icon">🥋</div><h3>Sin dojos</h3><p>Crea el primer dojo y asígnale país y logo.</p></div>';
+    } catch (e) { el.innerHTML = `<div class="alert alert-danger">${e.message}</div>`; }
+  }
+
+  function _resetDojoForm() {
+    _editingDojoId = null;
+    document.getElementById('dojo-form-id').value = '';
+    document.getElementById('dojo-form-title').textContent = 'Nuevo Dojo';
+    document.getElementById('dojo-form-name').value = '';
+    document.getElementById('dojo-form-country').value = '';
+    document.getElementById('dojo-form-logo').value = '';
+    document.getElementById('dojo-form-preview').innerHTML = '';
+    document.getElementById('dojos-form-card').style.display = 'none';
+  }
+
+  window._editDojo = async function(id) {
+    const dojo = await Dojos.getById(id);
+    if (!dojo) return;
+    _editingDojoId = id;
+    document.getElementById('dojo-form-id').value = id;
+    document.getElementById('dojo-form-title').textContent = 'Editar Dojo';
+    document.getElementById('dojo-form-name').value = dojo.name || '';
+    document.getElementById('dojo-form-country').value = dojo.country_code || '';
+    document.getElementById('dojo-form-logo').value = '';
+    document.getElementById('dojo-form-preview').innerHTML = dojo.logo_url ? `<img src="${dojo.logo_url}" alt="" style="max-width:120px;max-height:80px;object-fit:contain;" />` : '<span class="text-muted">Sin logo cargado</span>';
+    document.getElementById('dojos-form-card').style.display = 'block';
+  };
+
+  document.getElementById('btn-new-dojo')?.addEventListener('click', () => {
+    _resetDojoForm();
+    document.getElementById('dojos-form-card').style.display = 'block';
+  });
+  document.getElementById('btn-cancel-dojo')?.addEventListener('click', _resetDojoForm);
+  document.getElementById('dojo-form-logo')?.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => { document.getElementById('dojo-form-preview').innerHTML = `<img src="${ev.target.result}" alt="" style="max-width:120px;max-height:80px;object-fit:contain;" />`; };
+    reader.readAsDataURL(file);
+  });
+  document.getElementById('btn-save-dojo')?.addEventListener('click', async () => {
+    const name = document.getElementById('dojo-form-name').value.trim();
+    const country = document.getElementById('dojo-form-country').value;
+    const file = document.getElementById('dojo-form-logo').files[0];
+    if (!name || !country) { Display.toast('Nombre y país son obligatorios.', 'warning'); return; }
+    if (file && file.size > 2 * 1024 * 1024) { Display.toast('La imagen supera los 2MB.', 'error'); return; }
+    try {
+      const dojo = _editingDojoId ? await Dojos.update(_editingDojoId, { name, country_code: country }) : await Dojos.create(name, { country_code: country });
+      if (file) await Dojos.uploadLogo(dojo.id, file);
+      Dojos.invalidateCache();
+      _resetDojoForm();
+      await _loadDojos();
+      Display.toast('Dojo guardado. El logo solo se modificó si seleccionaste una imagen.', 'success');
+    } catch (e) { Display.toast(e.message, 'error'); }
+  });
 
   /* Filtra _competitorsList en memoria y re-renderiza la tabla */
   function _filterAndRenderCompetitors() {
@@ -1524,7 +1648,7 @@
         : `${list.length} de ${_competitorsList.length} competidor(es)`;
 
     if (!list.length) {
-      tbody.innerHTML = `<tr><td colspan="10" class="text-center text-muted p-3">Sin resultados para los filtros aplicados.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="11" class="text-center text-muted p-3">Sin resultados para los filtros aplicados.</td></tr>`;
       return;
     }
     tbody.innerHTML = list.map(c => {
@@ -1546,6 +1670,9 @@
           </span>
         </td>
         <td class="text-muted">${_compClubBadge(c)} ${_compDojoLogoBtn(c)}</td>
+        <td>${typeof Dojos !== 'undefined' ? Dojos.renderCountryBadge(Dojos.getFromCache(c.dojo_id)?.country_code || c.country, 16) : ''}</td>
+          document.getElementById('dojo-form-country').innerHTML = _countryOptions();
+          document.getElementById('dojo-form-country').innerHTML = _countryOptions();
         <td class="text-muted text-xs">${c.category_id ? '1 categoría' : '—'}</td>
         <td>
           <select class="form-control form-control-sm" style="font-size:.75rem;padding:.15rem .3rem;min-width:100px;"
@@ -2058,6 +2185,7 @@
     container.style.display = 'block';
     try {
       const allComps = await Competitors.listByCategory(category.id);
+      await Dojos.ensureCache();
       // Filtrar solo aceptados (listByCategory ya filtra denied, pero reforzamos)
       const accepted = allComps.filter(c => c.status !== 'denied');
       if (!accepted.length) {
@@ -2072,7 +2200,7 @@
         return `<div class="flex items-center justify-between px-3 py-2" style="border-bottom:1px solid var(--border);">
           <div>
             <span class="text-sm font-semibold">${statusBadge} ${c.full_name}</span>
-            <span class="text-xs text-muted ml-2">${_compClubBadge(c)}</span>
+            <span class="text-xs text-muted ml-2">${_compClubBadge(c)} ${Dojos.renderCountryBadge(Dojos.getFromCache(c.dojo_id)?.country_code || c.country, 14)}</span>
           </div>
           <div class="flex gap-1">
             <button class="btn btn-ghost btn-sm btn-icon" title="Mover a otra categoría"

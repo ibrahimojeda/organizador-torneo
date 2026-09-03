@@ -16,7 +16,8 @@ const Display = (() => {
   function _getCompetitorCountryInfo(competitor) {
     if (!competitor) return { flag: '', name: '' };
     const c = competitor.competitors || competitor;
-    return getCountryInfo(c.country);
+    const dojo = c.dojo_id ? Dojos.getFromCache(c.dojo_id) : null;
+    return getCountryInfo(dojo?.country_code || c.country);
   }
 
   function _renderDojoBadgeSmall(competitor) {
@@ -32,10 +33,8 @@ const Display = (() => {
       parts.push(`<span class="text-muted" style="font-size:0.82em;">${dojoName}</span>`);
     }
     if (country.flag) {
-      parts.push(`<span style="font-size:0.9em;">${country.flag}</span>`);
-    }
-    if (country.name) {
-      parts.push(`<span class="text-muted" style="font-size:0.8em;">${country.name}</span>`);
+      const flagUrl = getCountryFlagUrl(country.code, 40);
+      if (flagUrl) parts.push(`<img src="${flagUrl}" alt="" title="${country.name}" style="width:24px;height:16px;object-fit:cover;border-radius:2px;vertical-align:middle;" />`);
     }
     if (!parts.length) return '';
     return `<span style="display:inline-flex;align-items:center;gap:3px;">${parts.join(' ')}</span>`;

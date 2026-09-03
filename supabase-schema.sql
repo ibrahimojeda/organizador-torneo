@@ -437,6 +437,7 @@ CREATE TABLE IF NOT EXISTS dojos (
   id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
   name        TEXT         NOT NULL UNIQUE,
   logo_url    TEXT,
+  country_code TEXT,
   website     TEXT,
   notes       TEXT,
   created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
@@ -455,6 +456,15 @@ CREATE INDEX IF NOT EXISTS idx_competitors_dojo_id ON competitors(dojo_id);
 -- =====================================================
 ALTER TABLE dojos
 ADD COLUMN IF NOT EXISTS logo_url TEXT;
+ALTER TABLE dojos
+ADD COLUMN IF NOT EXISTS country_code TEXT;
+
+ALTER TABLE dojos ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "dojos_select_public" ON dojos;
+CREATE POLICY "dojos_select_public" ON dojos FOR SELECT USING (true);
+DROP POLICY IF EXISTS "dojos_write_authenticated" ON dojos;
+CREATE POLICY "dojos_write_authenticated" ON dojos
+  FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
 
 -- =====================================================
 -- RPC: validate_tournament_code

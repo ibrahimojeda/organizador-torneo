@@ -958,7 +958,8 @@
     const dojoName = c.club || (dojoInfo ? dojoInfo.name : '');
     const dojoLogo = dojoInfo?.logo_url || null;
     // Country info
-    const countryInfo = getCountryInfo(c.country);
+    const countryInfo = getCountryInfo(dojoInfo?.country_code || c.country);
+    const flagUrl = getCountryFlagUrl(countryInfo.code, 80);
     const parts = [];
     // Top row: logo + dojo name + flag + country
     const topParts = [];
@@ -968,12 +969,7 @@
     if (dojoName && showClub) {
       topParts.push(`<span style="font-size:0.75em;opacity:0.85;">${dojoName}</span>`);
     }
-    if (countryInfo.flag) {
-      topParts.push(`<span style="font-size:1em;">${countryInfo.flag}</span>`);
-    }
-    if (countryInfo.name) {
-      topParts.push(`<span style="font-size:0.75em;opacity:0.75;">${countryInfo.name}</span>`);
-    }
+    if (flagUrl) topParts.push(`<img src="${flagUrl}" alt="" title="${countryInfo.name}" style="width:28px;height:18px;object-fit:cover;border-radius:2px;" />`);
     const topLine = topParts.length ? `<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">${topParts.join('')}</div>` : '';
     return `${topLine}<div style="font-weight:700;">${name}</div>`;
   }
@@ -983,12 +979,12 @@ function _renderAthleteBadgesCompact(competitor) {
     const dojoInfo = c.dojo_id ? Dojos.getFromCache(c.dojo_id) : null;
     const dojoName = c.club || (dojoInfo ? dojoInfo.name : '');
     const dojoLogo = dojoInfo?.logo_url || null;
-    const countryInfo = getCountryInfo(c.country);
+    const countryInfo = getCountryInfo(dojoInfo?.country_code || c.country);
     const parts = [];
     if (dojoLogo) parts.push(`<img src="${dojoLogo}" alt="" style="width:16px;height:16px;object-fit:contain;border-radius:2px;display:inline-block;vertical-align:middle;" />`);
     if (dojoName) parts.push(`<span style="opacity:0.8;">${dojoName}</span>`);
-    if (countryInfo.flag) parts.push(`<span>${countryInfo.flag}</span>`);
-    if (countryInfo.name) parts.push(`<span style="opacity:0.7;">${countryInfo.name}</span>`);
+    const compactFlagUrl = getCountryFlagUrl(countryInfo.code, 64);
+    if (compactFlagUrl) parts.push(`<img src="${compactFlagUrl}" alt="" title="${countryInfo.name}" style="width:24px;height:16px;object-fit:cover;border-radius:2px;" />`);
     if (!parts.length) return '';
     return parts.join(' · ');
   }

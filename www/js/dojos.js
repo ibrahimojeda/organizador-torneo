@@ -17,7 +17,7 @@ const Dojos = (() => {
     if (Auth.isDevMode()) return _devList();
     const { data, error } = await supabase
       .from(TABLE_DOJOS)
-      .select('id, name, logo_url, website, notes')
+      .select('id, name, logo_url, country_code, website, notes')
       .order('name');
     if (error) throw error;
     return data || [];
@@ -41,30 +41,41 @@ const Dojos = (() => {
   /* --------------------------------------------------------
      CREAR DOJO
   -------------------------------------------------------- */
-  async function create(name) {
+  async function create(name, payload = {}) {
     if (!name?.trim()) throw new Error('El nombre del dojo es obligatorio.');
     if (Auth.isDevMode()) {
       const list = _devList();
       const exists = list.find(d => d.name.toLowerCase() === name.trim().toLowerCase());
-      if (exists) return exists;
-      const dojo = { id: generateId(), name: name.trim(), logo_url: null };
+      if (exists) {
+        if (payload.country_code && exists.country_code !== payload.country_code) {
+          Object.assign(exists, payload);
+          _devSave(list);
+        }
+        return exists;
+      }
+      const dojo = { id: generateId(), name: name.trim(), logo_url: null, ...payload };
       list.push(dojo);
       _devSave(list);
+      invalidateCache();
       return dojo;
     }
     const { data, error } = await supabase
       .from(TABLE_DOJOS)
-      .insert({ name: name.trim() })
+      .insert({ name: name.trim(), ...payload })
       .select()
       .single();
     if (error) {
       if (error.code === '23505') {
         const { data: existing } = await supabase
           .from(TABLE_DOJOS).select('*').eq('name', name.trim()).maybeSingle();
+        if (existing && payload.country_code && existing.country_code !== payload.country_code) {
+          return await update(existing.id, payload);
+        }
         return existing || null;
       }
       throw error;
     }
+    invalidateCache();
     return data;
   }
 /* --------------------------------------------------------
@@ -135,9 +146,8 @@ const Dojos = (() => {
   function renderCountryBadge(countryName, size = 16) {
     if (!countryName) return '';
     const info = getCountryInfo(countryName);
-    const flag = info.flag || '';
-    const name = info.name || countryName;
-    return `<span style="display:inline-flex;align-items:center;gap:4px;"><span style="font-size:${size}px;line-height:1;">${flag}</span><span>${name}</span></span>`;
+    const url = getCountryFlagUrl(info.code, size * 2.5);
+    return url ? `<img src="${url}" alt="" title="${info.name}" style="width:${Math.round(size * 1.5)}px;height:${Math.round(size)}px;object-fit:cover;border-radius:2px;vertical-align:middle;" />` : '';
   }
 
   /* --------------------------------------------------------
