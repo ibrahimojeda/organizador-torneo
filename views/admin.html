@@ -1552,7 +1552,36 @@
       `<option value="${c.code}"${c.code === selected ? ' selected' : ''}>${c.flag} ${c.name}</option>`
     ).join('');
   }
+  function _enhanceCountrySelect(select) {
+    if (!select || select.dataset.flagPickerReady) return;
+    select.dataset.flagPickerReady = 'true';
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:relative;';
+    select.parentNode.insertBefore(wrap, select);
+    wrap.appendChild(select);
+    select.style.display = 'none';
+    const button = document.createElement('button');
+    button.type = 'button'; button.className = 'form-control'; button.style.cssText = 'text-align:left;display:flex;align-items:center;gap:8px;';
+    const menu = document.createElement('div');
+    menu.style.cssText = 'display:none;position:absolute;z-index:1000;left:0;right:0;max-height:260px;overflow:auto;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;padding:4px;box-shadow:0 10px 24px rgba(0,0,0,.3);';
+    const render = () => {
+      const info = getCountryInfo(select.value);
+      const url = getCountryFlagUrl(info.code, 64);
+      button.innerHTML = url ? `<img src="${url}" alt="" style="width:24px;height:16px;object-fit:cover;border-radius:2px;" /><span>${info.name}</span>` : '<span>— Seleccionar país —</span>';
+    };
+    COUNTRIES.forEach(country => {
+      const item = document.createElement('button'); item.type = 'button'; item.className = 'btn btn-ghost'; item.style.cssText = 'width:100%;display:flex;align-items:center;gap:8px;text-align:left;padding:6px 8px;';
+      const url = getCountryFlagUrl(country.code, 64);
+      item.innerHTML = `${url ? `<img src="${url}" alt="" style="width:24px;height:16px;object-fit:cover;border-radius:2px;" />` : ''}<span>${country.name}</span>`;
+      item.addEventListener('click', () => { select.value = country.code; select.dispatchEvent(new Event('change', { bubbles: true })); menu.style.display = 'none'; });
+      menu.appendChild(item);
+    });
+    button.addEventListener('click', () => { menu.style.display = menu.style.display === 'none' ? 'block' : 'none'; });
+    select.addEventListener('change', render);
+    wrap.append(button, menu); render();
+  }
   document.getElementById('dojo-form-country').innerHTML = _countryOptions();
+  _enhanceCountrySelect(document.getElementById('dojo-form-country'));
 
   function _renderDojoCountry(code) {
     const info = getCountryInfo(code);
@@ -1599,6 +1628,7 @@
     document.getElementById('dojo-form-title').textContent = 'Nuevo Dojo';
     document.getElementById('dojo-form-name').value = '';
     document.getElementById('dojo-form-country').value = '';
+    document.getElementById('dojo-form-country').dispatchEvent(new Event('change'));
     document.getElementById('dojo-form-logo').value = '';
     document.getElementById('dojo-form-preview').innerHTML = '';
     document.getElementById('dojos-form-card').style.display = 'none';
@@ -1612,6 +1642,7 @@
     document.getElementById('dojo-form-title').textContent = 'Editar Dojo';
     document.getElementById('dojo-form-name').value = dojo.name || '';
     document.getElementById('dojo-form-country').value = dojo.country_code || '';
+    document.getElementById('dojo-form-country').dispatchEvent(new Event('change'));
     document.getElementById('dojo-form-logo').value = '';
     document.getElementById('dojo-form-preview').innerHTML = dojo.logo_url ? `<img src="${dojo.logo_url}" alt="" style="max-width:120px;max-height:80px;object-fit:contain;" />` : '<span class="text-muted">Sin logo cargado</span>';
     document.getElementById('dojos-form-card').style.display = 'block';
@@ -3682,7 +3713,8 @@
     const select = document.getElementById('c-country');
     if (!select) return;
     select.innerHTML = '<option value="">— Seleccionar País —</option>' +
-      COUNTRIES.map(c => `<option value="${c.name}">${c.flag} ${c.name}</option>`).join('');
+      COUNTRIES.map(c => `<option value="${c.code}">${c.name}</option>`).join('');
+    _enhanceCountrySelect(select);
   }
 
   window.openDojoLogoModal = function(dojoId, dojoName) {

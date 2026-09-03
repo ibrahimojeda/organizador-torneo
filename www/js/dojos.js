@@ -102,6 +102,8 @@ const Dojos = (() => {
   -------------------------------------------------------- */
   async function uploadLogo(dojoId, file) {
     if (!dojoId || !file) throw new Error('Dojo ID y archivo requeridos.');
+    if (!/^image\/(png|jpeg|svg\+xml|webp)$/.test(file.type)) throw new Error('El logo debe ser PNG, JPG, SVG o WEBP.');
+    if (file.size > 2 * 1024 * 1024) throw new Error('La imagen supera los 2MB.');
     if (Auth.isDevMode()) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -119,8 +121,8 @@ const Dojos = (() => {
     const fileName = `dojo_logos/${dojoId}_${Date.now()}.${ext}`;
     const { data: _up, error: uploadError } = await supabase.storage
       .from('tournament-assets')
-      .upload(fileName, file, { upsert: true });
-    if (uploadError) throw uploadError;
+      .upload(fileName, file, { upsert: true, contentType: file.type, cacheControl: '3600' });
+    if (uploadError) throw new Error(`No se pudo subir el logo. Verifica el bucket tournament-assets y sus políticas en Supabase. ${uploadError.message || ''}`.trim());
     const { data: { publicUrl } } = supabase.storage
       .from('tournament-assets')
       .getPublicUrl(fileName);
@@ -128,7 +130,7 @@ const Dojos = (() => {
       .from(TABLE_DOJOS)
       .update({ logo_url: publicUrl })
       .eq('id', dojoId);
-    if (updateError) throw updateError;
+    if (updateError) throw new Error(`El logo se subió, pero no se pudo guardar en el dojo: ${updateError.message || updateError}`);
     return publicUrl;
   }
 
