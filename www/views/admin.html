@@ -1564,7 +1564,27 @@
     if (!el) return;
     el.innerHTML = '<div class="text-center p-4"><span class="spinner"></span></div>';
     try {
-      const dojos = await Dojos.list();
+      let dojos = await Dojos.list();
+      // Los clubes históricos pueden existir solo en competitors. Incorpóralos
+      // al gestor para que el organizador pueda asignarles país y logo.
+      if (state.activeTournament) {
+        const competitors = await Competitors.listByTournament(state.activeTournament.id);
+        const byName = new Map(dojos.map(d => [d.name.trim().toLowerCase(), d]));
+        for (const competitor of competitors) {
+          const name = competitor.club?.trim();
+          if (!name) continue;
+          let dojo = byName.get(name.toLowerCase());
+          if (!dojo) {
+            dojo = await Dojos.create(name, {});
+            byName.set(name.toLowerCase(), dojo);
+          }
+          if (!competitor.dojo_id && dojo?.id && competitor.id) {
+            try { await Competitors.update(competitor.id, { dojo_id: dojo.id }); } catch (_) {}
+          }
+        }
+        dojos = await Dojos.list();
+        await Dojos.ensureCache();
+      }
       el.innerHTML = dojos.length ? `<div class="card p-0"><div class="table-wrapper"><table class="table"><thead><tr><th>Logo</th><th>Dojo</th><th>País</th><th>Acciones</th></tr></thead><tbody>${dojos.map(d => `
         <tr><td>${d.logo_url ? `<img src="${d.logo_url}" alt="" style="width:42px;height:42px;object-fit:contain;border-radius:5px;" />` : '<span class="text-muted">Sin logo</span>'}</td>
         <td><strong>${d.name}</strong></td><td>${_renderDojoCountry(d.country_code)}</td>
@@ -1671,8 +1691,6 @@
         </td>
         <td class="text-muted">${_compClubBadge(c)} ${_compDojoLogoBtn(c)}</td>
         <td>${typeof Dojos !== 'undefined' ? Dojos.renderCountryBadge(Dojos.getFromCache(c.dojo_id)?.country_code || c.country, 16) : ''}</td>
-          document.getElementById('dojo-form-country').innerHTML = _countryOptions();
-          document.getElementById('dojo-form-country').innerHTML = _countryOptions();
         <td class="text-muted text-xs">${c.category_id ? '1 categoría' : '—'}</td>
         <td>
           <select class="form-control form-control-sm" style="font-size:.75rem;padding:.15rem .3rem;min-width:100px;"
