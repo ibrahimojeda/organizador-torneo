@@ -1552,6 +1552,7 @@
       `<option value="${c.code}"${c.code === selected ? ' selected' : ''}>${c.flag} ${c.name}</option>`
     ).join('');
   }
+  document.getElementById('dojo-form-country').innerHTML = _countryOptions();
 
   function _renderDojoCountry(code) {
     const info = getCountryInfo(code);
