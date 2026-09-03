@@ -66,11 +66,14 @@ const Competitors = (() => {
   -------------------------------------------------------- */
   async function register(data, tournamentId) {
     _validate(data);
+    // El dojo se determina siempre desde el texto libre del formulario/CSV.
+    // Así todos los flujos conservan dojo_id y pueden mostrar su logo.
+    const normalizedData = await _attachDojo(data);
 
     if (Auth.isDevMode()) {
-      let competitor = _devFindByDoc(data.document_id);
-      if (!competitor) competitor = _devCreateComp(_buildPayload(data));
-      else competitor = _devUpdateComp(competitor.id, _buildPayload(data));
+      let competitor = _devFindByDoc(normalizedData.document_id);
+      if (!competitor) competitor = _devCreateComp(_buildPayload(normalizedData));
+      else competitor = _devUpdateComp(competitor.id, _buildPayload(normalizedData));
       if (_devIsRegistered(competitor.id, tournamentId))
         throw new Error(`${competitor.full_name} ya está inscrito en este torneo.`);
       // Asigna categorías reales (categories.js ya tiene guardas dev)
@@ -82,12 +85,12 @@ const Competitors = (() => {
     }
 
     // 1. Busca o crea el competidor por DNI/pasaporte
-    let competitor = await _findByDocument(data.document_id);
+    let competitor = await _findByDocument(normalizedData.document_id);
     if (!competitor) {
-      competitor = await _createCompetitor(data);
+      competitor = await _createCompetitor(normalizedData);
     } else {
       // Actualiza datos si cambiaron
-      competitor = await _updateCompetitor(competitor.id, data);
+      competitor = await _updateCompetitor(competitor.id, normalizedData);
     }
 
     // 2. Verifica que no esté ya inscrito en este torneo
@@ -420,6 +423,13 @@ const Competitors = (() => {
       .eq('document_id', documentId)
       .maybeSingle();
     return data || null;
+  }
+
+  async function _attachDojo(data) {
+    const club = data.club?.trim();
+    if (!club || typeof Dojos === 'undefined' || !Dojos.create) return { ...data, dojo_id: data.dojo_id || null };
+    const dojo = await Dojos.create(club);
+    return { ...data, dojo_id: dojo?.id || data.dojo_id || null };
   }
 
   async function _createCompetitor(data) {

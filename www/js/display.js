@@ -26,8 +26,10 @@ const Display = (() => {
     if (dojo?.logo_url) {
       parts.push(`<img src="${dojo.logo_url}" alt="" style="width:16px;height:16px;object-fit:contain;border-radius:2px;display:inline-block;vertical-align:middle;" />`);
     }
-    if (dojo) {
-      parts.push(`<span class="text-muted" style="font-size:0.82em;">${dojo.name}</span>`);
+    const c = competitor?.competitors || competitor || {};
+    const dojoName = dojo?.name || c.club || '';
+    if (dojoName) {
+      parts.push(`<span class="text-muted" style="font-size:0.82em;">${dojoName}</span>`);
     }
     if (country.flag) {
       parts.push(`<span style="font-size:0.9em;">${country.flag}</span>`);
@@ -210,12 +212,12 @@ const Display = (() => {
     card.innerHTML = `
       <div class="bracket-competitor ${isWinnerA ? 'winner' : ''} ${!isWinnerA && match.winner_id ? 'loser' : ''}">
         <span class="bracket-competitor-name">${nameA || (isBye ? '—' : 'Por definir')}</span>
-        ${nameA && clubA ? `<span style="font-size:.65rem;opacity:.6;display:block;line-height:1.2;">${_renderDojoBadgeSmall(match.competitor_a)}</span>` : ''}
+        ${nameA ? `<span style="font-size:.65rem;opacity:.6;display:block;line-height:1.2;">${_renderDojoBadgeSmall(match.competitor_a)}</span>` : ''}
         ${match.score_a != null ? `<span class="bracket-competitor-score">${match.score_a}</span>` : ''}
       </div>
       <div class="bracket-competitor ${isWinnerB ? 'winner' : ''} ${!isWinnerB && match.winner_id ? 'loser' : ''} ${isBye ? 'bye' : ''}">
         <span class="bracket-competitor-name">${nameB || (isBye ? 'BYE' : 'Por definir')}</span>
-        ${nameB && clubB ? `<span style="font-size:.65rem;opacity:.6;display:block;line-height:1.2;">${_renderDojoBadgeSmall(match.competitor_b)}</span>` : ''}
+        ${nameB ? `<span style="font-size:.65rem;opacity:.6;display:block;line-height:1.2;">${_renderDojoBadgeSmall(match.competitor_b)}</span>` : ''}
         ${match.score_b != null ? `<span class="bracket-competitor-score">${match.score_b}</span>` : ''}
       </div>
     `;
@@ -250,6 +252,7 @@ const Display = (() => {
                   <span class="${m.winner_id === m.competitor_a_id ? 'text-success' : ''}">
                     ${_getCompetitorName(m, 'a') || '—'}
                   </span>
+                  <small style="display:block;opacity:.7;">${_renderDojoBadgeSmall(m.competitor_a)}</small>
                 </td>
                 <td class="text-center">
                   ${m.status === MATCH_STATUS.FINISHED
@@ -261,6 +264,7 @@ const Display = (() => {
                   <span class="${m.winner_id === m.competitor_b_id ? 'text-success' : ''}">
                     ${_getCompetitorName(m, 'b') || '—'}
                   </span>
+                  <small style="display:block;opacity:.7;">${_renderDojoBadgeSmall(m.competitor_b)}</small>
                 </td>
                 <td>${_statusBadge(m.status)}</td>
                 ${options.editable ? `
