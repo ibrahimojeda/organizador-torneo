@@ -781,6 +781,7 @@
         second: '2-digit',
       });
       const name = payload?.kata?.name || 'Competidor Kata';
+      const kataFlag = payload?.kata?.countryCode ? getCountryFlagUrl(payload.kata.countryCode, 80) : '';
       const judgeScoresRaw = Array.isArray(payload?.kata?.judgeScores) ? payload.kata.judgeScores : [];
       const judgeScores = judgeScoresRaw.slice(0, 5).map((s) => {
         const n = Number(s);
@@ -816,7 +817,7 @@
             <span>Captura manual de Mesa</span>
           </div>
           <div style="padding:2rem 1.5rem;text-align:center;">
-            <div style="font-size:clamp(2rem,4vw,3.4rem);font-weight:900;line-height:1.1;">${name}</div>
+            <div style="font-size:clamp(2rem,4vw,3.4rem);font-weight:900;line-height:1.1;">${kataFlag ? `<img src="${kataFlag}" alt="" style="width:42px;height:28px;object-fit:cover;border-radius:3px;vertical-align:middle;margin-right:.4rem;" />` : ''}${name}</div>
             <div style="margin-top:1rem;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.55rem;">${judgesHtml}</div>
             <div style="margin-top:.75rem;font-size:clamp(4rem,9vw,7rem);font-weight:900;line-height:1;color:#c4b5fd;">${scoreText}</div>
           </div>
@@ -825,6 +826,8 @@
 
     const nameA = payload?.kumite?.competitorAName || 'AO';
     const nameB = payload?.kumite?.competitorBName || 'AKA';
+    const flagA = payload?.kumite?.countryCodeA ? getCountryFlagUrl(payload.kumite.countryCodeA, 80) : '';
+    const flagB = payload?.kumite?.countryCodeB ? getCountryFlagUrl(payload.kumite.countryCodeB, 80) : '';
     const scoreA = Math.max(0, Number.parseInt(payload?.kumite?.scoreA, 10) || 0);
     const scoreB = Math.max(0, Number.parseInt(payload?.kumite?.scoreB, 10) || 0);
     const assignedSeconds = Number.isFinite(Number(payload?.kumite?.assignedSeconds))
@@ -854,14 +857,14 @@
         <div style="padding:1.5rem;display:grid;grid-template-columns:1fr auto 1fr;gap:1rem;align-items:stretch;">
           <div style="background:linear-gradient(135deg,#1d4ed8,#0f3ea8);border-radius:20px;padding:1.2rem;display:flex;flex-direction:column;justify-content:center;text-align:center;">
             <div style="font-size:.9rem;opacity:.85;letter-spacing:.06em;text-transform:uppercase;">AO</div>
-            <div style="font-size:clamp(1.8rem,3vw,2.8rem);font-weight:900;line-height:1.1;margin-top:.3rem;">${nameA}</div>
+            <div style="font-size:clamp(1.8rem,3vw,2.8rem);font-weight:900;line-height:1.1;margin-top:.3rem;">${flagA ? `<img src="${flagA}" alt="" style="width:36px;height:24px;object-fit:cover;border-radius:3px;vertical-align:middle;margin-right:.35rem;" />` : ''}${nameA}</div>
             <div style="font-size:clamp(4rem,8vw,6rem);font-weight:900;line-height:1;margin-top:.65rem;">${scoreA}</div>
             ${_renderPenaltyBars(warnA)}
           </div>
           <div style="display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;opacity:.7;">VS</div>
           <div style="background:linear-gradient(135deg,#dc2626,#991b1b);border-radius:20px;padding:1.2rem;display:flex;flex-direction:column;justify-content:center;text-align:center;">
             <div style="font-size:.9rem;opacity:.85;letter-spacing:.06em;text-transform:uppercase;">AKA</div>
-            <div style="font-size:clamp(1.8rem,3vw,2.8rem);font-weight:900;line-height:1.1;margin-top:.3rem;">${nameB}</div>
+            <div style="font-size:clamp(1.8rem,3vw,2.8rem);font-weight:900;line-height:1.1;margin-top:.3rem;">${flagB ? `<img src="${flagB}" alt="" style="width:36px;height:24px;object-fit:cover;border-radius:3px;vertical-align:middle;margin-right:.35rem;" />` : ''}${nameB}</div>
             <div style="font-size:clamp(4rem,8vw,6rem);font-weight:900;line-height:1;margin-top:.65rem;">${scoreB}</div>
             ${_renderPenaltyBars(warnB)}
           </div>
@@ -1064,7 +1067,25 @@ function _renderAthleteBadgesCompact(competitor) {
         ? matches.filter(m => String(m.tatami || m.category?.tatami || '') === String(state.displayTatami))
         : matches;
       _syncProjectionTargetFromStorage();
-      const projectionLive = state.displayMode ? _readProjectionLive() : null;
+      let projectionLive = state.displayMode ? _readProjectionLive() : null;
+      if (projectionLive) {
+        let registered = [];
+        try { registered = await Competitors.listByTournament(tid); } catch (_) {}
+        const findCompetitor = (name, club) => registered.find(c =>
+          (name && String(c.full_name || '').trim().toLowerCase() === String(name).trim().toLowerCase()) ||
+          (club && String(c.club || '').trim().toLowerCase() === String(club).trim().toLowerCase())
+        ) || matches.flatMap(m => [m.competitor_a?.competitors || m.competitor_a, m.competitor_b?.competitors || m.competitor_b]).find(c =>
+          c && ((name && String(c.full_name || '').trim().toLowerCase() === String(name).trim().toLowerCase()) || (club && String(c.club || '').trim().toLowerCase() === String(club).trim().toLowerCase()))
+        );
+        const a = findCompetitor(projectionLive.competitorAName || projectionLive.kumite?.competitorAName || projectionLive.kata?.name, projectionLive.clubA);
+        const b = findCompetitor(projectionLive.competitorBName || projectionLive.kumite?.competitorBName, projectionLive.clubB);
+        const countryOf = c => c?.country || (c?.dojo_id ? Dojos.getFromCache(c.dojo_id)?.country_code : '') || '';
+        projectionLive = {
+          ...projectionLive,
+          kata: { ...(projectionLive.kata || {}), countryCode: countryOf(a) || projectionLive.kata?.countryCode },
+          kumite: { ...(projectionLive.kumite || {}), countryCodeA: countryOf(a) || projectionLive.kumite?.countryCodeA, countryCodeB: countryOf(b) || projectionLive.kumite?.countryCodeB },
+        };
+      }
       if (state.displayMode && _isGenericBoardProjection(projectionLive)) {
         wrap.style.display = 'block';
         content.innerHTML = _renderGenericBoardProjection(projectionLive);
@@ -1099,8 +1120,8 @@ function _renderAthleteBadgesCompact(competitor) {
             tatami: projectionLive.tatami || state.displayTatami,
             competitor_a_id: null,
             competitor_b_id: null,
-            competitor_a: { competitors: { full_name: projectionLive.competitorAName, club: projectionLive.clubA || '' }, full_name: projectionLive.competitorAName, club: projectionLive.clubA || '' },
-            competitor_b: { competitors: { full_name: projectionLive.competitorBName || 'Competidor B', club: projectionLive.clubB || '' }, full_name: projectionLive.competitorBName || 'Competidor B', club: projectionLive.clubB || '' },
+            competitor_a: { competitors: { full_name: projectionLive.competitorAName, club: projectionLive.clubA || '', country: projectionLive.kumite?.countryCodeA || projectionLive.kata?.countryCode }, full_name: projectionLive.competitorAName, club: projectionLive.clubA || '' },
+            competitor_b: { competitors: { full_name: projectionLive.competitorBName || 'Competidor B', club: projectionLive.clubB || '', country: projectionLive.kumite?.countryCodeB }, full_name: projectionLive.competitorBName || 'Competidor B', club: projectionLive.clubB || '' },
             score_a: projectionLive.kumite?.scoreA ?? projectionLive.kata?.total ?? null,
             score_b: projectionLive.kumite?.scoreB ?? null,
             bracket_type: projectionLive.discipline === 'kata' ? 'kata_round' : 'single_elimination',
@@ -1157,6 +1178,10 @@ function _renderAthleteBadgesCompact(competitor) {
       const nameB = mirrorForLiveMatch?.competitorBName || liveMatch.competitor_b?.competitors?.full_name || 'Competidor B';
       const clubA = mirrorForLiveMatch?.clubA || liveMatch.competitor_a?.competitors?.club || liveMatch.competitor_a?.club || '';
       const clubB = mirrorForLiveMatch?.clubB || liveMatch.competitor_b?.competitors?.club || liveMatch.competitor_b?.club || '';
+      const countryA = getCountryInfo(liveMatch.competitor_a?.competitors?.country || (liveMatch.competitor_a?.competitors?.dojo_id ? Dojos.getFromCache(liveMatch.competitor_a.competitors.dojo_id)?.country_code : '') || mirrorForLiveMatch?.kumite?.countryCodeA);
+      const countryB = getCountryInfo(liveMatch.competitor_b?.competitors?.country || (liveMatch.competitor_b?.competitors?.dojo_id ? Dojos.getFromCache(liveMatch.competitor_b.competitors.dojo_id)?.country_code : '') || mirrorForLiveMatch?.kumite?.countryCodeB);
+      const flagAHtml = getCountryFlagUrl(countryA.code, 64) ? `<img src="${getCountryFlagUrl(countryA.code, 64)}" alt="" title="${countryA.name}" style="width:28px;height:18px;object-fit:cover;border-radius:2px;vertical-align:middle;margin-right:4px;" />` : '';
+      const flagBHtml = getCountryFlagUrl(countryB.code, 64) ? `<img src="${getCountryFlagUrl(countryB.code, 64)}" alt="" title="${countryB.name}" style="width:28px;height:18px;object-fit:cover;border-radius:2px;vertical-align:middle;margin-right:4px;" />` : '';
       const heading = (clockText = _projectionClockText()) => state.displayMode
         ? `<div class="projection-header"><div><div class="projection-label">Tatami ${liveMatch.tatami || liveMatch.category?.tatami || state.displayTatami || '—'}</div><div class="projection-title">${liveMatch.category?.name || (isKata ? 'Kata' : 'Kumite')}</div></div><div class="projection-clock">${clockText}</div></div>`
         : '';
@@ -1217,7 +1242,7 @@ function _renderAthleteBadgesCompact(competitor) {
                 <div class="match-body" style="display:grid;grid-template-columns:1fr auto 1fr;padding:1.5rem;align-items:stretch;">
                   <div class="match-fighter" style="background:linear-gradient(135deg,#1565c0,#0f3ea8);border-radius:24px;padding:1.5rem;text-align:center;${winnerLabel === 'AKA' ? 'opacity:.7;' : ''}">
                     <div class="match-fighter-name" style="font-size:clamp(1.6rem,3vw,2.6rem);font-weight:900;line-height:1;">${nameA2}</div>
-                    <div class="match-fighter-info" style="margin-top:.45rem;font-size:.95rem;opacity:.82;">AO · ${clubA2}</div>
+                    <div class="match-fighter-info" style="margin-top:.45rem;font-size:.95rem;opacity:.82;">${flagAHtml}AO · ${clubA2}</div>
                     <div class="match-fighter-score" style="font-size:clamp(3.5rem,6vw,5rem);font-weight:900;line-height:1;margin-top:1rem;">${totalA}</div>
                     ${winnerLabel === 'AO' ? '<div style="margin-top:.5rem;font-size:1rem;font-weight:800;color:#facc15;">🏆 GANADOR</div>' : ''}
                     ${renderJudgeRow(judgesA)}
@@ -1225,7 +1250,7 @@ function _renderAthleteBadgesCompact(competitor) {
                   <div class="match-vs" style="display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;opacity:.72;padding:0 1rem;">VS</div>
                   <div class="match-fighter" style="background:linear-gradient(135deg,#c62828,#991b1b);border-radius:24px;padding:1.5rem;text-align:center;${winnerLabel === 'AO' ? 'opacity:.7;' : ''}">
                     <div class="match-fighter-name" style="font-size:clamp(1.6rem,3vw,2.6rem);font-weight:900;line-height:1;">${nameB2}</div>
-                    <div class="match-fighter-info" style="margin-top:.45rem;font-size:.95rem;opacity:.82;">AKA · ${clubB2}</div>
+                    <div class="match-fighter-info" style="margin-top:.45rem;font-size:.95rem;opacity:.82;">${flagBHtml}AKA · ${clubB2}</div>
                     <div class="match-fighter-score" style="font-size:clamp(3.5rem,6vw,5rem);font-weight:900;line-height:1;margin-top:1rem;">${totalB}</div>
                     ${winnerLabel === 'AKA' ? '<div style="margin-top:.5rem;font-size:1rem;font-weight:800;color:#facc15;">🏆 GANADOR</div>' : ''}
                     ${renderJudgeRow(judgesB)}
@@ -1260,7 +1285,7 @@ function _renderAthleteBadgesCompact(competitor) {
               <div class="match-body" style="display:flex;justify-content:center;padding:1.5rem;">
                 <div class="match-fighter" style="flex:unset;min-width:min(720px,100%);text-align:center;background:linear-gradient(135deg,rgba(91,33,182,.92),rgba(59,7,100,.88));border-radius:24px;padding:1.5rem;">
                   <div class="match-fighter-name" style="font-size:clamp(2.2rem,4vw,4rem);font-weight:900;line-height:1;">${nameA}</div>
-                  <div class="match-fighter-info" style="margin-top:.45rem;font-size:1rem;opacity:.82;">${clubA}</div>
+                  <div class="match-fighter-info" style="margin-top:.45rem;font-size:1rem;opacity:.82;">${flagAHtml}${clubA}</div>
                   <div class="match-fighter-score" style="font-size:clamp(5rem,9vw,7rem);font-weight:900;line-height:1;margin-top:1rem;">${summary.total != null ? Number(summary.total).toFixed(2) : '—'}</div>
                 </div>
               </div>
@@ -1333,7 +1358,7 @@ function _renderAthleteBadgesCompact(competitor) {
             <div class="match-body" style="display:grid;grid-template-columns:1fr auto 1fr;gap:1rem;padding:1.5rem;align-items:stretch;">
               <div class="match-fighter" style="${aoCardStyle}">
                 <div class="match-fighter-name" style="font-size:clamp(2rem,3.4vw,3.2rem);font-weight:900;line-height:1;">${nameA}</div>
-                <div class="match-fighter-info" style="margin-top:.45rem;font-size:1rem;opacity:.82;">${clubA}</div>
+                <div class="match-fighter-info" style="margin-top:.45rem;font-size:1rem;opacity:.82;">${flagAHtml}${clubA}</div>
                 <div class="match-fighter-score" style="font-size:clamp(5rem,9vw,7rem);font-weight:900;line-height:1;margin-top:1rem;">${summary.scoreA}</div>
                 ${_renderPenaltyBars(summary.warnA, prevWarn.a)}
                 ${aoWinner ? '<div class="projection-winner-chip">GANADOR</div>' : ''}
@@ -1341,7 +1366,7 @@ function _renderAthleteBadgesCompact(competitor) {
               <div class="match-vs" style="display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;opacity:.72;">VS</div>
               <div class="match-fighter" style="${akaCardStyle}">
                 <div class="match-fighter-name" style="font-size:clamp(2rem,3.4vw,3.2rem);font-weight:900;line-height:1;">${nameB}</div>
-                <div class="match-fighter-info" style="margin-top:.45rem;font-size:1rem;opacity:.82;">${clubB}</div>
+                <div class="match-fighter-info" style="margin-top:.45rem;font-size:1rem;opacity:.82;">${flagBHtml}${clubB}</div>
                 <div class="match-fighter-score" style="font-size:clamp(5rem,9vw,7rem);font-weight:900;line-height:1;margin-top:1rem;">${summary.scoreB}</div>
                 ${_renderPenaltyBars(summary.warnB, prevWarn.b)}
                 ${akaWinner ? '<div class="projection-winner-chip">GANADOR</div>' : ''}
