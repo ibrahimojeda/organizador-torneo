@@ -790,14 +790,17 @@
       });
       while (judgeScores.length < 5) judgeScores.push(null);
       const validJudges = judgeScores.filter((n) => Number.isFinite(n));
+      const allJudgesReady = validJudges.length >= 5;
       const scoreNum = Number(payload?.kata?.score);
       const scoreFromJudges = _computeWkfKataScore(validJudges);
       const resolvedScore = Number.isFinite(scoreNum)
         ? scoreNum
-        : (Number.isFinite(scoreFromJudges) ? scoreFromJudges : Number.NaN);
-      const scoreText = Number.isFinite(resolvedScore) ? resolvedScore.toFixed(2) : '—';
+        : (allJudgesReady && Number.isFinite(scoreFromJudges) ? scoreFromJudges : Number.NaN);
+      const scoreText = Number.isFinite(resolvedScore)
+        ? resolvedScore.toFixed(2)
+        : (Number.isFinite(scoreNum) || allJudgesReady ? '—' : '⏳');
       const judgesHtml = judgeScores.map((score, idx) => {
-        const text = Number.isFinite(score) ? Number(score).toFixed(2) : '—';
+        const text = allJudgesReady ? (Number.isFinite(score) ? Number(score).toFixed(2) : '—') : '·';
         return `
           <div style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:.5rem .4rem;">
             <div style="font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;opacity:.8;">J${idx + 1}</div>
@@ -1235,7 +1238,7 @@ function _renderAthleteBadgesCompact(competitor) {
                   const score = Number.isFinite(Number(j.score)) ? Number(j.score).toFixed(2) : '—';
                   return `<div style="text-align:center;background:rgba(255,255,255,.08);border-radius:8px;padding:.35rem;">
                     <div style="font-size:.65rem;opacity:.7;">${seat}</div>
-                    <div style="font-size:1rem;font-weight:800;">${score}</div>
+                    <div style="font-size:1rem;font-weight:800;">${winnerLabel ? score : '·'}</div>
                   </div>`;
                 }).join('')}
               </div>`;
@@ -1250,7 +1253,7 @@ function _renderAthleteBadgesCompact(competitor) {
                   <div class="match-fighter" style="background:linear-gradient(135deg,#1565c0,#0f3ea8);border-radius:24px;padding:1.5rem;text-align:center;${winnerLabel === 'AKA' ? 'opacity:.7;' : ''}">
                     <div class="match-fighter-name" style="font-size:clamp(1.6rem,3vw,2.6rem);font-weight:900;line-height:1;">${nameA2}</div>
                     <div class="match-fighter-info" style="margin-top:.45rem;font-size:.95rem;opacity:.82;display:flex;align-items:center;justify-content:center;gap:1.5rem;width:100%;">${flagAHtml}<span style="text-align:center;flex-grow:1;max-width:60%;">AO · ${clubA2}</span>${logoAHtml}</div>
-                    <div class="match-fighter-score" style="font-size:clamp(3.5rem,6vw,5rem);font-weight:900;line-height:1;margin-top:1rem;">${totalA}</div>
+                    ${winnerLabel ? `<div class="match-fighter-score" style="font-size:clamp(3.5rem,6vw,5rem);font-weight:900;line-height:1;margin-top:1rem;">${totalA}</div>` : '<div style="margin-top:1rem;font-size:1.2rem;font-weight:700;opacity:.6;">⏳ EN CURSO</div>'}
                     ${winnerLabel === 'AO' ? '<div style="margin-top:.5rem;font-size:1rem;font-weight:800;color:#facc15;">🏆 GANADOR</div>' : ''}
                     ${renderJudgeRow(judgesA)}
                   </div>
@@ -1258,14 +1261,14 @@ function _renderAthleteBadgesCompact(competitor) {
                   <div class="match-fighter" style="background:linear-gradient(135deg,#c62828,#991b1b);border-radius:24px;padding:1.5rem;text-align:center;${winnerLabel === 'AO' ? 'opacity:.7;' : ''}">
                     <div class="match-fighter-name" style="font-size:clamp(1.6rem,3vw,2.6rem);font-weight:900;line-height:1;">${nameB2}</div>
                     <div class="match-fighter-info" style="margin-top:.45rem;font-size:.95rem;opacity:.82;display:flex;align-items:center;justify-content:center;gap:1.5rem;width:100%;">${flagBHtml}<span style="text-align:center;flex-grow:1;max-width:60%;">AKA · ${clubB2}</span>${logoBHtml}</div>
-                    <div class="match-fighter-score" style="font-size:clamp(3.5rem,6vw,5rem);font-weight:900;line-height:1;margin-top:1rem;">${totalB}</div>
+                    ${winnerLabel ? `<div class="match-fighter-score" style="font-size:clamp(3.5rem,6vw,5rem);font-weight:900;line-height:1;margin-top:1rem;">${totalB}</div>` : '<div style="margin-top:1rem;font-size:1.2rem;font-weight:700;opacity:.6;">⏳ EN CURSO</div>'}
                     ${winnerLabel === 'AKA' ? '<div style="margin-top:.5rem;font-size:1rem;font-weight:800;color:#facc15;">🏆 GANADOR</div>' : ''}
                     ${renderJudgeRow(judgesB)}
                   </div>
                 </div>
               </div>
               <div style="margin-top:1rem;text-align:center;font-size:1.2rem;font-weight:800;color:#facc15;">
-                ${winnerLabel ? `🏆 Ganador: ${nameA2} (AO) ${duel.scoreA}-${duel.scoreB} ${nameB2} (AKA)` : 'Esperando notas de ambos contendientes...'}
+                ${winnerLabel ? `🏆 Ganador: ${nameA2} (AO) ${totalA} - ${totalB} ${nameB2} (AKA)` : 'Esperando notas de ambos contendientes...'}
               </div>`;
             return;
           }
@@ -1293,7 +1296,7 @@ function _renderAthleteBadgesCompact(competitor) {
                 <div class="match-fighter" style="flex:unset;min-width:min(720px,100%);text-align:center;background:linear-gradient(135deg,rgba(91,33,182,.92),rgba(59,7,100,.88));border-radius:24px;padding:1.5rem;">
                   <div class="match-fighter-name" style="font-size:clamp(2.2rem,4vw,4rem);font-weight:900;line-height:1;">${nameA}</div>
                   <div class="match-fighter-info" style="margin-top:.45rem;font-size:1rem;opacity:.82;display:flex;align-items:center;justify-content:center;gap:1.5rem;width:100%;">${flagAHtml}<span style="text-align:center;flex-grow:1;max-width:60%;">${clubA}</span>${logoAHtml}</div>
-                  <div class="match-fighter-score" style="font-size:clamp(5rem,9vw,7rem);font-weight:900;line-height:1;margin-top:1rem;">${summary.total != null ? Number(summary.total).toFixed(2) : '—'}</div>
+                  ${ready ? `<div class="match-fighter-score" style="font-size:clamp(5rem,9vw,7rem);font-weight:900;line-height:1;margin-top:1rem;">${summary.total != null ? Number(summary.total).toFixed(2) : '—'}</div>` : `<div style="margin-top:1rem;font-size:1.4rem;font-weight:700;opacity:.65;">⏳ Jueces ${submitted}/5</div>`}
                 </div>
               </div>
             </div>
@@ -1307,7 +1310,7 @@ function _renderAthleteBadgesCompact(competitor) {
                 return `<div class="projection-judge-card${pulse ? ' pulse' : ''}">
                   <div class="projection-judge-seat">${seat}</div>
                   <div class="projection-judge-name">${judge?.judge_name || 'Pendiente'}</div>
-                  <div class="projection-judge-score${pulse ? ' pulse' : ''}">${judge?.score != null ? Number(judge.score).toFixed(2) : '—'}</div>
+                  <div class="projection-judge-score${pulse ? ' pulse' : ''}">${ready ? (judge?.score != null ? Number(judge.score).toFixed(2) : '—') : '·'}</div>
                 </div>`;
               }).join('')}
             </div>`;
@@ -1405,6 +1408,10 @@ function _renderAthleteBadgesCompact(competitor) {
       if (isKata) {
         const summary = Matches.getKataSummary(liveMatch);
         if (state.displayMode) {
+          const kataSubmitted = Number.isFinite(Number(summary.submitted))
+            ? Number(summary.submitted)
+            : (Array.isArray(summary.judges) ? summary.judges.filter(j => Number.isFinite(Number(j?.score))).length : 0);
+          const kataReady = typeof summary.ready === 'boolean' ? summary.ready : kataSubmitted >= 5;
           content.innerHTML = `
             ${heading()}
             <div class="projection-kata-top">
@@ -1415,8 +1422,9 @@ function _renderAthleteBadgesCompact(competitor) {
                 <div class="projection-athlete-sub" style="font-size:0.85rem;margin-top:.15rem;">${_renderAthleteBadgesCompact(liveMatch.competitor_a)}</div>
               </div>
               <div class="projection-card projection-total">
-                <div class="projection-total-label">Total oficial</div>
-                <div class="projection-total-value">${summary.total != null ? Number(summary.total).toFixed(2) : '—'}</div>
+                ${kataReady
+                  ? `<div class="projection-total-label">Total oficial</div><div class="projection-total-value">${summary.total != null ? Number(summary.total).toFixed(2) : '—'}</div>`
+                  : `<div class="projection-total-label">Esperando notas de jueces</div><div style="font-size:1.5rem;font-weight:700;opacity:.8;text-align:center;">⏳ ${kataSubmitted}/5</div>`}
               </div>
             </div>
             <div class="projection-judges">
@@ -1425,7 +1433,7 @@ function _renderAthleteBadgesCompact(competitor) {
                 return `<div class="projection-judge-card">
                   <div class="projection-judge-seat">${seat}</div>
                   <div class="projection-judge-name">${judge?.judge_name || 'Pendiente'}</div>
-                  <div class="projection-judge-score">${judge?.score != null ? Number(judge.score).toFixed(2) : '—'}</div>
+                  <div class="projection-judge-score">${kataReady ? (judge?.score != null ? Number(judge.score).toFixed(2) : '—') : '·'}</div>
                 </div>`;
               }).join('')}
             </div>`;
