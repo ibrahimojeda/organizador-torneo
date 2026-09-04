@@ -817,7 +817,7 @@
             <span>Captura manual de Mesa</span>
           </div>
           <div style="padding:2rem 1.5rem;text-align:center;">
-            <div style="font-size:clamp(2rem,4vw,3.4rem);font-weight:900;line-height:1.1;">${kataFlag ? `<img src="${kataFlag}" alt="" style="width:42px;height:28px;object-fit:cover;border-radius:3px;vertical-align:middle;margin-right:.4rem;" />` : ''}${name}</div>
+            <div style="font-size:clamp(2rem,4vw,3.4rem);font-weight:900;line-height:1.1;">${kataFlag ? `<img src="${kataFlag}" alt="" style="width:126px;height:84px;object-fit:cover;border-radius:9px;vertical-align:middle;margin-right:1.2rem;" />` : ''}${name}</div>
             <div style="margin-top:1rem;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.55rem;">${judgesHtml}</div>
             <div style="margin-top:.75rem;font-size:clamp(4rem,9vw,7rem);font-weight:900;line-height:1;color:#c4b5fd;">${scoreText}</div>
           </div>
@@ -857,14 +857,14 @@
         <div style="padding:1.5rem;display:grid;grid-template-columns:1fr auto 1fr;gap:1rem;align-items:stretch;">
           <div style="background:linear-gradient(135deg,#1d4ed8,#0f3ea8);border-radius:20px;padding:1.2rem;display:flex;flex-direction:column;justify-content:center;text-align:center;">
             <div style="font-size:.9rem;opacity:.85;letter-spacing:.06em;text-transform:uppercase;">AO</div>
-            <div style="font-size:clamp(1.8rem,3vw,2.8rem);font-weight:900;line-height:1.1;margin-top:.3rem;">${flagA ? `<img src="${flagA}" alt="" style="width:36px;height:24px;object-fit:cover;border-radius:3px;vertical-align:middle;margin-right:.35rem;" />` : ''}${nameA}</div>
+            <div style="font-size:clamp(1.8rem,3vw,2.8rem);font-weight:900;line-height:1.1;margin-top:.3rem;">${flagA ? `<img src="${flagA}" alt="" style="width:108px;height:72px;object-fit:cover;border-radius:9px;vertical-align:middle;margin-right:1.05rem;" />` : ''}${nameA}</div>
             <div style="font-size:clamp(4rem,8vw,6rem);font-weight:900;line-height:1;margin-top:.65rem;">${scoreA}</div>
             ${_renderPenaltyBars(warnA)}
           </div>
           <div style="display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;opacity:.7;">VS</div>
           <div style="background:linear-gradient(135deg,#dc2626,#991b1b);border-radius:20px;padding:1.2rem;display:flex;flex-direction:column;justify-content:center;text-align:center;">
             <div style="font-size:.9rem;opacity:.85;letter-spacing:.06em;text-transform:uppercase;">AKA</div>
-            <div style="font-size:clamp(1.8rem,3vw,2.8rem);font-weight:900;line-height:1.1;margin-top:.3rem;">${flagB ? `<img src="${flagB}" alt="" style="width:36px;height:24px;object-fit:cover;border-radius:3px;vertical-align:middle;margin-right:.35rem;" />` : ''}${nameB}</div>
+            <div style="font-size:clamp(1.8rem,3vw,2.8rem);font-weight:900;line-height:1.1;margin-top:.3rem;">${flagB ? `<img src="${flagB}" alt="" style="width:108px;height:72px;object-fit:cover;border-radius:9px;vertical-align:middle;margin-right:1.05rem;" />` : ''}${nameB}</div>
             <div style="font-size:clamp(4rem,8vw,6rem);font-weight:900;line-height:1;margin-top:.65rem;">${scoreB}</div>
             ${_renderPenaltyBars(warnB)}
           </div>
@@ -1178,8 +1178,8 @@ function _renderAthleteBadgesCompact(competitor) {
       const clubB = mirrorForLiveMatch?.clubB || liveMatch.competitor_b?.competitors?.club || liveMatch.competitor_b?.club || '';
       const countryA = getCountryInfo(liveMatch.competitor_a?.competitors?.country || (liveMatch.competitor_a?.competitors?.dojo_id ? Dojos.getFromCache(liveMatch.competitor_a.competitors.dojo_id)?.country_code : '') || mirrorForLiveMatch?.kumite?.countryCodeA);
       const countryB = getCountryInfo(liveMatch.competitor_b?.competitors?.country || (liveMatch.competitor_b?.competitors?.dojo_id ? Dojos.getFromCache(liveMatch.competitor_b.competitors.dojo_id)?.country_code : '') || mirrorForLiveMatch?.kumite?.countryCodeB);
-      const flagAHtml = getCountryFlagUrl(countryA.code, 80) ? `<img src="${getCountryFlagUrl(countryA.code, 80)}" alt="" title="${countryA.name}" style="width:28px;height:18px;object-fit:cover;border-radius:2px;vertical-align:middle;margin-right:4px;" />` : '';
-      const flagBHtml = getCountryFlagUrl(countryB.code, 80) ? `<img src="${getCountryFlagUrl(countryB.code, 80)}" alt="" title="${countryB.name}" style="width:28px;height:18px;object-fit:cover;border-radius:2px;vertical-align:middle;margin-right:4px;" />` : '';
+      const flagAHtml = getCountryFlagUrl(countryA.code, 80) ? `<img src="${getCountryFlagUrl(countryA.code, 80)}" alt="" title="${countryA.name}" style="width:84px;height:54px;object-fit:cover;border-radius:7px;vertical-align:middle;margin-right:12px;" />` : '';
+      const flagBHtml = getCountryFlagUrl(countryB.code, 80) ? `<img src="${getCountryFlagUrl(countryB.code, 80)}" alt="" title="${countryB.name}" style="width:84px;height:54px;object-fit:cover;border-radius:7px;vertical-align:middle;margin-right:12px;" />` : '';
       const heading = (clockText = _projectionClockText()) => state.displayMode
         ? `<div class="projection-header"><div><div class="projection-label">Tatami ${liveMatch.tatami || liveMatch.category?.tatami || state.displayTatami || '—'}</div><div class="projection-title">${liveMatch.category?.name || (isKata ? 'Kata' : 'Kumite')}</div></div><div class="projection-clock">${clockText}</div></div>`
         : '';
