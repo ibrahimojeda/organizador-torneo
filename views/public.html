@@ -818,7 +818,7 @@
             <span>Captura manual de Mesa</span>
           </div>
           <div style="padding:2rem 1.5rem;text-align:center;">
-            <div style="font-size:clamp(2rem,4vw,3.4rem);font-weight:900;line-height:1.1;">${kataLogo ? `<img src="${kataLogo}" alt="" style="width:108px;height:108px;object-fit:contain;border-radius:9px;vertical-align:middle;margin-right:1rem;" />` : ''}${kataFlag ? `<img src="${kataFlag}" alt="" style="width:126px;height:84px;object-fit:cover;border-radius:9px;vertical-align:middle;margin-right:1.2rem;" />` : ''}${name}</div>
+            <div style="font-size:clamp(2rem,4vw,3.4rem);font-weight:900;line-height:1.1;">${kataFlag ? `<img src="${kataFlag}" alt="" style="width:126px;height:84px;object-fit:cover;border-radius:9px;vertical-align:middle;margin-right:1.2rem;" />` : ''}${name}${kataLogo ? `<img src="${kataLogo}" alt="" style="width:324px;height:324px;object-fit:contain;border-radius:27px;vertical-align:middle;margin-left:3rem;" />` : ''}</div>
             <div style="margin-top:1rem;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.55rem;">${judgesHtml}</div>
             <div style="margin-top:.75rem;font-size:clamp(4rem,9vw,7rem);font-weight:900;line-height:1;color:#c4b5fd;">${scoreText}</div>
           </div>
@@ -860,14 +860,14 @@
         <div style="padding:1.5rem;display:grid;grid-template-columns:1fr auto 1fr;gap:1rem;align-items:stretch;">
           <div style="background:linear-gradient(135deg,#1d4ed8,#0f3ea8);border-radius:20px;padding:1.2rem;display:flex;flex-direction:column;justify-content:center;text-align:center;">
             <div style="font-size:.9rem;opacity:.85;letter-spacing:.06em;text-transform:uppercase;">AO</div>
-            <div style="font-size:clamp(1.8rem,3vw,2.8rem);font-weight:900;line-height:1.1;margin-top:.3rem;">${logoA ? `<img src="${logoA}" alt="" style="width:90px;height:90px;object-fit:contain;border-radius:8px;vertical-align:middle;margin-right:.7rem;" />` : ''}${flagA ? `<img src="${flagA}" alt="" style="width:108px;height:72px;object-fit:cover;border-radius:9px;vertical-align:middle;margin-right:1.05rem;" />` : ''}${nameA}</div>
+            <div style="font-size:clamp(1.8rem,3vw,2.8rem);font-weight:900;line-height:1.1;margin-top:.3rem;">${flagA ? `<img src="${flagA}" alt="" style="width:108px;height:72px;object-fit:cover;border-radius:9px;vertical-align:middle;margin-right:1.05rem;" />` : ''}${nameA}${logoA ? `<img src="${logoA}" alt="" style="width:270px;height:270px;object-fit:contain;border-radius:24px;vertical-align:middle;margin-left:2.1rem;" />` : ''}</div>
             <div style="font-size:clamp(4rem,8vw,6rem);font-weight:900;line-height:1;margin-top:.65rem;">${scoreA}</div>
             ${_renderPenaltyBars(warnA)}
           </div>
           <div style="display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;opacity:.7;">VS</div>
           <div style="background:linear-gradient(135deg,#dc2626,#991b1b);border-radius:20px;padding:1.2rem;display:flex;flex-direction:column;justify-content:center;text-align:center;">
             <div style="font-size:.9rem;opacity:.85;letter-spacing:.06em;text-transform:uppercase;">AKA</div>
-            <div style="font-size:clamp(1.8rem,3vw,2.8rem);font-weight:900;line-height:1.1;margin-top:.3rem;">${logoB ? `<img src="${logoB}" alt="" style="width:90px;height:90px;object-fit:contain;border-radius:8px;vertical-align:middle;margin-right:.7rem;" />` : ''}${flagB ? `<img src="${flagB}" alt="" style="width:108px;height:72px;object-fit:cover;border-radius:9px;vertical-align:middle;margin-right:1.05rem;" />` : ''}${nameB}</div>
+            <div style="font-size:clamp(1.8rem,3vw,2.8rem);font-weight:900;line-height:1.1;margin-top:.3rem;">${flagB ? `<img src="${flagB}" alt="" style="width:108px;height:72px;object-fit:cover;border-radius:9px;vertical-align:middle;margin-right:1.05rem;" />` : ''}${nameB}${logoB ? `<img src="${logoB}" alt="" style="width:270px;height:270px;object-fit:contain;border-radius:24px;vertical-align:middle;margin-left:2.1rem;" />` : ''}</div>
             <div style="font-size:clamp(4rem,8vw,6rem);font-weight:900;line-height:1;margin-top:.65rem;">${scoreB}</div>
             ${_renderPenaltyBars(warnB)}
           </div>
@@ -1189,10 +1189,10 @@ function _renderAthleteBadgesCompact(competitor) {
       const flagBHtml = getCountryFlagUrl(countryB.code, 80) ? `<img src="${getCountryFlagUrl(countryB.code, 80)}" alt="" title="${countryB.name}" style="width:84px;height:54px;object-fit:cover;border-radius:7px;vertical-align:middle;margin-right:12px;" />` : '';
       const dojoA = Dojos.getFromCache(liveMatch.competitor_a?.competitors?.dojo_id || mirrorForLiveMatch?.dojoIdA);
       const dojoB = Dojos.getFromCache(liveMatch.competitor_b?.competitors?.dojo_id || mirrorForLiveMatch?.dojoIdB);
-      const logoAHtml = dojoA?.logo_url ? `<img src="${dojoA.logo_url}" alt="" title="${dojoA.name || ''}" style="width:54px;height:54px;object-fit:contain;border-radius:6px;vertical-align:middle;margin-right:8px;" />` : '';
-      const logoBHtml = dojoB?.logo_url ? `<img src="${dojoB.logo_url}" alt="" title="${dojoB.name || ''}" style="width:54px;height:54px;object-fit:contain;border-radius:6px;vertical-align:middle;margin-right:8px;" />` : '';
-      const identityAHtml = `${logoAHtml}${flagAHtml}`;
-      const identityBHtml = `${logoBHtml}${flagBHtml}`;
+      const logoAHtml = dojoA?.logo_url ? `<img src="${dojoA.logo_url}" alt="" title="${dojoA.name || ''}" style="width:162px;height:162px;object-fit:contain;border-radius:18px;vertical-align:middle;margin-left:12px;" />` : '';
+      const logoBHtml = dojoB?.logo_url ? `<img src="${dojoB.logo_url}" alt="" title="${dojoB.name || ''}" style="width:162px;height:162px;object-fit:contain;border-radius:18px;vertical-align:middle;margin-left:12px;" />` : '';
+      const identityAHtml = `${flagAHtml}${logoAHtml}`;
+      const identityBHtml = `${flagBHtml}${logoBHtml}`;
       const heading = (clockText = _projectionClockText()) => state.displayMode
         ? `<div class="projection-header"><div><div class="projection-label">Tatami ${liveMatch.tatami || liveMatch.category?.tatami || state.displayTatami || '—'}</div><div class="projection-title">${liveMatch.category?.name || (isKata ? 'Kata' : 'Kumite')}</div></div><div class="projection-clock">${clockText}</div></div>`
         : '';
