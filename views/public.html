@@ -1185,14 +1185,12 @@ function _renderAthleteBadgesCompact(competitor) {
       const clubB = mirrorForLiveMatch?.clubB || liveMatch.competitor_b?.competitors?.club || liveMatch.competitor_b?.club || '';
       const countryA = getCountryInfo(liveMatch.competitor_a?.competitors?.country || (liveMatch.competitor_a?.competitors?.dojo_id ? Dojos.getFromCache(liveMatch.competitor_a.competitors.dojo_id)?.country_code : '') || mirrorForLiveMatch?.kumite?.countryCodeA);
       const countryB = getCountryInfo(liveMatch.competitor_b?.competitors?.country || (liveMatch.competitor_b?.competitors?.dojo_id ? Dojos.getFromCache(liveMatch.competitor_b.competitors.dojo_id)?.country_code : '') || mirrorForLiveMatch?.kumite?.countryCodeB);
-      const flagAHtml = getCountryFlagUrl(countryA.code, 80) ? `<img src="${getCountryFlagUrl(countryA.code, 80)}" alt="" title="${countryA.name}" style="width:84px;height:54px;object-fit:cover;border-radius:7px;vertical-align:middle;margin-right:12px;" />` : '';
-      const flagBHtml = getCountryFlagUrl(countryB.code, 80) ? `<img src="${getCountryFlagUrl(countryB.code, 80)}" alt="" title="${countryB.name}" style="width:84px;height:54px;object-fit:cover;border-radius:7px;vertical-align:middle;margin-right:12px;" />` : '';
+      const flagAHtml = getCountryFlagUrl(countryA.code, 80) ? `<img src="${getCountryFlagUrl(countryA.code, 80)}" alt="" title="${countryA.name}" style="width:84px;height:54px;object-fit:cover;border-radius:7px;flex-shrink:0;" />` : '';
+      const flagBHtml = getCountryFlagUrl(countryB.code, 80) ? `<img src="${getCountryFlagUrl(countryB.code, 80)}" alt="" title="${countryB.name}" style="width:84px;height:54px;object-fit:cover;border-radius:7px;flex-shrink:0;" />` : '';
       const dojoA = Dojos.getFromCache(liveMatch.competitor_a?.competitors?.dojo_id || mirrorForLiveMatch?.dojoIdA);
       const dojoB = Dojos.getFromCache(liveMatch.competitor_b?.competitors?.dojo_id || mirrorForLiveMatch?.dojoIdB);
-      const logoAHtml = dojoA?.logo_url ? `<img src="${dojoA.logo_url}" alt="" title="${dojoA.name || ''}" style="width:162px;height:162px;object-fit:contain;border-radius:18px;vertical-align:middle;margin-left:12px;" />` : '';
-      const logoBHtml = dojoB?.logo_url ? `<img src="${dojoB.logo_url}" alt="" title="${dojoB.name || ''}" style="width:162px;height:162px;object-fit:contain;border-radius:18px;vertical-align:middle;margin-left:12px;" />` : '';
-      const identityAHtml = `${flagAHtml}${logoAHtml}`;
-      const identityBHtml = `${flagBHtml}${logoBHtml}`;
+      const logoAHtml = dojoA?.logo_url ? `<img src="${dojoA.logo_url}" alt="" title="${dojoA.name || ''}" style="width:162px;height:162px;object-fit:contain;border-radius:18px;flex-shrink:0;" />` : '';
+      const logoBHtml = dojoB?.logo_url ? `<img src="${dojoB.logo_url}" alt="" title="${dojoB.name || ''}" style="width:162px;height:162px;object-fit:contain;border-radius:18px;flex-shrink:0;" />` : '';
       const heading = (clockText = _projectionClockText()) => state.displayMode
         ? `<div class="projection-header"><div><div class="projection-label">Tatami ${liveMatch.tatami || liveMatch.category?.tatami || state.displayTatami || '—'}</div><div class="projection-title">${liveMatch.category?.name || (isKata ? 'Kata' : 'Kumite')}</div></div><div class="projection-clock">${clockText}</div></div>`
         : '';
@@ -1253,7 +1251,7 @@ function _renderAthleteBadgesCompact(competitor) {
                 <div class="match-body" style="display:grid;grid-template-columns:1fr auto 1fr;padding:1.5rem;align-items:stretch;">
                   <div class="match-fighter" style="background:linear-gradient(135deg,#1565c0,#0f3ea8);border-radius:24px;padding:1.5rem;text-align:center;${winnerLabel === 'AKA' ? 'opacity:.7;' : ''}">
                     <div class="match-fighter-name" style="font-size:clamp(1.6rem,3vw,2.6rem);font-weight:900;line-height:1;">${nameA2}</div>
-                    <div class="match-fighter-info" style="margin-top:.45rem;font-size:.95rem;opacity:.82;">${identityAHtml}AO · ${clubA2}</div>
+                    <div class="match-fighter-info" style="margin-top:.45rem;font-size:.95rem;opacity:.82;display:flex;align-items:center;justify-content:center;gap:1.5rem;width:100%;">${flagAHtml}<span style="text-align:center;flex-grow:1;max-width:60%;">AO · ${clubA2}</span>${logoAHtml}</div>
                     <div class="match-fighter-score" style="font-size:clamp(3.5rem,6vw,5rem);font-weight:900;line-height:1;margin-top:1rem;">${totalA}</div>
                     ${winnerLabel === 'AO' ? '<div style="margin-top:.5rem;font-size:1rem;font-weight:800;color:#facc15;">🏆 GANADOR</div>' : ''}
                     ${renderJudgeRow(judgesA)}
@@ -1261,7 +1259,7 @@ function _renderAthleteBadgesCompact(competitor) {
                   <div class="match-vs" style="display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;opacity:.72;padding:0 1rem;">VS</div>
                   <div class="match-fighter" style="background:linear-gradient(135deg,#c62828,#991b1b);border-radius:24px;padding:1.5rem;text-align:center;${winnerLabel === 'AO' ? 'opacity:.7;' : ''}">
                     <div class="match-fighter-name" style="font-size:clamp(1.6rem,3vw,2.6rem);font-weight:900;line-height:1;">${nameB2}</div>
-                    <div class="match-fighter-info" style="margin-top:.45rem;font-size:.95rem;opacity:.82;">${identityBHtml}AKA · ${clubB2}</div>
+                    <div class="match-fighter-info" style="margin-top:.45rem;font-size:.95rem;opacity:.82;display:flex;align-items:center;justify-content:center;gap:1.5rem;width:100%;">${flagBHtml}<span style="text-align:center;flex-grow:1;max-width:60%;">AKA · ${clubB2}</span>${logoBHtml}</div>
                     <div class="match-fighter-score" style="font-size:clamp(3.5rem,6vw,5rem);font-weight:900;line-height:1;margin-top:1rem;">${totalB}</div>
                     ${winnerLabel === 'AKA' ? '<div style="margin-top:.5rem;font-size:1rem;font-weight:800;color:#facc15;">🏆 GANADOR</div>' : ''}
                     ${renderJudgeRow(judgesB)}
@@ -1296,7 +1294,7 @@ function _renderAthleteBadgesCompact(competitor) {
               <div class="match-body" style="display:flex;justify-content:center;padding:1.5rem;">
                 <div class="match-fighter" style="flex:unset;min-width:min(720px,100%);text-align:center;background:linear-gradient(135deg,rgba(91,33,182,.92),rgba(59,7,100,.88));border-radius:24px;padding:1.5rem;">
                   <div class="match-fighter-name" style="font-size:clamp(2.2rem,4vw,4rem);font-weight:900;line-height:1;">${nameA}</div>
-                  <div class="match-fighter-info" style="margin-top:.45rem;font-size:1rem;opacity:.82;">${identityAHtml}${clubA}</div>
+                  <div class="match-fighter-info" style="margin-top:.45rem;font-size:1rem;opacity:.82;display:flex;align-items:center;justify-content:center;gap:1.5rem;width:100%;">${flagAHtml}<span style="text-align:center;flex-grow:1;max-width:60%;">${clubA}</span>${logoAHtml}</div>
                   <div class="match-fighter-score" style="font-size:clamp(5rem,9vw,7rem);font-weight:900;line-height:1;margin-top:1rem;">${summary.total != null ? Number(summary.total).toFixed(2) : '—'}</div>
                 </div>
               </div>
@@ -1369,7 +1367,7 @@ function _renderAthleteBadgesCompact(competitor) {
             <div class="match-body" style="display:grid;grid-template-columns:1fr auto 1fr;gap:1rem;padding:1.5rem;align-items:stretch;">
               <div class="match-fighter" style="${aoCardStyle}">
                 <div class="match-fighter-name" style="font-size:clamp(2rem,3.4vw,3.2rem);font-weight:900;line-height:1;">${nameA}</div>
-                <div class="match-fighter-info" style="margin-top:.45rem;font-size:1rem;opacity:.82;">${identityAHtml}${clubA}</div>
+                <div class="match-fighter-info" style="margin-top:.45rem;font-size:1rem;opacity:.82;display:flex;align-items:center;justify-content:center;gap:1.5rem;width:100%;">${flagAHtml}<span style="text-align:center;flex-grow:1;max-width:60%;">${clubA}</span>${logoAHtml}</div>
                 <div class="match-fighter-score" style="font-size:clamp(5rem,9vw,7rem);font-weight:900;line-height:1;margin-top:1rem;">${summary.scoreA}</div>
                 ${_renderPenaltyBars(summary.warnA, prevWarn.a)}
                 ${aoWinner ? '<div class="projection-winner-chip">GANADOR</div>' : ''}
@@ -1377,7 +1375,7 @@ function _renderAthleteBadgesCompact(competitor) {
               <div class="match-vs" style="display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;opacity:.72;">VS</div>
               <div class="match-fighter" style="${akaCardStyle}">
                 <div class="match-fighter-name" style="font-size:clamp(2rem,3.4vw,3.2rem);font-weight:900;line-height:1;">${nameB}</div>
-                <div class="match-fighter-info" style="margin-top:.45rem;font-size:1rem;opacity:.82;">${identityBHtml}${clubB}</div>
+                <div class="match-fighter-info" style="margin-top:.45rem;font-size:1rem;opacity:.82;display:flex;align-items:center;justify-content:center;gap:1.5rem;width:100%;">${flagBHtml}<span style="text-align:center;flex-grow:1;max-width:60%;">${clubB}</span>${logoBHtml}</div>
                 <div class="match-fighter-score" style="font-size:clamp(5rem,9vw,7rem);font-weight:900;line-height:1;margin-top:1rem;">${summary.scoreB}</div>
                 ${_renderPenaltyBars(summary.warnB, prevWarn.b)}
                 ${akaWinner ? '<div class="projection-winner-chip">GANADOR</div>' : ''}
@@ -1973,3 +1971,5 @@ function _renderAthleteBadgesCompact(competitor) {
 </script>
 </body>
 </html>
+
+
