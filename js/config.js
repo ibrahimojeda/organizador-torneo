@@ -291,7 +291,13 @@ function getCountryInfo(name) {
 
 function getCountryFlagUrl(country, width = 40) {
   const info = getCountryInfo(country);
-  return info.code ? `https://flagcdn.com/w${width}/${info.code.toLowerCase()}.png` : '';
+  if (!info.code) return '';
+  // FlagCDN solo publica tamaños discretos; w64/w48 producen imágenes rotas.
+  const validWidths = [20, 40, 80, 160, 320];
+  const target = Number(width) || 40;
+  const resolvedWidth = validWidths.reduce((best, value) =>
+    Math.abs(value - target) < Math.abs(best - target) ? value : best, validWidths[0]);
+  return `https://flagcdn.com/w${resolvedWidth}/${info.code.toLowerCase()}.png`;
 }
 
 /** Obtiene la bandera emoji de un país por nombre */

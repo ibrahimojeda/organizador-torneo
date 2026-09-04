@@ -986,7 +986,7 @@ function _renderAthleteBadgesCompact(competitor) {
     const parts = [];
     if (dojoLogo) parts.push(`<img src="${dojoLogo}" alt="" style="width:16px;height:16px;object-fit:contain;border-radius:2px;display:inline-block;vertical-align:middle;" />`);
     if (dojoName) parts.push(`<span style="opacity:0.8;">${dojoName}</span>`);
-    const compactFlagUrl = getCountryFlagUrl(countryInfo.code, 64);
+    const compactFlagUrl = getCountryFlagUrl(countryInfo.code, 80);
     if (compactFlagUrl) parts.push(`<img src="${compactFlagUrl}" alt="" title="${countryInfo.name}" style="width:24px;height:16px;object-fit:cover;border-radius:2px;" />`);
     if (!parts.length) return '';
     return parts.join(' · ');
@@ -1178,8 +1178,8 @@ function _renderAthleteBadgesCompact(competitor) {
       const clubB = mirrorForLiveMatch?.clubB || liveMatch.competitor_b?.competitors?.club || liveMatch.competitor_b?.club || '';
       const countryA = getCountryInfo(liveMatch.competitor_a?.competitors?.country || (liveMatch.competitor_a?.competitors?.dojo_id ? Dojos.getFromCache(liveMatch.competitor_a.competitors.dojo_id)?.country_code : '') || mirrorForLiveMatch?.kumite?.countryCodeA);
       const countryB = getCountryInfo(liveMatch.competitor_b?.competitors?.country || (liveMatch.competitor_b?.competitors?.dojo_id ? Dojos.getFromCache(liveMatch.competitor_b.competitors.dojo_id)?.country_code : '') || mirrorForLiveMatch?.kumite?.countryCodeB);
-      const flagAHtml = getCountryFlagUrl(countryA.code, 64) ? `<img src="${getCountryFlagUrl(countryA.code, 64)}" alt="" title="${countryA.name}" style="width:28px;height:18px;object-fit:cover;border-radius:2px;vertical-align:middle;margin-right:4px;" />` : '';
-      const flagBHtml = getCountryFlagUrl(countryB.code, 64) ? `<img src="${getCountryFlagUrl(countryB.code, 64)}" alt="" title="${countryB.name}" style="width:28px;height:18px;object-fit:cover;border-radius:2px;vertical-align:middle;margin-right:4px;" />` : '';
+      const flagAHtml = getCountryFlagUrl(countryA.code, 80) ? `<img src="${getCountryFlagUrl(countryA.code, 80)}" alt="" title="${countryA.name}" style="width:28px;height:18px;object-fit:cover;border-radius:2px;vertical-align:middle;margin-right:4px;" />` : '';
+      const flagBHtml = getCountryFlagUrl(countryB.code, 80) ? `<img src="${getCountryFlagUrl(countryB.code, 80)}" alt="" title="${countryB.name}" style="width:28px;height:18px;object-fit:cover;border-radius:2px;vertical-align:middle;margin-right:4px;" />` : '';
       const heading = (clockText = _projectionClockText()) => state.displayMode
         ? `<div class="projection-header"><div><div class="projection-label">Tatami ${liveMatch.tatami || liveMatch.category?.tatami || state.displayTatami || '—'}</div><div class="projection-title">${liveMatch.category?.name || (isKata ? 'Kata' : 'Kumite')}</div></div><div class="projection-clock">${clockText}</div></div>`
         : '';
