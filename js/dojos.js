@@ -152,6 +152,13 @@ const Dojos = (() => {
     return url ? `<img src="${url}" alt="" title="${info.name}" style="width:${Math.round(size * 1.5)}px;height:${Math.round(size)}px;object-fit:cover;border-radius:2px;vertical-align:middle;" />` : '';
   }
 
+  function renderCompetitorIdentity(competitor, size = 18) {
+    const c = competitor?.competitors || competitor || {};
+    const dojo = c.dojo_id ? getFromCache(c.dojo_id) : null;
+    const country = c.country || dojo?.country_code;
+    return `${renderDojoBadge(dojo, size)} ${renderCountryBadge(country, size)}`;
+  }
+
   /* --------------------------------------------------------
      CACHÉ DE DOJOS (evita consultas repetidas)
   -------------------------------------------------------- */
@@ -193,5 +200,6 @@ const Dojos = (() => {
     invalidateCache,
     renderDojoBadge,
     renderCountryBadge,
+    renderCompetitorIdentity,
   };
 })();

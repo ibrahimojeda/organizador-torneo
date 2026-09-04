@@ -550,10 +550,8 @@
       const clubB = m.competitor_b?.competitors?.club || m.competitor_b?.club || '';
       $('judge-kata-name-a').textContent = nameA;
       $('judge-kata-name-b').textContent = nameB;
-      $('judge-kata-club-a').innerHTML = Dojos.renderDojoBadge(Dojos.getFromCache(m.competitor_a?.competitors?.dojo_id || m.competitor_a?.dojo_id), 18)
-        + ' ' + Dojos.renderCountryBadge(m.competitor_a?.competitors?.country || m.competitor_a?.country, 14);
-      $('judge-kata-club-b').innerHTML = Dojos.renderDojoBadge(Dojos.getFromCache(m.competitor_b?.competitors?.dojo_id || m.competitor_b?.dojo_id), 18)
-        + ' ' + Dojos.renderCountryBadge(m.competitor_b?.competitors?.country || m.competitor_b?.country, 14);
+      $('judge-kata-club-a').innerHTML = Dojos.renderCompetitorIdentity(m.competitor_a, 18);
+      $('judge-kata-club-b').innerHTML = Dojos.renderCompetitorIdentity(m.competitor_b, 18);
 
       const duel = m.competitor_b_id ? Matches.getKataDuelSummary(m) : null;
       const seats = ['J1','J2','J3','J4','J5'];
@@ -679,10 +677,8 @@
       const clubB = m.competitor_b?.competitors?.club || m.competitor_b?.club || '';
       $('judge-kumite-name-a').textContent = nameA;
       $('judge-kumite-name-b').textContent = nameB;
-      $('judge-kumite-club-a').innerHTML = Dojos.renderDojoBadge(Dojos.getFromCache(m.competitor_a?.competitors?.dojo_id || m.competitor_a?.dojo_id), 18)
-        + ' ' + Dojos.renderCountryBadge(m.competitor_a?.competitors?.country || m.competitor_a?.country, 14);
-      $('judge-kumite-club-b').innerHTML = Dojos.renderDojoBadge(Dojos.getFromCache(m.competitor_b?.competitors?.dojo_id || m.competitor_b?.dojo_id), 18)
-        + ' ' + Dojos.renderCountryBadge(m.competitor_b?.competitors?.country || m.competitor_b?.country, 14);
+      $('judge-kumite-club-a').innerHTML = Dojos.renderCompetitorIdentity(m.competitor_a, 18);
+      $('judge-kumite-club-b').innerHTML = Dojos.renderCompetitorIdentity(m.competitor_b, 18);
     }
 
     function updateSideButtons() {

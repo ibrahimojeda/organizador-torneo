@@ -2388,9 +2388,7 @@
     const isLocked = _isResultLocked(match);
     const nameA = match.competitor_a?.competitors?.full_name || match.competitor_a?.full_name || 'Competidor A';
     const _dojoA = Dojos.getFromCache(match.competitor_a?.competitors?.dojo_id || match.competitor_a?.dojo_id);
-    const _countryA = getCountryInfo(match.competitor_a?.competitors?.country || match.competitor_a?.country);
-    const clubA = (_dojoA ? (_dojoA.logo_url ? `<img src="${_dojoA.logo_url}" style="width:14px;height:14px;object-fit:contain;border-radius:2px;vertical-align:middle;" /> ` : '🥋 ') + `${_dojoA.name} ` : '')
-      + (_countryA.flag ? `${_countryA.flag} ${_countryA.name}` : '');
+    const clubA = Dojos.renderCompetitorIdentity(match.competitor_a, 18);
 
     document.getElementById('header-category').textContent =
       `${match.category?.name || '—'} · ${match.round_label || ''}`;
@@ -2419,9 +2417,7 @@
           </div>`;
       } else {
         const nameB = match.competitor_b?.competitors?.full_name || match.competitor_b?.full_name || 'Competidor B';
-        const clubB = Dojos.renderDojoBadge(Dojos.getFromCache(match.competitor_b?.competitors?.dojo_id || match.competitor_b?.dojo_id), 16)
-          + ' ' + Dojos.renderCountryBadge(match.competitor_b?.competitors?.country || match.competitor_b?.country, 13)
-          || match.competitor_b?.competitors?.club || match.competitor_b?.club || '';
+        const clubB = Dojos.renderCompetitorIdentity(match.competitor_b, 16) || match.competitor_b?.competitors?.club || match.competitor_b?.club || '';
         document.getElementById('ci-fighters').innerHTML = `
           <div style="flex:1;background:#1565c0;color:#fff;border-radius:6px;padding:.5rem .75rem;text-align:center;">
             <div style="font-size:.62rem;text-transform:uppercase;opacity:.7;margin-bottom:.1rem;">AO</div>
@@ -2443,7 +2439,7 @@
       if (isKataDuel) {
         const nameB = match.competitor_b?.competitors?.full_name || match.competitor_b?.full_name || 'Competidor B';
         const clubB = Dojos.renderDojoBadge(Dojos.getFromCache(match.competitor_b?.competitors?.dojo_id || match.competitor_b?.dojo_id), 16)
-          + ' ' + Dojos.renderCountryBadge(match.competitor_b?.competitors?.country || match.competitor_b?.country, 13)
+          + ' ' + Dojos.renderCompetitorIdentity(match.competitor_b, 16)
           || match.competitor_b?.competitors?.club || match.competitor_b?.club || '';
         const duelSummary = Matches.getKataDuelSummary(match);
         const scoreA = isLocked && match.score_a != null ? Number(match.score_a).toFixed(2) : '—';
@@ -2502,7 +2498,7 @@
     } else {
       const nameB = match.competitor_b?.competitors?.full_name || match.competitor_b?.full_name || 'Competidor B';
       const clubB = Dojos.renderDojoBadge(Dojos.getFromCache(match.competitor_b?.competitors?.dojo_id || match.competitor_b?.dojo_id), 16)
-          + ' ' + Dojos.renderCountryBadge(match.competitor_b?.competitors?.country || match.competitor_b?.country, 13)
+          + ' ' + Dojos.renderCompetitorIdentity(match.competitor_b, 16)
           || match.competitor_b?.competitors?.club || match.competitor_b?.club || '';
       const winnerName = match.winner?.competitors?.full_name
         || (match.winner_id === match.competitor_a_id ? nameA : (match.winner_id === match.competitor_b_id ? nameB : '—'));
@@ -2829,7 +2825,7 @@
       document.getElementById('panel-kata-result').style.display  = 'block';
       document.getElementById('kata-athlete-name').textContent = nameA;
       document.getElementById('kata-athlete-club').innerHTML = Dojos.renderDojoBadge(Dojos.getFromCache(m.competitor_a?.competitors?.dojo_id || m.competitor_a?.dojo_id), 16)
-      + ' ' + Dojos.renderCountryBadge(m.competitor_a?.competitors?.country || m.competitor_a?.country, 13);
+      + ' ' + Dojos.renderCompetitorIdentity(m.competitor_a, 16);
       document.getElementById('kata-notes').value = '';
 
       if (isDuel) {
@@ -2858,9 +2854,9 @@
       document.getElementById('kumite-name-a').textContent = nameA;
       document.getElementById('kumite-name-b').textContent = nameB;
       document.getElementById('kumite-club-a').innerHTML = Dojos.renderDojoBadge(Dojos.getFromCache(m.competitor_a?.competitors?.dojo_id || m.competitor_a?.dojo_id), 16)
-      + ' ' + Dojos.renderCountryBadge(m.competitor_a?.competitors?.country || m.competitor_a?.country, 13);
+      + ' ' + Dojos.renderCompetitorIdentity(m.competitor_a, 16);
       document.getElementById('kumite-club-b').innerHTML = Dojos.renderDojoBadge(Dojos.getFromCache(m.competitor_b?.competitors?.dojo_id || m.competitor_b?.dojo_id), 16)
-      + ' ' + Dojos.renderCountryBadge(m.competitor_b?.competitors?.country || m.competitor_b?.country, 13);
+      + ' ' + Dojos.renderCompetitorIdentity(m.competitor_b, 16);
       const summary = Matches.getKumiteSummary(m);
       _kumite = {
         a: summary.scoreA,
