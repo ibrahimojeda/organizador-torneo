@@ -1210,66 +1210,106 @@ function _renderAthleteBadgesCompact(competitor) {
 
       if (state.displayMode) {
         if (isKata) {
-          // --- KATA POR DUELOS: dos contendientes con sus notas de jueces ---
+          // --- KATA POR DUELOS: marcador tipo WKF con tabla de puntuaciones ---
           const isDuel = !!projectionLive?.kataDuel || !!liveMatch?.competitor_b_id;
           if (isDuel) {
-            const duel = projectionLive?.kataDuel || {
-              winner: liveMatch.winner_id === liveMatch.competitor_a_id ? 'a' : (liveMatch.winner_id === liveMatch.competitor_b_id ? 'b' : null),
-              scoreA: 0, scoreB: 0, ready: false,
-              totalA: liveMatch.score_a != null ? Number(liveMatch.score_a) : null,
-              totalB: liveMatch.score_b != null ? Number(liveMatch.score_b) : null,
-              judgesA: projectionLive?.kata?.judges || [],
-              judgesB: [],
-            };
+            const duelSummary = Matches.getKataDuelSummary(liveMatch);
+            const judgesSeats = Array.isArray(duelSummary.summaryA?.judges) 
+              ? duelSummary.summaryA.judges.map(j => j.seat) 
+              : ['J1','J2','J3','J4','J5'];
+            const judgeCount = judgesSeats.length;
+            const winnerLabel = duelSummary.winner ? (duelSummary.winner === 'a' ? 'AO' : 'AKA') : null;
+            const scoresRowA = judgesSeats.map(seat => {
+              const j = duelSummary.summaryA?.judges?.find(jj => jj.seat === seat);
+              return Number.isFinite(Number(j?.score)) ? Number(j.score).toFixed(2) : '—';
+            });
+            const scoresRowB = judgesSeats.map(seat => {
+              const j = duelSummary.summaryB?.judges?.find(jj => jj.seat === seat);
+              return Number.isFinite(Number(j?.score)) ? Number(j.score).toFixed(2) : '—';
+            });
+            const judgeDecisions = judgesSeats.map(seat => {
+              const r = duelSummary.judgeResults?.find(jr => jr.seat === seat);
+              if (!r || !r.winner) return 'pending';
+              return r.winner;
+            });
+            const totalA = duelSummary.summaryA?.total != null ? Number(duelSummary.summaryA.total).toFixed(2) : '—';
+            const totalB = duelSummary.summaryB?.total != null ? Number(duelSummary.summaryB.total).toFixed(2) : '—';
             const nameA2 = nameA;
             const nameB2 = nameB;
             const clubA2 = clubA;
             const clubB2 = projectionLive?.clubB || liveMatch.competitor_b?.competitors?.club || liveMatch.competitor_b?.club || '';
-            const totalA = duel.totalA != null ? Number(duel.totalA).toFixed(2) : '—';
-            const totalB = duel.totalB != null ? Number(duel.totalB).toFixed(2) : '—';
-            const winnerLabel = duel.winner ? (duel.winner === 'a' ? 'AO' : 'AKA') : null;
-            const judgesA = Array.isArray(duel.judgesA) ? duel.judgesA : [];
-            const judgesB = Array.isArray(duel.judgesB) ? duel.judgesB : [];
-            const seats = ['J1','J2','J3','J4','J5'];
-            const renderJudgeRow = (judges) => `
-              <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:.4rem;margin-top:.5rem;">
-                ${seats.map(seat => {
-                  const j = judges.find(jj => jj?.seat === seat) || {};
-                  const score = Number.isFinite(Number(j.score)) ? Number(j.score).toFixed(2) : '—';
-                  return `<div style="text-align:center;background:rgba(255,255,255,.08);border-radius:8px;padding:.35rem;">
-                    <div style="font-size:.65rem;opacity:.7;">${seat}</div>
-                    <div style="font-size:1rem;font-weight:800;">${winnerLabel ? score : '·'}</div>
-                  </div>`;
-                }).join('')}
-              </div>`;
+            const judgesA = Array.isArray(duelSummary.summaryA?.judges) ? duelSummary.summaryA.judges : [];
+            const judgesB = Array.isArray(duelSummary.summaryB?.judges) ? duelSummary.summaryB.judges : [];
             content.innerHTML = `
               ${heading()}
               <div class="match-display" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:24px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.35);">
                 <div class="match-header" style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:1rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);">
                   <span>${liveMatch.category?.name || '—'}</span>
-                  <span>🥋 Duelo de Kata · ${liveMatch.round_label || 'Ronda ' + liveMatch.round}</span>
+                  <span>🥋 Duelo de Kata · ${liveMatch.round_label || 'Ronda ' + (liveMatch.round || '1')}</span>
                 </div>
-                <div class="match-body" style="display:grid;grid-template-columns:1fr auto 1fr;padding:1.5rem;align-items:stretch;">
-                  <div class="match-fighter" style="background:linear-gradient(135deg,#1565c0,#0f3ea8);border-radius:24px;padding:1.5rem;text-align:center;${winnerLabel === 'AKA' ? 'opacity:.7;' : ''}">
-                    <div class="match-fighter-name" style="font-size:clamp(1.6rem,3vw,2.6rem);font-weight:900;line-height:1;">${nameA2}</div>
-                    <div class="match-fighter-info" style="margin-top:.45rem;font-size:.95rem;opacity:.82;display:flex;align-items:center;justify-content:center;gap:1.5rem;width:100%;">${flagAHtml}<span style="text-align:center;flex-grow:1;max-width:60%;">AO · ${clubA2}</span>${logoAHtml}</div>
-                    ${winnerLabel ? `<div class="match-fighter-score" style="font-size:clamp(3.5rem,6vw,5rem);font-weight:900;line-height:1;margin-top:1rem;">${totalA}</div>` : '<div style="margin-top:1rem;font-size:1.2rem;font-weight:700;opacity:.6;">⏳ EN CURSO</div>'}
-                    ${winnerLabel === 'AO' ? '<div style="margin-top:.5rem;font-size:1rem;font-weight:800;color:#facc15;">🏆 GANADOR</div>' : ''}
-                    ${renderJudgeRow(judgesA)}
+                <div style="padding:1.5rem 1.25rem;">
+                  <div style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:1.25rem;">
+                    <div style="display:flex;align-items:center;gap:1rem;background:rgba(220,38,38,.15);border:1px solid rgba(220,38,38,.3);border-radius:12px;padding:.6rem 1rem;">
+                      <span style="display:inline-flex;align-items:center;">${flagBHtml || ''}</span>
+                      <span style="font-size:clamp(1.1rem,1.8vw,1.6rem);font-weight:900;flex-grow:1;">${nameB}</span>
+                      <span style="font-size:.85rem;opacity:.7;background:rgba(0,0,0,.2);padding:0.2rem 0.6rem;border-radius:4px;">AKA</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:1rem;background:rgba(29,78,216,.15);border:1px solid rgba(29,78,216,.3);border-radius:12px;padding:.6rem 1rem;">
+                      <span style="display:inline-flex;align-items:center;">${flagAHtml || ''}</span>
+                      <span style="font-size:clamp(1.1rem,1.8vw,1.6rem);font-weight:900;flex-grow:1;">${nameA}</span>
+                      <span style="font-size:.85rem;opacity:.7;background:rgba(0,0,0,.2);padding:0.2rem 0.6rem;border-radius:4px;">AO</span>
+                    </div>
                   </div>
-                  <div class="match-vs" style="display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;opacity:.72;padding:0 1rem;">VS</div>
-                  <div class="match-fighter" style="background:linear-gradient(135deg,#c62828,#991b1b);border-radius:24px;padding:1.5rem;text-align:center;${winnerLabel === 'AO' ? 'opacity:.7;' : ''}">
-                    <div class="match-fighter-name" style="font-size:clamp(1.6rem,3vw,2.6rem);font-weight:900;line-height:1;">${nameB2}</div>
-                    <div class="match-fighter-info" style="margin-top:.45rem;font-size:.95rem;opacity:.82;display:flex;align-items:center;justify-content:center;gap:1.5rem;width:100%;">${flagBHtml}<span style="text-align:center;flex-grow:1;max-width:60%;">AKA · ${clubB2}</span>${logoBHtml}</div>
-                    ${winnerLabel ? `<div class="match-fighter-score" style="font-size:clamp(3.5rem,6vw,5rem);font-weight:900;line-height:1;margin-top:1rem;">${totalB}</div>` : '<div style="margin-top:1rem;font-size:1.2rem;font-weight:700;opacity:.6;">⏳ EN CURSO</div>'}
-                    ${winnerLabel === 'AKA' ? '<div style="margin-top:.5rem;font-size:1rem;font-weight:800;color:#facc15;">🏆 GANADOR</div>' : ''}
-                    ${renderJudgeRow(judgesB)}
+                  <!-- Column headers -->
+                  <div style="display:grid;grid-template-columns:repeat(${judgeCount},1fr);gap:.35rem;margin-bottom:.5rem;">
+                    ${judgesSeats.map(seat => `
+                      <div style="text-align:center;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#94a3b8;padding:.25rem 0;">${seat}</div>
+                    `).join('')}
+                  </div>
+                  <!-- AKA scores -->
+                  <div style="display:grid;grid-template-columns:repeat(${judgeCount},1fr);gap:.35rem;margin-bottom:.25rem;">
+                    ${scoresRowB.map(s => `
+                      <div style="text-align:center;background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.2);border-radius:8px;padding:.4rem .2rem;font-size:clamp(.9rem,1.4vw,1.2rem);font-weight:800;color:#fca5a5;">${winnerLabel ? s : '·'}</div>
+                    `).join('')}
+                  </div>
+                  <!-- AO scores -->
+                  <div style="display:grid;grid-template-columns:repeat(${judgeCount},1fr);gap:.35rem;margin-bottom:.75rem;">
+                    ${scoresRowA.map(s => `
+                      <div style="text-align:center;background:rgba(29,78,216,.12);border:1px solid rgba(29,78,216,.2);border-radius:8px;padding:.4rem .2rem;font-size:clamp(.9rem,1.4vw,1.2rem);font-weight:800;color:#93c5fd;">${winnerLabel ? s : '·'}</div>
+                    `).join('')}
+                  </div>
+                  <!-- Judge decisions -->
+                  <div style="display:grid;grid-template-columns:repeat(${judgeCount},1fr);gap:.35rem;margin-bottom:.6rem;">
+                    ${judgeDecisions.map(d => {
+                      let c, l;
+                      if (d === 'a') { c = '#2563eb'; l = 'AO'; }
+                      else if (d === 'b') { c = '#dc2626'; l = 'AKA'; }
+                      else if (d === 'tie') { c = '#6b7280'; l = '='; }
+                      else { c = '#334155'; l = '?'; }
+                      return `<div style="text-align:center;"><div style="width:28px;height:28px;border-radius:50%;background:${c};margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:.55rem;font-weight:800;color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.3);">${l}</div></div>`;
+                    }).join('')}
+                  </div>
+                  <!-- Totals -->
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                    <div style="text-align:center;padding:.5rem;border-radius:10px;background:rgba(220,38,38,.1);border:1px solid rgba(220,38,38,.2);">
+                      <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;opacity:.7;">AKA Total</div>
+                      <div style="font-size:clamp(1.2rem,2vw,1.8rem);font-weight:900;color:#fca5a5;">${winnerLabel ? totalB : '—'}</div>
+                    </div>
+                    <div style="text-align:center;padding:.5rem;border-radius:10px;background:rgba(29,78,216,.1);border:1px solid rgba(29,78,216,.2);">
+                      <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;opacity:.7;">AO Total</div>
+                      <div style="font-size:clamp(1.2rem,2vw,1.8rem);font-weight:900;color:#93c5fd;">${winnerLabel ? totalA : '—'}</div>
+                    </div>
                   </div>
                 </div>
               </div>
-              <div style="margin-top:1rem;text-align:center;font-size:1.2rem;font-weight:800;color:#facc15;">
-                ${winnerLabel ? `🏆 Ganador: ${nameA2} (AO) ${totalA} - ${totalB} ${nameB2} (AKA)` : 'Esperando notas de ambos contendientes...'}
-              </div>`;
+              ${winnerLabel 
+                ? `<div style="margin-top:1rem;padding:.85rem 1.5rem;border-radius:14px;background:linear-gradient(135deg,#1d4ed8,#0f3ea8);text-align:center;font-size:clamp(1.4rem,2.5vw,2.2rem);font-weight:900;color:#fff;letter-spacing:.03em;box-shadow:0 8px 30px rgba(29,78,216,.35);">
+                    🏆 WINNER: ${winnerLabel === 'AO' ? nameA : nameB} (${winnerLabel}) ${duelSummary.scoreA} - ${duelSummary.scoreB}
+                  </div>`
+                : `<div style="margin-top:1rem;padding:.85rem 1.5rem;border-radius:14px;background:rgba(255,255,255,.08);border:1px dashed rgba(255,255,255,.2);text-align:center;font-size:1.1rem;font-weight:700;opacity:.7;">
+                    ⏳ Esperando notas de ambos contendientes...
+                  </div>`
+              }`;
             return;
           }
           const summary = mirrorForLiveMatch?.discipline === 'kata' && mirrorForLiveMatch?.kata
