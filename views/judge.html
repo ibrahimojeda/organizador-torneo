@@ -212,7 +212,7 @@
     connected: false,
   };
 
-  const MAX_SEATS = state.discipline === 'kata' ? 5 : 4;
+  const MAX_SEATS = 7; // Soporte para 5 o 7 jueces
   const ALL_SEATS = Array.from({ length: MAX_SEATS }, (_, i) => 'J' + (i + 1));
 
   /* ---- DOM refs ---- */
@@ -220,9 +220,13 @@
 
   /* ---- Init join view ---- */
   function initJoinView() {
-    $('join-title').textContent = `${state.discipline.toUpperCase()} — Tatami ${state.tatami || '?'}`;
-    $('join-meta').textContent = `Torneo: ${state.tournamentName} · Puesto para disciplina ${state.discipline}`;
-    $('judge-id-badge').textContent = state.discipline === 'kata' ? '🥋 Kata' : '🥊 Kumite';
+    // Si el código unificado no tiene disciplina, determinar desde el combate actual
+    if (!state.discipline) {
+      state.discipline = 'kumite'; // Default mientras se detecta
+    }
+    $('join-title').textContent = `Tatami ${state.tatami || '?'} — ${state.seat || 'Conectando...'}`;
+    $('join-meta').textContent = `Torneo: ${state.tournamentName} · ${state.seat || 'Asiento'}`;
+    $('judge-id-badge').textContent = `🎯 ${state.seat || 'Juez'}`;
 
     // Build seat selector
     const container = $('seat-selector');
@@ -415,6 +419,24 @@
   function updateMatchDisplay(match) {
     if (!match) return;
     Dojos.ensureCache().catch(() => {});
+    // Auto-detectar disciplina desde el combate actual (código unificado)
+    const matchIsKata = match.category?.discipline === 'kata' || match.bracket_type === 'kata_round';
+    if (!state.discipline || state.discipline !== (matchIsKata ? 'kata' : 'kumite')) {
+      const oldDiscipline = state.discipline;
+      state.discipline = matchIsKata ? 'kata' : 'kumite';
+      if (oldDiscipline && oldDiscipline !== state.discipline) {
+        // Cambió la disciplina - reiniciar UI
+        if (state.discipline === 'kata') {
+          $('judge-kata-screen').style.display = 'block';
+          $('judge-kumite-panel').style.display = 'none';
+          $('judge-flag-screen').style.display = 'none';
+        } else {
+          $('judge-kata-screen').style.display = 'none';
+          $('judge-kumite-panel').style.display = 'block';
+          $('judge-flag-screen').style.display = 'none';
+        }
+      }
+    }
     const nameA = match.competitor_a?.competitors?.full_name || match.competitor_a?.full_name || 'Competidor A';
     const nameB = match.competitor_b?.competitors?.full_name || match.competitor_b?.full_name || 'Competidor B';
     const catName = match.category?.name || '';

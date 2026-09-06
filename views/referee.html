@@ -128,17 +128,23 @@
             </div>
           </div>
 
-          <div id="judge-access-links" style="margin-top:.75rem;display:grid;grid-template-columns:1fr;gap:.6rem;">
-            <div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:.6rem;color:#111827;">
-              <div class="text-xs text-muted mb-1">5 códigos fijos para jueces de Kata</div>
-              <div id="judge-link-kata" style="font-size:.8rem;font-weight:600;word-break:break-word;color:#111827;">Se generarán al entrar al tatami.</div>
-              <button class="btn btn-outline btn-sm mt-2" type="button" onclick="copyJudgeAccess('kata')">Copiar códigos de Kata</button>
+          <div id="judge-access-links" style="margin-top:.75rem;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.5rem;flex-wrap:wrap;">
+              <div>
+                <div class="text-xs text-muted mb-1">Códigos unificados para jueces (Kata y Kumite)</div>
+                <div style="display:flex;align-items:center;gap:.5rem;">
+                  <label style="font-size:.75rem;display:flex;align-items:center;gap:.3rem;">
+                    <span>Jueces:</span>
+                    <select id="judge-count-selector" onchange="onJudgeCountChange()" style="font-size:.8rem;padding:.2rem .4rem;border-radius:4px;border:1px solid #cbd5e1;">
+                      <option value="5">5</option>
+                      <option value="7">7</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+              <button class="btn btn-outline btn-sm" type="button" onclick="copyJudgeAccess('unified')">Copiar códigos</button>
             </div>
-            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:.6rem;color:#111827;">
-              <div class="text-xs text-muted mb-1">4 códigos fijos para jueces de Kumite</div>
-              <div id="judge-link-kumite" style="font-size:.8rem;font-weight:600;word-break:break-word;color:#111827;">Se generarán al entrar al tatami.</div>
-              <button class="btn btn-outline btn-sm mt-2" type="button" onclick="copyJudgeAccess('kumite')">Copiar códigos de Kumite</button>
-            </div>
+            <div id="judge-link-unified" style="font-size:.8rem;font-weight:600;word-break:break-word;color:#111827;">Se generarán al entrar al tatami.</div>
           </div>
 
           <div id="judge-qr-viewer" style="display:none;margin-top:.65rem;background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:.75rem;color:#111827;">
@@ -579,21 +585,21 @@
 
         <div style="padding:1rem;background:#faf5ff;">
           <div id="kata-duel-panel" style="display:none;">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem;">
-              <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:.6rem;">
-                <div style="font-size:.8rem;font-weight:800;color:#1565c0;margin-bottom:.3rem;">🔵 AO — <span id="kata-duel-name-a">Competidor A</span></div>
-                <div id="kata-judge-grid-a" style="display:grid;grid-template-columns:repeat(5,1fr);gap:.4rem;"></div>
-                <div id="kata-duel-total-a" class="text-center mt-2" style="font-size:1.4rem;font-weight:900;color:#1565c0;">—</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+              <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:1rem;">
+                <div style="font-size:1rem;font-weight:800;color:#1565c0;margin-bottom:.5rem;">🔵 AO — <span id="kata-duel-name-a">Competidor A</span></div>
+                <div id="kata-judge-grid-a" style="display:grid;grid-template-columns:repeat(7,1fr);gap:.5rem;"></div>
+                <div id="kata-duel-total-a" class="text-center mt-2" style="font-size:1.8rem;font-weight:900;color:#1565c0;">—</div>
               </div>
-              <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:.6rem;">
-                <div style="font-size:.8rem;font-weight:800;color:#c62828;margin-bottom:.3rem;">🔴 AKA — <span id="kata-duel-name-b">Competidor B</span></div>
-                <div id="kata-judge-grid-b" style="display:grid;grid-template-columns:repeat(5,1fr);gap:.4rem;"></div>
-                <div id="kata-duel-total-b" class="text-center mt-2" style="font-size:1.4rem;font-weight:900;color:#c62828;">—</div>
+              <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:1rem;">
+                <div style="font-size:1rem;font-weight:800;color:#c62828;margin-bottom:.5rem;">🔴 AKA — <span id="kata-duel-name-b">Competidor B</span></div>
+                <div id="kata-judge-grid-b" style="display:grid;grid-template-columns:repeat(7,1fr);gap:.5rem;"></div>
+                <div id="kata-duel-total-b" class="text-center mt-2" style="font-size:1.8rem;font-weight:900;color:#c62828;">—</div>
               </div>
             </div>
-            <div id="kata-duel-summary" style="background:#ede9fe;border-radius:8px;padding:.75rem;text-align:center;margin-bottom:.75rem;">
-              <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:#7c3aed;margin-bottom:.2rem;">Resultado del Duelo</div>
-              <div id="kata-duel-winner" style="font-size:1.2rem;font-weight:900;color:#6d28d9;line-height:1.2;">Esperando notas de ambos contendientes...</div>
+            <div id="kata-duel-summary" style="background:#ede9fe;border-radius:12px;padding:1rem;text-align:center;margin-bottom:1rem;">
+              <div style="font-size:.8rem;text-transform:uppercase;letter-spacing:.1em;color:#7c3aed;margin-bottom:.3rem;">Resultado del Duelo</div>
+              <div id="kata-duel-winner" style="font-size:1.3rem;font-weight:900;color:#6d28d9;line-height:1.2;">Esperando notas de ambos contendientes...</div>
             </div>
           </div>
 
@@ -614,7 +620,7 @@
                 <button class="btn btn-primary btn-sm" type="button" id="btn-apply-kata-override">Aplicar ajuste de mesa</button>
               </div>
             </div>
-            <div id="kata-override-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:.5rem;"></div>
+            <div id="kata-override-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:.5rem;"></div>
           </div>
 
           <div style="background:#ede9fe;border-radius:8px;padding:.75rem;text-align:center;">
@@ -990,13 +996,15 @@
   function _buildKataOverrideGrid(scores = {}) {
     const grid = document.getElementById('kata-override-grid');
     if (!grid) return;
-    const seats = ['J1', 'J2', 'J3', 'J4', 'J5'];
+    const judgeCount = parseInt(document.getElementById('judge-count-selector')?.value || '5', 10);
+    const seats = Array.from({ length: judgeCount }, (_, i) => 'J' + (i + 1));
+    grid.style.gridTemplateColumns = `repeat(${judgeCount},1fr)`;
     grid.innerHTML = seats.map(seat => {
       const value = scores[seat] != null ? Number(scores[seat]).toFixed(2) : '';
       return `
-        <div style="background:#faf5ff;border:1px solid #ddd6fe;border-radius:8px;padding:.55rem;text-align:center;">
-          <div style="font-size:.7rem;text-transform:uppercase;color:#7c3aed;letter-spacing:.08em;margin-bottom:.3rem;">${seat}</div>
-          <input type="number" class="form-control text-center kata-override-input" data-seat="${seat}" min="0" max="9.99" step="0.01" value="${value}" oninput="calcKataTotal()" style="font-size:1.1rem;font-weight:800;" placeholder="0.00" disabled />
+        <div style="background:#faf5ff;border:1px solid #ddd6fe;border-radius:8px;padding:.6rem;text-align:center;">
+          <div style="font-size:.72rem;text-transform:uppercase;color:#7c3aed;letter-spacing:.08em;margin-bottom:.3rem;">${seat}</div>
+          <input type="number" class="form-control text-center kata-override-input" data-seat="${seat}" min="0" max="9.99" step="0.01" value="${value}" oninput="calcKataTotal()" style="font-size:1.15rem;font-weight:800;padding:.3rem .2rem;width:100%;" placeholder="0.00" />
         </div>`;
     }).join('');
   }
@@ -1672,24 +1680,21 @@
     let data = {};
     try { data = JSON.parse(localStorage.getItem(key) || '{}'); } catch (_) { data = {}; }
 
-    const config = {
-      kata: ['J1','J2','J3','J4','J5'],
-      kumite: ['J1','J2','J3','J4'],
-    };
+    const judgeCount = parseInt(document.getElementById('judge-count-selector')?.value || '5', 10);
+    const seats = Array.from({ length: judgeCount }, (_, i) => 'J' + (i + 1));
+    const discipline = 'unified';
 
-    Object.entries(config).forEach(([discipline, seats]) => {
-      if (!Array.isArray(data[discipline])) data[discipline] = [];
-      data[discipline] = seats.map((seat, index) => {
-        const code = Auth.buildJudgeAccessCode(state.tournamentId, state.tatami, discipline, seat);
-        const root = window.location.pathname.replace(/\/views\/[^/]+$/, '');
-        const url = `${window.location.origin}${root}/views/judge.html?tournament=${encodeURIComponent(state.tournamentId)}&tatami=${encodeURIComponent(state.tatami)}&discipline=${encodeURIComponent(discipline)}&access=${encodeURIComponent(code)}`;
-        Auth.generateCode(state.tournamentId, USER_ROLES.JUDGE, {
-          tatami: state.tatami,
-          discipline,
-          seat,
-        }).catch(() => {});
-        return { seat, code, url };
-      });
+    if (!Array.isArray(data[discipline])) data[discipline] = [];
+    data[discipline] = seats.map((seat, index) => {
+      const code = Auth.buildJudgeAccessCode(state.tournamentId, state.tatami, discipline, seat);
+      const root = window.location.pathname.replace(/\/views\/[^/]+$/, '');
+      const url = `${window.location.origin}${root}/views/judge.html?tournament=${encodeURIComponent(state.tournamentId)}&tatami=${encodeURIComponent(state.tatami)}&access=${encodeURIComponent(code)}`;
+      Auth.generateCode(state.tournamentId, USER_ROLES.JUDGE, {
+        tatami: state.tatami,
+        discipline,
+        seat,
+      }).catch(() => {});
+      return { seat, code, url };
     });
 
     localStorage.setItem(key, JSON.stringify(data));
@@ -1699,31 +1704,29 @@
   function _renderJudgeCodeList(discipline) {
     const data = _getJudgeAccessData();
     const list = Array.isArray(data?.[discipline]) ? data[discipline] : [];
-    const refs = state.currentMatch ? (Matches.getRefereePresence(state.currentMatch, discipline) || {}) : {};
+    const refs = state.currentMatch ? (Matches.getRefereePresence(state.currentMatch, 'kata') || {}) : {};
+    // Merge kata and kumite presences
+    let kumiteRefs = state.currentMatch ? (Matches.getRefereePresence(state.currentMatch, 'kumite') || {}) : {};
+    Object.assign(refs, kumiteRefs);
     if (!list.length) return 'No disponible';
     return list.map(entry => {
       const ref = refs[entry.seat];
       const active = !!ref?.active;
-      const status = active ? '🟢 Activo' : (ref ? '🟡 Inactivo' : '⚪ Inactivo');
+      const status = active ? '🟢 Activo' : (ref ? '🟡 Inactivo' : '⚪ Sin conexión');
       const name = ref?.name ? ` · ${ref.name}` : '';
-      const pending = state.currentMatch ? (Matches.getKumiteSummary(state.currentMatch).pending || []) : [];
-      const pendingCount = pending.filter(p => String(p.seat || '') === String(entry.seat)).length;
-      const pendingLabel = pendingCount ? ` <span style="font-size:.78rem;color:#ef4444;margin-left:.35rem">📨${pendingCount}</span>` : '';
       const encodedUrl = encodeURIComponent(entry.url || '');
       const encodedCode = encodeURIComponent(entry.code || '');
       return `
-        <div style="padding:.35rem 0;border-bottom:1px solid #dbeafe;display:flex;justify-content:space-between;gap:.4rem;align-items:center;">
-          <div><strong>${entry.seat}</strong> · ${entry.code} <span style="font-size:.72rem;color:${active ? '#15803d' : (ref ? '#b45309' : '#64748b')};">${status}${name}${pendingLabel}</span></div>
+        <div style="padding:.35rem 0;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;gap:.4rem;align-items:center;">
+          <div><strong>${entry.seat}</strong> · ${entry.code} <span style="font-size:.72rem;color:${active ? '#15803d' : (ref ? '#b45309' : '#64748b')};">${status}${name}</span></div>
           <button class="btn btn-outline btn-sm" type="button" onclick="showJudgeQr('${encodedUrl}','${encodedCode}','${entry.seat}')">QR</button>
         </div>`;
     }).join('');
   }
 
   function _buildJudgeAccessLinks() {
-    const kataEl = document.getElementById('judge-link-kata');
-    const kumiteEl = document.getElementById('judge-link-kumite');
-    if (kataEl) kataEl.innerHTML = _renderJudgeCodeList('kata');
-    if (kumiteEl) kumiteEl.innerHTML = _renderJudgeCodeList('kumite');
+    const unifiedEl = document.getElementById('judge-link-unified');
+    if (unifiedEl) unifiedEl.innerHTML = _renderJudgeCodeList('unified');
   }
 
   window.copyJudgeAccess = async function(discipline) {
@@ -1732,10 +1735,20 @@
       if (!entries.length) return;
       const text = entries.map(item => `${item.seat}: ${item.code}`).join('\n');
       await navigator.clipboard.writeText(text);
-      Display.toast(`Códigos ${discipline.toUpperCase()} copiados.`, 'success');
+      Display.toast(`Códigos copiados.`, 'success');
     } catch (_) {
       Display.toast('No se pudo copiar los códigos.', 'warning');
     }
+  };
+
+  window.onJudgeCountChange = function() {
+    // Clear cache so new codes are generated
+    if (state.tournamentId && state.tatami) {
+      const key = 'ot_judge_access_' + state.tournamentId + '_' + state.tatami;
+      try { localStorage.removeItem(key); } catch (_) {}
+    }
+    _buildJudgeAccessLinks();
+    Display.toast('Códigos actualizados.', 'info');
   };
 
   window.showJudgeQr = async function(encodedUrl, encodedCode, seat) {
@@ -1820,7 +1833,8 @@
   async function _ensureJudgeAssignment(match) {
     if (!match?.id || !state.referee.name) return;
     const discipline = _isKataMatch(match) ? 'kata' : 'kumite';
-    const maxSeats   = discipline === 'kata' ? 5 : 4;
+    const judgeCount = parseInt(document.getElementById('judge-count-selector')?.value || '5', 10);
+    const maxSeats   = judgeCount;
     const live       = Matches.getLiveState(match);
     const refs       = live[discipline]?.referees || {};
 
@@ -2542,16 +2556,18 @@
     const grid = document.getElementById('kata-judge-grid');
     if (!grid) return { ready: false, submitted: 0, total: null };
     const summary = Matches.getKataSummary(match);
-    const seats = ['J1', 'J2', 'J3', 'J4', 'J5'];
+    const judgeCount = parseInt(document.getElementById('judge-count-selector')?.value || '5', 10);
+    const seats = Array.from({ length: judgeCount }, (_, i) => 'J' + (i + 1));
     const judgeMap = Object.fromEntries(summary.judges.map(j => [j.seat, j]));
+    grid.style.gridTemplateColumns = `repeat(${judgeCount},1fr)`;
     grid.innerHTML = seats.map(seat => {
       const j = judgeMap[seat] || { judge_name: 'Mesa Tecnica', score: null };
       const scoreValue = Number.isFinite(Number(j.score)) ? Number(j.score).toFixed(2) : '';
       return `
-        <div style="background:#fff;border:1px solid #ddd6fe;border-radius:8px;padding:.55rem;text-align:center;color:#111827;">
-          <div style="font-size:.68rem;text-transform:uppercase;color:#7c3aed;letter-spacing:.08em;">${seat}</div>
-          <div style="font-size:.72rem;font-weight:700;min-height:18px;margin:.2rem 0;color:#111827;">Mesa Tecnica</div>
-          <input type="number" class="form-control text-center kata-manual-input" data-seat="${seat}" min="0" max="9.99" step="0.01" value="${scoreValue}" oninput="calcKataTotal()" style="font-size:1.1rem;font-weight:900;color:#6d28d9;" placeholder="0.00" />
+        <div style="background:#fff;border:1px solid #ddd6fe;border-radius:8px;padding:.65rem;text-align:center;color:#111827;">
+          <div style="font-size:.75rem;text-transform:uppercase;color:#7c3aed;letter-spacing:.08em;">${seat}</div>
+          <div style="font-size:.8rem;font-weight:700;min-height:20px;margin:.25rem 0;color:#111827;">Mesa Tecnica</div>
+          <input type="number" class="form-control text-center kata-manual-input" data-seat="${seat}" min="0" max="9.99" step="0.01" value="${scoreValue}" oninput="calcKataTotal()" style="font-size:1.2rem;font-weight:900;color:#6d28d9;padding:.4rem .2rem;width:100%;" placeholder="0.00" />
         </div>`;
     }).join('');
 
@@ -2572,7 +2588,6 @@
     const individualGrid = document.getElementById('kata-judge-grid');
     if (!duelPanel) return;
 
-    // Mostrar panel de duelo y ocultar el individual
     duelPanel.style.display = 'block';
     if (nameGroup) nameGroup.style.display = 'none';
     if (individualGrid) individualGrid.style.display = 'none';
@@ -2582,20 +2597,22 @@
     document.getElementById('kata-duel-name-a').textContent = nameA;
     document.getElementById('kata-duel-name-b').textContent = nameB;
 
-    const seats = ['J1', 'J2', 'J3', 'J4', 'J5'];
+    const judgeCount = parseInt(document.getElementById('judge-count-selector')?.value || '5', 10);
+    const seats = Array.from({ length: judgeCount }, (_, i) => 'J' + (i + 1));
     const summary = Matches.getKataDuelSummary(match);
 
     const buildSideGrid = (containerId, side) => {
       const grid = document.getElementById(containerId);
       if (!grid) return;
       const judges = side === 'a' ? summary.summaryA.judges : summary.summaryB.judges;
+      grid.style.gridTemplateColumns = `repeat(${judgeCount},1fr)`;
       grid.innerHTML = seats.map(seat => {
         const j = judges.find(judge => judge.seat === seat) || { score: null };
         const scoreValue = Number.isFinite(Number(j.score)) ? Number(j.score).toFixed(2) : '';
         return `
           <div style="text-align:center;">
-            <div style="font-size:.62rem;text-transform:uppercase;opacity:.7;">${seat}</div>
-            <input type="number" class="form-control text-center kata-duel-input" data-side="${side}" data-seat="${seat}" min="0" max="9.99" step="0.01" value="${scoreValue}" oninput="calcKataDuelTotal()" style="font-size:1rem;font-weight:800;" placeholder="0.00" />
+            <div style="font-size:.7rem;text-transform:uppercase;opacity:.7;">${seat}</div>
+            <input type="number" class="form-control text-center kata-duel-input" data-side="${side}" data-seat="${seat}" min="0" max="9.99" step="0.01" value="${scoreValue}" oninput="calcKataDuelTotal()" style="font-size:1.1rem;font-weight:800;padding:.4rem .2rem;width:100%;" placeholder="0.00" />
           </div>`;
       }).join('');
     };
@@ -2603,7 +2620,6 @@
     buildSideGrid('kata-judge-grid-a', 'a');
     buildSideGrid('kata-judge-grid-b', 'b');
 
-    // Actualizar totales y resumen
     _updateKataDuelTotals(summary);
   }
 
@@ -2629,7 +2645,8 @@
     const ready = summaryA.ready && summaryB.ready;
 
     let scoreA = 0, scoreB = 0;
-    const seats = ['J1','J2','J3','J4','J5'];
+    const judgeCount = parseInt(document.getElementById('judge-count-selector')?.value || '5', 10);
+    const seats = Array.from({ length: judgeCount }, (_, i) => 'J' + (i + 1));
     seats.forEach(seat => {
       const sa = Number(scoresA[seat]);
       const sb = Number(scoresB[seat]);

@@ -62,13 +62,26 @@ const Auth = (() => {
 
   function buildJudgeAccessCode(tournamentId, tatami, discipline, seat) {
     const tournamentToken = _getJudgeTournamentToken(tournamentId);
-    const judgeTag = discipline === 'kata' ? 'K' : 'U';
     const normalizedSeat = String(seat || 'J1').toUpperCase();
-    return `JZ-${tournamentToken}-T${String(tatami || 1)}-${judgeTag}-${normalizedSeat}`;
+    // Código unificado sin disciplina: JZ-{token}-T{tatami}-{seat}
+    return `JZ-${tournamentToken}-T${String(tatami || 1)}-${normalizedSeat}`;
   }
 
   function _parseJudgeAccessCode(code) {
     const normalized = String(code || '').toUpperCase().trim();
+    // Nuevo formato unificado: JZ-{token}-T{tatami}-{seat} (seat = J1..J7)
+    const unified = normalized.match(/^JZ-([A-Z0-9]{4,12})-T?(\d+)-(J[1-7])$/);
+    if (unified) {
+      return {
+        tournamentToken: unified[1],
+        tatami: unified[2],
+        discipline: null, // La disciplina se determina desde el combate actual
+        seat: unified[3],
+        access: normalized,
+      };
+    }
+
+    // Legacy: JZ-{token}-T{tatami}-{K|U}-{seat}
     const scoped = normalized.match(/^JZ-([A-Z0-9]{4,12})-T?(\d+)-([KU])-(J[1-5])$/);
     if (scoped) {
       return {
