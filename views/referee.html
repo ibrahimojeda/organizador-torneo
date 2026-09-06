@@ -2555,6 +2555,13 @@
   function _renderKataJudgeGrid(match) {
     const grid = document.getElementById('kata-judge-grid');
     if (!grid) return { ready: false, submitted: 0, total: null };
+    // Preserve manual inputs before rebuilding
+    const prevScores = {};
+    document.querySelectorAll('.kata-manual-input').forEach(input => {
+      if (input.value && input.value.trim()) {
+        prevScores[input.dataset.seat] = input.value;
+      }
+    });
     const summary = Matches.getKataSummary(match);
     const judgeCount = parseInt(document.getElementById('judge-count-selector')?.value || '5', 10);
     const seats = Array.from({ length: judgeCount }, (_, i) => 'J' + (i + 1));
@@ -2562,7 +2569,8 @@
     grid.style.gridTemplateColumns = `repeat(${judgeCount},1fr)`;
     grid.innerHTML = seats.map(seat => {
       const j = judgeMap[seat] || { judge_name: 'Mesa Tecnica', score: null };
-      const scoreValue = Number.isFinite(Number(j.score)) ? Number(j.score).toFixed(2) : '';
+      // Use preserved value if available, otherwise use live score
+      const scoreValue = prevScores[seat] || (Number.isFinite(Number(j.score)) ? Number(j.score).toFixed(2) : '');
       return `
         <div style="background:#fff;border:1px solid #ddd6fe;border-radius:8px;padding:.65rem;text-align:center;color:#111827;">
           <div style="font-size:.75rem;text-transform:uppercase;color:#7c3aed;letter-spacing:.08em;">${seat}</div>
@@ -2588,6 +2596,15 @@
     const individualGrid = document.getElementById('kata-judge-grid');
     if (!duelPanel) return;
 
+    // Preserve manual duel inputs before rebuilding
+    const prevDuelScores = {};
+    document.querySelectorAll('.kata-duel-input').forEach(input => {
+      if (input.value && input.value.trim()) {
+        const key = input.dataset.side + ':' + input.dataset.seat;
+        prevDuelScores[key] = input.value;
+      }
+    });
+
     duelPanel.style.display = 'block';
     if (nameGroup) nameGroup.style.display = 'none';
     if (individualGrid) individualGrid.style.display = 'none';
@@ -2608,7 +2625,9 @@
       grid.style.gridTemplateColumns = `repeat(${judgeCount},1fr)`;
       grid.innerHTML = seats.map(seat => {
         const j = judges.find(judge => judge.seat === seat) || { score: null };
-        const scoreValue = Number.isFinite(Number(j.score)) ? Number(j.score).toFixed(2) : '';
+        // Use preserved value if available, otherwise use live score
+        const key = side + ':' + seat;
+        const scoreValue = prevDuelScores[key] || (Number.isFinite(Number(j.score)) ? Number(j.score).toFixed(2) : '');
         return `
           <div style="text-align:center;">
             <div style="font-size:.7rem;text-transform:uppercase;opacity:.7;">${seat}</div>

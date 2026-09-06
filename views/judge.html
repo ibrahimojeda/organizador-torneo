@@ -137,39 +137,35 @@
     <div class="card" style="padding:1rem;background:#0f172a;color:#fff;border:1px solid #334155;max-width:520px;margin:0 auto;">
       <div style="text-align:center;font-size:1.05rem;font-weight:800;margin-bottom:.75rem;" id="judge-kumite-category">🥊 Combate de Kumite</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
-        <!-- AO -->
+        <!-- AO card with buttons -->
         <div id="kumite-card-a" style="background:linear-gradient(135deg,#1565c0,#0f3ea8);border-radius:16px;padding:.75rem;text-align:center;">
           <div style="font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;opacity:.85;">AO</div>
           <div id="judge-kumite-name-a" style="font-size:1.05rem;font-weight:800;line-height:1.15;margin-top:.25rem;">Competidor A</div>
           <div id="judge-kumite-club-a" style="font-size:.75rem;opacity:.8;"></div>
+          <div style="margin-top:.6rem;display:flex;flex-direction:column;gap:.35rem;">
+            <button class="btn btn-sm" style="background:#0f766e;color:#fff;border:none;font-weight:800;font-size:.85rem;padding:.45rem .2rem;width:100%;" onclick="judgeSendKumiteToSide('a','point','yuko')">Yuko (+1)</button>
+            <button class="btn btn-sm" style="background:#0369a1;color:#fff;border:none;font-weight:800;font-size:.85rem;padding:.45rem .2rem;width:100%;" onclick="judgeSendKumiteToSide('a','point','wazaari')">Waza-ari (+2)</button>
+            <button class="btn btn-sm" style="background:#7c3aed;color:#fff;border:none;font-weight:800;font-size:.85rem;padding:.45rem .2rem;width:100%;" onclick="judgeSendKumiteToSide('a','point','ippon')">Ippon (+3)</button>
+          </div>
         </div>
-        <!-- AKA -->
+        <!-- AKA card with buttons -->
         <div id="kumite-card-b" style="background:linear-gradient(135deg,#c62828,#991b1b);border-radius:16px;padding:.75rem;text-align:center;">
           <div style="font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;opacity:.85;">AKA</div>
           <div id="judge-kumite-name-b" style="font-size:1.05rem;font-weight:800;line-height:1.15;margin-top:.25rem;">Competidor B</div>
           <div id="judge-kumite-club-b" style="font-size:.75rem;opacity:.8;"></div>
+          <div style="margin-top:.6rem;display:flex;flex-direction:column;gap:.35rem;">
+            <button class="btn btn-sm" style="background:#0f766e;color:#fff;border:none;font-weight:800;font-size:.85rem;padding:.45rem .2rem;width:100%;" onclick="judgeSendKumiteToSide('b','point','yuko')">Yuko (+1)</button>
+            <button class="btn btn-sm" style="background:#0369a1;color:#fff;border:none;font-weight:800;font-size:.85rem;padding:.45rem .2rem;width:100%;" onclick="judgeSendKumiteToSide('b','point','wazaari')">Waza-ari (+2)</button>
+            <button class="btn btn-sm" style="background:#7c3aed;color:#fff;border:none;font-weight:800;font-size:.85rem;padding:.45rem .2rem;width:100%;" onclick="judgeSendKumiteToSide('b','point','ippon')">Ippon (+3)</button>
+          </div>
         </div>
       </div>
 
-      <!-- Mi puesto / selector de lado -->
+      <!-- Status bar -->
       <div style="margin-top:.9rem;padding:.6rem;background:#111827;border:1px solid #334155;border-radius:12px;">
-        <div class="text-xs mb-2" style="text-transform:uppercase;letter-spacing:.06em;opacity:.7;">Mi puesto: <span id="judge-kumite-my-seat" style="font-weight:800;color:#facc15;">—</span> · Competidor a puntuar</div>
-        <div class="flex gap-2 mb-3">
-          <button class="btn flex-1" id="btn-kumite-side-a" style="background:#1565c0;color:#fff;border:none;font-weight:700;">AO (Azul)</button>
-          <button class="btn flex-1" id="btn-kumite-side-b" style="background:#c62828;color:#fff;border:none;font-weight:700;">AKA (Rojo)</button>
-        </div>
-
-        <!-- Point buttons -->
-        <div class="text-xs mb-2" style="text-transform:uppercase;letter-spacing:.06em;opacity:.7;">Enviar señal de punto</div>
-        <div class="flex gap-2 mb-3 flex-wrap">
-          <button class="btn btn-lg flex-1" style="background:#0f766e;color:#fff;border:none;font-weight:800;" data-signal="point" data-action="yuko">Yuko (+1)</button>
-          <button class="btn btn-lg flex-1" style="background:#0369a1;color:#fff;border:none;font-weight:800;" data-signal="point" data-action="wazaari">Waza-ari (+2)</button>
-          <button class="btn btn-lg flex-1" style="background:#7c3aed;color:#fff;border:none;font-weight:800;" data-signal="point" data-action="ippon">Ippon (+3)</button>
-        </div>
-
-        <!-- Status -->
-        <div id="judge-kumite-status" class="text-sm mt-2" style="opacity:.8;">Sin señales enviadas.</div>
-        <div id="judge-kumite-last" class="text-xs mt-1" style="color:#94a3b8;"></div>
+        <div class="text-xs mb-2" style="text-transform:uppercase;letter-spacing:.06em;opacity:.7;">Mi puesto: <span id="judge-kumite-my-seat" style="font-weight:800;color:#facc15;">—</span></div>
+        <div id="judge-kumite-status" class="text-sm" style="opacity:.8;text-align:center;">Selecciona un punto para enviar.</div>
+        <div id="judge-kumite-last" class="text-xs mt-1" style="color:#94a3b8;text-align:center;"></div>
       </div>
     </div>
   </div>
@@ -703,58 +699,49 @@
       $('judge-kumite-club-b').innerHTML = Dojos.renderCompetitorIdentity(m.competitor_b, 18);
     }
 
-    function updateSideButtons() {
-      $('btn-kumite-side-a').style.outline = state.selectedSide === 'a' ? '3px solid #93c5fd' : 'none';
-      $('btn-kumite-side-b').style.outline = state.selectedSide === 'b' ? '3px solid #fca5a5' : 'none';
+    // Global kumite signal sender
+    window.judgeSendKumiteToSide = async function(side, kind, action) {
+      if (!state.currentMatch?.id) {
+        $('judge-kumite-status').textContent = '⚠️ No hay combate activo.';
+        $('judge-kumite-status').style.color = '#fbbf24';
+        return;
+      }
+
+      try {
+        await Matches.submitJudgeSignal(state.currentMatch.id, {
+          kind,
+          side,
+          action,
+          seat: state.seat,
+          judge_name: state.judgeName,
+          code: state.accessCode,
+        });
+        const sideLabel = side === 'a' ? 'AO' : 'AKA';
+        const actionLabel = action.toUpperCase();
+        $('judge-kumite-status').textContent = `✅ ${actionLabel} para ${sideLabel}.`;
+        $('judge-kumite-status').style.color = '#4ade80';
+        $('judge-kumite-last').textContent = `${state.judgeName} (${state.seat}) → ${sideLabel} · ${actionLabel} · ${new Date().toLocaleTimeString('es-ES')}`;
+      } catch (e) {
+        $('judge-kumite-status').textContent = `❌ Error: ${e.message}`;
+        $('judge-kumite-status').style.color = '#f87171';
+      }
+    };
+
+    function renderKumiteBoard() {
+      const m = state.currentMatch;
+      if (!m) return;
+      $('judge-kumite-category').textContent = `🥊 ${m.category?.name || 'Combate de Kumite'} · ${m.round_label || ''}`;
+      $('judge-kumite-my-seat').textContent = state.seat || '—';
+      const nameA = m.competitor_a?.competitors?.full_name || m.competitor_a?.full_name || 'Competidor A';
+      const nameB = m.competitor_b?.competitors?.full_name || m.competitor_b?.full_name || 'Competidor B';
+      const clubA = m.competitor_a?.competitors?.club || m.competitor_a?.club || '';
+      const clubB = m.competitor_b?.competitors?.club || m.competitor_b?.club || '';
+      $('judge-kumite-name-a').textContent = nameA;
+      $('judge-kumite-name-b').textContent = nameB;
+      $('judge-kumite-club-a').innerHTML = Dojos.renderCompetitorIdentity(m.competitor_a, 18);
+      $('judge-kumite-club-b').innerHTML = Dojos.renderCompetitorIdentity(m.competitor_b, 18);
     }
 
-    $('btn-kumite-side-a').addEventListener('click', () => {
-      state.selectedSide = 'a';
-      updateSideButtons();
-    });
-
-    $('btn-kumite-side-b').addEventListener('click', () => {
-      state.selectedSide = 'b';
-      updateSideButtons();
-    });
-
-    // Signal buttons
-    document.querySelectorAll('[data-signal]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const kind = btn.dataset.signal; // 'point' or 'penalty'
-        const action = btn.dataset.action; // 'yuko', 'wazaari', 'ippon', 'c1', 'c2'
-
-        if (!state.currentMatch?.id) {
-          $('judge-kumite-status').textContent = '⚠️ No hay combate activo.';
-          $('judge-kumite-status').style.color = '#fbbf24';
-          return;
-        }
-
-        btn.disabled = true;
-        try {
-          await Matches.submitJudgeSignal(state.currentMatch.id, {
-            kind,
-            side: state.selectedSide,
-            action,
-            seat: state.seat,
-            judge_name: state.judgeName,
-            code: state.accessCode,
-          });
-          const sideLabel = state.selectedSide === 'a' ? 'AO' : 'AKA';
-          const actionLabel = action.toUpperCase();
-          $('judge-kumite-status').textContent = `✅ ${actionLabel} enviado para ${sideLabel}.`;
-          $('judge-kumite-status').style.color = '#4ade80';
-          $('judge-kumite-last').textContent = `${state.judgeName} (${state.seat}) → ${sideLabel} · ${actionLabel} · ${new Date().toLocaleTimeString('es-ES')}`;
-        } catch (e) {
-          $('judge-kumite-status').textContent = `❌ Error: ${e.message}`;
-          $('judge-kumite-status').style.color = '#f87171';
-        } finally {
-          btn.disabled = false;
-        }
-      });
-    });
-
-    updateSideButtons();
     renderKumiteBoard();
   }
 
