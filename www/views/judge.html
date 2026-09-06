@@ -307,10 +307,11 @@
       $('judge-panel-view').style.display = 'block';
       state.connected = true;
 
-      // Update discipline from match if available
-      if (matchToRegister) {
-        state.discipline = (matchToRegister.category?.discipline === 'kata' || matchToRegister.bracket_type === 'kata_round') ? 'kata' : 'kumite';
-      }
+      // Show correct screen using the new centralized switch
+      state.discipline = matchToRegister
+        ? ((matchToRegister.category?.discipline === 'kata' || matchToRegister.bracket_type === 'kata_round') ? 'kata' : 'kumite')
+        : 'kumite';
+      switchToDiscipline(state.discipline);
 
       // Update header
       $('judge-live-title').textContent = `${state.discipline.toUpperCase()} — Tatami ${state.tatami || '?'}`;
@@ -318,15 +319,6 @@
       $('judge-live-id').textContent = state.judgeName;
       $('judge-conn-indicator').textContent = '🟢 Conectado';
       $('judge-conn-indicator').style.borderColor = '#16a34a';
-
-      // Show correct screen
-      if (state.discipline === 'kata') {
-        $('judge-kata-screen').style.display = 'block';
-        initKataScreen();
-      } else {
-        $('judge-kumite-screen').style.display = 'block';
-        initKumiteScreen();
-      }
 
       // Subscribe to realtime updates
       subscribeToMatches();
@@ -371,8 +363,23 @@
 
       // Update current match if it's ongoing or pending
       if (match.status === 'in_progress' || match.status === 'pending') {
+        const matchIsKata = match.category?.discipline === 'kata' || match.bracket_type === 'kata_round';
+        const matchDiscipline = matchIsKata ? 'kata' : 'kumite';
+        const wasDifferentMatch = state.currentMatch?.id !== match.id;
+        const wasDifferentDiscipline = state.discipline !== matchDiscipline;
+
         state.currentMatch = match;
-        updateMatchDisplay(match);
+
+        if (wasDifferentMatch || wasDifferentDiscipline) {
+          updateMatchDisplay(match);
+        } else {
+          // Same match, just refresh header
+          const nameA = match.competitor_a?.competitors?.full_name || match.competitor_a?.full_name || 'Competidor A';
+          const nameB = match.competitor_b?.competitors?.full_name || match.competitor_b?.full_name || 'Competidor B';
+          $('judge-live-meta').textContent = matchDiscipline === 'kata'
+            ? `🥋 ${nameA} · ${match.category?.name || ''} ${match.round_label || ''}`
+            : `🥊 ${nameA} vs ${nameB} · ${match.category?.name || ''} ${match.round_label || ''}`;
+        }
       }
 
       // If the match just finished, clear display
@@ -394,20 +401,34 @@
         || (pending || [])[0]
         || null;
 
-      if (match && (!state.currentMatch || state.currentMatch.id !== match.id)) {
-        state.currentMatch = match;
-        updateMatchDisplay(match);
+      if (match) {
+        const matchIsKata = match.category?.discipline === 'kata' || match.bracket_type === 'kata_round';
+        const matchDiscipline = matchIsKata ? 'kata' : 'kumite';
+        const sameMatch = state.currentMatch?.id === match.id;
+        const sameDiscipline = state.discipline === matchDiscipline;
 
-        // Register referee if new match
-        try {
-          await Matches.registerReferee(match.id, {
-            seat: state.seat,
-            name: state.judgeName,
-            code: state.accessCode,
-            tatami: state.tatami,
-            discipline: state.discipline,
-          });
-        } catch (_) {}
+        if (!sameMatch || !sameDiscipline) {
+          state.currentMatch = match;
+          updateMatchDisplay(match);
+
+          // Register referee with correct discipline
+          try {
+            await Matches.registerReferee(match.id, {
+              seat: state.seat,
+              name: state.judgeName,
+              code: state.accessCode,
+              tatami: state.tatami,
+              discipline: matchDiscipline,
+            });
+          } catch (_) {}
+        } else {
+          // Same match, same discipline — just refresh names/timer
+          const nameA = match.competitor_a?.competitors?.full_name || match.competitor_a?.full_name || 'Competidor A';
+          const nameB = match.competitor_b?.competitors?.full_name || match.competitor_b?.full_name || 'Competidor B';
+          $('judge-live-meta').textContent = matchDiscipline === 'kata'
+            ? `🥋 ${nameA} · ${match.category?.name || ''} ${match.round_label || ''}`
+            : `🥊 ${nameA} vs ${nameB} · ${match.category?.name || ''} ${match.round_label || ''}`;
+        }
       }
 
       if (!match && state.currentMatch) {
@@ -418,40 +439,71 @@
     } catch (_) {}
   }
 
+  /* ---- Switch between Kata and Kumite dynamically ---- */
+  let _kataInitialized = false;
+  let _kumiteInitialized = false;
+
+  function _ensureKataInitialized() {
+    if (_kataInitialized) return;
+    _kataInitialized = true;
+    initKataScreen();
+  }
+  function _ensureKumiteInitialized() {
+    if (_kumiteInitialized) return;
+    _kumiteInitialized = true;
+    initKumiteScreen();
+  }
+
+  function switchToDiscipline(discipline) {
+    if (discipline === state.discipline) return; // already there
+    const oldDisc = state.discipline;
+    state.discipline = discipline;
+    // Hide all
+    $('judge-kata-screen').style.display = 'none';
+    $('judge-kumite-screen').style.display = 'none';
+    $('judge-flag-screen').style.display = 'none';
+    // Show correct
+    if (discipline === 'kata') {
+      _ensureKataInitialized();
+      $('judge-kata-screen').style.display = 'block';
+    } else {
+      _ensureKumiteInitialized();
+      $('judge-kumite-screen').style.display = 'block';
+    }
+  }
+
   function updateMatchDisplay(match) {
     if (!match) return;
     Dojos.ensureCache().catch(() => {});
-    // Auto-detectar disciplina desde el combate actual (código unificado)
     const matchIsKata = match.category?.discipline === 'kata' || match.bracket_type === 'kata_round';
-    if (!state.discipline || state.discipline !== (matchIsKata ? 'kata' : 'kumite')) {
-      const oldDiscipline = state.discipline;
-      state.discipline = matchIsKata ? 'kata' : 'kumite';
-      if (oldDiscipline && oldDiscipline !== state.discipline) {
-        // Cambió la disciplina - reiniciar UI
-        if (state.discipline === 'kata') {
-          $('judge-kata-screen').style.display = 'block';
-          $('judge-kumite-panel').style.display = 'none';
-          $('judge-flag-screen').style.display = 'none';
-        } else {
-          $('judge-kata-screen').style.display = 'none';
-          $('judge-kumite-panel').style.display = 'block';
-          $('judge-flag-screen').style.display = 'none';
-        }
-      }
+    const matchDiscipline = matchIsKata ? 'kata' : 'kumite';
+
+    // Switch UI if discipline changed
+    if (state.discipline !== matchDiscipline) {
+      switchToDiscipline(matchDiscipline);
     }
+
+    // Update names and metadata
     const nameA = match.competitor_a?.competitors?.full_name || match.competitor_a?.full_name || 'Competidor A';
     const nameB = match.competitor_b?.competitors?.full_name || match.competitor_b?.full_name || 'Competidor B';
     const catName = match.category?.name || '';
     const roundLabel = match.round_label || '';
 
-    if (state.discipline === 'kata') {
+    if (matchDiscipline === 'kata') {
       $('judge-live-meta').textContent = `🥋 ${nameA} · ${catName} ${roundLabel}`;
+      $('judge-kata-category').textContent = `🥋 ${catName || 'Kata'} · ${roundLabel || ''}`;
+      $('judge-kata-name-a').textContent = nameA;
+      $('judge-kata-name-b').textContent = nameB || '—';
+      $('judge-kata-club-a').innerHTML = Dojos.renderCompetitorIdentity(match.competitor_a, 18);
+      $('judge-kata-club-b').innerHTML = Dojos.renderCompetitorIdentity(match.competitor_b, 18);
     } else {
       $('judge-live-meta').textContent = `🥊 ${nameA} vs ${nameB} · ${catName} ${roundLabel}`;
-    }
-
-    // Update timer display from kumite clock if available
-    if (state.discipline === 'kumite') {
+      $('judge-kumite-category').textContent = `🥊 ${catName || 'Combate de Kumite'} · ${roundLabel || ''}`;
+      $('judge-kumite-name-a').textContent = nameA;
+      $('judge-kumite-name-b').textContent = nameB;
+      $('judge-kumite-club-a').innerHTML = Dojos.renderCompetitorIdentity(match.competitor_a, 18);
+      $('judge-kumite-club-b').innerHTML = Dojos.renderCompetitorIdentity(match.competitor_b, 18);
+      // Update timer
       const summary = Matches.getKumiteSummary(match);
       if (summary.clockRemaining != null) {
         const m = Math.floor(summary.clockRemaining / 60);
