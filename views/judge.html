@@ -48,6 +48,7 @@
       <span class="badge badge-gold" id="judge-live-id">—</span>
       <span class="badge" id="judge-conn-indicator" style="background:#0f172a;color:#fff;border:1px solid #334155;">—</span>
       <span class="badge" id="judge-timer-display" style="background:#0f172a;color:#fff;border:1px solid #334155;">—</span>
+      <button class="btn btn-outline btn-sm" id="btn-judge-refresh" onclick="window.refreshCurrentMatch()">🔄 Refrescar</button>
       <button class="btn btn-outline btn-sm" id="btn-judge-exit">Salir</button>
     </div>
   </div>
@@ -166,6 +167,18 @@
         <div class="text-xs mb-2" style="text-transform:uppercase;letter-spacing:.06em;opacity:.7;">Mi puesto: <span id="judge-kumite-my-seat" style="font-weight:800;color:#facc15;">—</span></div>
         <div id="judge-kumite-status" class="text-sm" style="opacity:.8;text-align:center;">Selecciona un punto para enviar.</div>
         <div id="judge-kumite-last" class="text-xs mt-1" style="color:#94a3b8;text-align:center;"></div>
+      </div>
+
+      <!-- Scoring rules reminder -->
+      <div style="margin-top:.5rem;padding:.5rem;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:8px;text-align:center;">
+        <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.06em;opacity:.6;margin-bottom:.2rem;">Reglas de puntuación</div>
+        <div style="font-size:.7rem;opacity:.8;display:flex;justify-content:center;gap:.75rem;flex-wrap:wrap;">
+          <span style="color:#4ade80;">🟢 Yuko = +1</span>
+          <span style="color:#60a5fa;">🔵 Waza-ari = +2</span>
+          <span style="color:#c084fc;">🟣 Ippon = +3</span>
+          <span style="color:#facc15;">⭐ Senshu = Ventaja al primer punto</span>
+        </div>
+        <div style="font-size:.65rem;opacity:.5;margin-top:.2rem;">Gana quien tenga más puntos al final del tiempo. Si hay empate, gana quien tenga Senshu.</div>
       </div>
     </div>
   </div>
@@ -334,7 +347,7 @@
     }
   });
 
-  /* ---- Subscribe to realtime match updates ---- */
+  /* ---- Subscribe to realtime match updates (only for finished status) ---- */
   function subscribeToMatches() {
     if (!state.tournamentId) return;
     try {
@@ -342,14 +355,8 @@
         await handleRealtimeUpdate(payload);
       });
     } catch (_) {}
-
-    // Also poll every 5s as fallback
-    setInterval(async () => {
-      if (!state.connected) return;
-      try {
-        await refreshCurrentMatch();
-      } catch (_) {}
-    }, 5000);
+    // No auto-polling: la APK solo se actualiza cuando el usuario presiona "Refrescar"
+    // o cuando la mesa confirma un resultado (status → finished)
   }
 
   async function handleRealtimeUpdate(payload) {
@@ -361,30 +368,10 @@
       const matchTatami = String(match?.tatami || match?.category?.tatami || '');
       if (matchTatami !== String(state.tatami)) return;
 
-      // Update current match if it's ongoing or pending
-      if (match.status === 'in_progress' || match.status === 'pending') {
-        const matchIsKata = match.category?.discipline === 'kata' || match.bracket_type === 'kata_round';
-        const matchDiscipline = matchIsKata ? 'kata' : 'kumite';
-        const wasDifferentMatch = state.currentMatch?.id !== match.id;
-        const wasDifferentDiscipline = state.discipline !== matchDiscipline;
-
-        state.currentMatch = match;
-
-        if (wasDifferentMatch || wasDifferentDiscipline) {
-          updateMatchDisplay(match);
-        } else {
-          // Same match, just refresh header
-          const nameA = match.competitor_a?.competitors?.full_name || match.competitor_a?.full_name || 'Competidor A';
-          const nameB = match.competitor_b?.competitors?.full_name || match.competitor_b?.full_name || 'Competidor B';
-          $('judge-live-meta').textContent = matchDiscipline === 'kata'
-            ? `🥋 ${nameA} · ${match.category?.name || ''} ${match.round_label || ''}`
-            : `🥊 ${nameA} vs ${nameB} · ${match.category?.name || ''} ${match.round_label || ''}`;
-        }
-      }
-
-      // If the match just finished, clear display
+      // Solo reaccionar cuando la mesa CONFIRMA un resultado (status → finished)
+      // Esto evita cambios de pantalla no deseados cuando la mesa está navegando
       if (match.status === 'finished' || match.status === 'bye') {
-        if (state.currentMatch?.id === match.id) {
+        if (state.currentMatch?.id === match.id || !state.currentMatch) {
           state.currentMatch = null;
           $('judge-live-meta').textContent = 'Combate finalizado. Esperando siguiente...';
           $('judge-timer-display').textContent = '—';
@@ -438,6 +425,9 @@
       }
     } catch (_) {}
   }
+
+  // Exponer función de refresco manual para el botón
+  window.refreshCurrentMatch = refreshCurrentMatch;
 
   /* ---- Switch between Kata and Kumite dynamically ---- */
   let _kataInitialized = false;
