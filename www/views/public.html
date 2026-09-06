@@ -679,6 +679,14 @@
     document.title = 'Marcador Mesa Tecnica';
   }
 
+  function _getJudgeSeatsFallback() {
+    try {
+      var cnt = parseInt(localStorage.getItem('ot_judge_count') || '5', 10);
+      cnt = cnt === 7 ? 7 : 5;
+      return Array.from({ length: cnt }, (_, i) => 'J' + (i + 1));
+    } catch (_) { return ['J1','J2','J3','J4','J5']; }
+  }
+
   function _projectionClockText(kumiteSummary = null) {
     let remaining = Number.isFinite(Number(kumiteSummary?.clockRemaining))
       ? Number(kumiteSummary.clockRemaining)
@@ -1216,7 +1224,7 @@ function _renderAthleteBadgesCompact(competitor) {
             const duelSummary = Matches.getKataDuelSummary(liveMatch);
             const judgesSeats = Array.isArray(duelSummary.summaryA?.judges) 
               ? duelSummary.summaryA.judges.map(j => j.seat) 
-              : ['J1','J2','J3','J4','J5'];
+              : _getJudgeSeatsFallback();
             const judgeCount = judgesSeats.length;
             const winnerLabel = duelSummary.winner ? (duelSummary.winner === 'a' ? 'AO' : 'AKA') : null;
             const scoresRowA = judgesSeats.map(seat => {
@@ -1323,25 +1331,27 @@ function _renderAthleteBadgesCompact(competitor) {
           const submitted = Number.isFinite(Number(summary.submitted))
             ? Number(summary.submitted)
             : (Array.isArray(summary.judges) ? summary.judges.filter(j => Number.isFinite(Number(j?.score))).length : 0);
-          const ready = typeof summary.ready === 'boolean' ? summary.ready : submitted >= 5;
+          const judgeSeats = Array.isArray(summary.judges) ? summary.judges.map(j => j.seat) : _getJudgeSeatsFallback();
+          const judgeCount = judgeSeats.length;
+          const ready = typeof summary.ready === 'boolean' ? summary.ready : submitted >= judgeCount;
           const prevKataScores = state.projectionKataCache || {};
           content.innerHTML = `
             ${heading()}
             <div class="match-display" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:24px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.35);">
               <div class="match-header" style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:1rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);">
                 <span>${liveMatch.category?.name || '—'}</span>
-                <span>${ready ? '✅ Notas completas' : `🥋 Jueces ${submitted}/5`} · ${liveMatch.round_label || 'Ronda ' + liveMatch.round}</span>
+                <span>${ready ? '✅ Notas completas' : `🥋 Jueces ${submitted}/${judgeCount}`} · ${liveMatch.round_label || 'Ronda ' + liveMatch.round}</span>
               </div>
               <div class="match-body" style="display:flex;justify-content:center;padding:1.5rem;">
                 <div class="match-fighter" style="flex:unset;min-width:min(720px,100%);text-align:center;background:linear-gradient(135deg,rgba(91,33,182,.92),rgba(59,7,100,.88));border-radius:24px;padding:1.5rem;">
                   <div class="match-fighter-name" style="font-size:clamp(2.2rem,4vw,4rem);font-weight:900;line-height:1;">${nameA}</div>
                   <div class="match-fighter-info" style="margin-top:.45rem;font-size:1rem;opacity:.82;display:flex;align-items:center;justify-content:center;gap:1.5rem;width:100%;">${flagAHtml}<span style="text-align:center;flex-grow:1;max-width:60%;">${clubA}</span>${logoAHtml}</div>
-                  ${ready ? `<div class="match-fighter-score" style="font-size:clamp(5rem,9vw,7rem);font-weight:900;line-height:1;margin-top:1rem;">${summary.total != null ? Number(summary.total).toFixed(2) : '—'}</div>` : `<div style="margin-top:1rem;font-size:1.4rem;font-weight:700;opacity:.65;">⏳ Jueces ${submitted}/5</div>`}
+                  ${ready ? `<div class="match-fighter-score" style="font-size:clamp(5rem,9vw,7rem);font-weight:900;line-height:1;margin-top:1rem;">${summary.total != null ? Number(summary.total).toFixed(2) : '—'}</div>` : `<div style="margin-top:1rem;font-size:1.4rem;font-weight:700;opacity:.65;">⏳ Jueces ${submitted}/${judgeCount}</div>`}
                 </div>
               </div>
             </div>
             <div class="projection-judges" style="margin-top:1rem;">
-              ${['J1','J2','J3','J4','J5'].map(seat => {
+              ${judgeSeats.map(seat => {
                 const judge = summary.judges.find(j => j.seat === seat);
                 const scoreNum = Number.isFinite(Number(judge?.score)) ? Number(judge.score) : null;
                 const hadPrev = Object.prototype.hasOwnProperty.call(prevKataScores, seat);
@@ -1355,7 +1365,7 @@ function _renderAthleteBadgesCompact(competitor) {
               }).join('')}
             </div>`;
           state.projectionKataCache = Object.fromEntries(
-            ['J1','J2','J3','J4','J5'].map((seat) => {
+            judgeSeats.map((seat) => {
               const judge = summary.judges.find(j => j.seat === seat);
               const score = Number.isFinite(Number(judge?.score)) ? Number(judge.score) : null;
               return [seat, score];
@@ -1451,7 +1461,9 @@ function _renderAthleteBadgesCompact(competitor) {
           const kataSubmitted = Number.isFinite(Number(summary.submitted))
             ? Number(summary.submitted)
             : (Array.isArray(summary.judges) ? summary.judges.filter(j => Number.isFinite(Number(j?.score))).length : 0);
-          const kataReady = typeof summary.ready === 'boolean' ? summary.ready : kataSubmitted >= 5;
+          const judgeSeats = Array.isArray(summary.judges) ? summary.judges.map(j => j.seat) : _getJudgeSeatsFallback();
+          const judgeCount = judgeSeats.length;
+          const kataReady = typeof summary.ready === 'boolean' ? summary.ready : kataSubmitted >= judgeCount;
           content.innerHTML = `
             ${heading()}
             <div class="projection-kata-top">
@@ -1464,11 +1476,11 @@ function _renderAthleteBadgesCompact(competitor) {
               <div class="projection-card projection-total">
                 ${kataReady
                   ? `<div class="projection-total-label">Total oficial</div><div class="projection-total-value">${summary.total != null ? Number(summary.total).toFixed(2) : '—'}</div>`
-                  : `<div class="projection-total-label">Esperando notas de jueces</div><div style="font-size:1.5rem;font-weight:700;opacity:.8;text-align:center;">⏳ ${kataSubmitted}/5</div>`}
+                  : `<div class="projection-total-label">Esperando notas de jueces</div><div style="font-size:1.5rem;font-weight:700;opacity:.8;text-align:center;">⏳ ${kataSubmitted}/${judgeCount}</div>`}
               </div>
             </div>
             <div class="projection-judges">
-              ${['J1','J2','J3','J4','J5'].map(seat => {
+              ${judgeSeats.map(seat => {
                 const judge = summary.judges.find(j => j.seat === seat);
                 return `<div class="projection-judge-card">
                   <div class="projection-judge-seat">${seat}</div>
@@ -1487,8 +1499,8 @@ function _renderAthleteBadgesCompact(competitor) {
               </div>
               <div style="font-size:2rem;font-weight:900;color:#7c3aed;">${summary.total != null ? Number(summary.total).toFixed(2) : '—'}</div>
             </div>
-            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:.4rem;">
-              ${['J1','J2','J3','J4','J5'].map(seat => {
+            <div style="display:grid;grid-template-columns:repeat(${judgeCount},1fr);gap:.4rem;">
+              ${judgeSeats.map(seat => {
                 const judge = summary.judges.find(j => j.seat === seat);
                 return `<div style="background:#faf5ff;border:1px solid #ddd6fe;border-radius:12px;padding:.45rem;text-align:center;color:#111827;">
                   <div class="text-xs text-muted">${seat}</div>

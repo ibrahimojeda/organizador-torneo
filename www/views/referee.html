@@ -1026,21 +1026,22 @@
   }
 
   function _getKataSummaryFromScores(scores = {}) {
-    const seats = ['J1', 'J2', 'J3', 'J4', 'J5'];
+    const judgeCount = parseInt(document.getElementById('judge-count-selector')?.value || '5', 10);
+    const seats = Array.from({ length: judgeCount }, (_, i) => 'J' + (i + 1));
     const judges = seats.map(seat => ({
       seat,
       score: Number.isFinite(Number(scores[seat])) ? Number(scores[seat]) : null,
     }));
     const validScores = judges.filter(j => Number.isFinite(j.score)).map(j => j.score);
     const sorted = [...validScores].sort((a, b) => a - b);
-    const trimmed = sorted.length >= 5 ? sorted.slice(1, -1) : sorted;
+    const trimmed = sorted.length >= judgeCount ? sorted.slice(1, -1) : sorted;
     return {
       judges,
       submitted: validScores.length,
-      ready: validScores.length >= 5,
+      ready: validScores.length >= judgeCount,
       total: trimmed.length ? Number(trimmed.reduce((sum, value) => sum + value, 0).toFixed(2)) : null,
-      dropped_low: sorted.length >= 5 ? sorted[0] : null,
-      dropped_high: sorted.length >= 5 ? sorted[sorted.length - 1] : null,
+      dropped_low: sorted.length >= judgeCount ? sorted[0] : null,
+      dropped_high: sorted.length >= judgeCount ? sorted[sorted.length - 1] : null,
     };
   }
 
@@ -1742,6 +1743,8 @@
   };
 
   window.onJudgeCountChange = function() {
+    var val = document.getElementById('judge-count-selector')?.value || '5';
+    try { localStorage.setItem('ot_judge_count', val); } catch (_) {}
     // Clear cache so new codes are generated
     if (state.tournamentId && state.tatami) {
       const key = 'ot_judge_access_' + state.tournamentId + '_' + state.tatami;
@@ -2330,6 +2333,11 @@
   /* ---- Llamar combate ---- */
   window.callMatch = async function(matchId) {
     try {
+      // Save judge count when opening a match
+      try {
+        var jc = document.getElementById('judge-count-selector')?.value;
+        if (jc) localStorage.setItem('ot_judge_count', jc);
+      } catch (_) {}
       const match = await Matches.getById(matchId);
       state.currentMatch = match;
       // Al llamar un combate, marcarlo como en progreso para que la APK lo encuentre

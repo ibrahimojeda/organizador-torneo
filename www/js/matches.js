@@ -131,8 +131,20 @@ const Matches = (() => {
     return Number(numericScore.toFixed(2));
   }
 
+  function _getJudgeCount() {
+    try {
+      const val = parseInt(localStorage.getItem('ot_judge_count') || '5', 10);
+      return val === 7 ? 7 : 5;
+    } catch (_) { return 5; }
+  }
+
+  function _getJudgeSeats() {
+    const count = _getJudgeCount();
+    return Array.from({ length: count }, (_, i) => 'J' + (i + 1));
+  }
+
   function _buildKataSummaryFromScores(scoresBySeat = {}, options = {}) {
-    const seats = ['J1', 'J2', 'J3', 'J4', 'J5'];
+    const seats = _getJudgeSeats();
     const judges = seats.map((seat) => {
       const scoreValue = scoresBySeat?.[seat];
       return {
@@ -145,16 +157,17 @@ const Matches = (() => {
 
     const validScores = judges.filter(j => Number.isFinite(j.score)).map(j => Number(j.score));
     const sorted  = [...validScores].sort((a, b) => a - b);
-    const trimmed = sorted.length >= 5 ? sorted.slice(1, -1) : sorted;
+    const judgeCount = _getJudgeCount();
+    const trimmed = sorted.length >= judgeCount ? sorted.slice(1, -1) : sorted;
     const total   = trimmed.length ? Number(trimmed.reduce((sum, value) => sum + value, 0).toFixed(2)) : null;
 
     return {
       judges,
       submitted: validScores.length,
-      ready: validScores.length >= 5,
+      ready: validScores.length >= judgeCount,
       total,
-      dropped_low: sorted.length >= 5 ? sorted[0] : null,
-      dropped_high: sorted.length >= 5 ? sorted[sorted.length - 1] : null,
+      dropped_low: sorted.length >= judgeCount ? sorted[0] : null,
+      dropped_high: sorted.length >= judgeCount ? sorted[sorted.length - 1] : null,
     };
   }
 
@@ -897,12 +910,12 @@ const Matches = (() => {
   }
 
   async function applyMesaKataOverride(matchId, scores = {}, mesaInfo = {}) {
-    const seats = ['J1', 'J2', 'J3', 'J4', 'J5'];
+    const seats = _getJudgeSeats();
     const normalized = {};
     for (const seat of seats) {
       normalized[seat] = _normalizeKataScore(scores?.[seat]);
       if (!Number.isFinite(normalized[seat])) {
-        throw new Error('La mesa debe completar las 5 notas de kata.');
+        throw new Error('La mesa debe completar todas las notas de kata (' + seats.length + ').');
       }
     }
 
@@ -966,13 +979,13 @@ const Matches = (() => {
   }
 
   async function applyMesaKataDuelOverride(matchId, scoresA = {}, scoresB = {}, mesaInfo = {}) {
-    const seats = ['J1', 'J2', 'J3', 'J4', 'J5'];
+    const seats = _getJudgeSeats();
     const normalizeAll = (scores) => {
       const normalized = {};
       for (const seat of seats) {
         normalized[seat] = _normalizeKataScore(scores?.[seat]);
         if (!Number.isFinite(normalized[seat])) {
-          throw new Error('La mesa debe completar las 5 notas de kata en ambos lados.');
+          throw new Error('La mesa debe completar todas las notas de kata (' + seats.length + ') en ambos lados.');
         }
       }
       return normalized;
@@ -1019,7 +1032,7 @@ const Matches = (() => {
   function getKataDuelSummary(matchOrNotes) {
     const live = getLiveState(matchOrNotes);
     const duel = live.kata?.duel || {};
-    const seats = ['J1', 'J2', 'J3', 'J4', 'J5'];
+    const seats = _getJudgeSeats();
 
     const buildSide = (side) => {
       const judgesMap = Object.fromEntries(
