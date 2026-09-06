@@ -2332,6 +2332,15 @@
     try {
       const match = await Matches.getById(matchId);
       state.currentMatch = match;
+      // Al llamar un combate, marcarlo como en progreso para que la APK lo encuentre
+      if (match.status !== 'in_progress' && match.status !== 'finished' && match.status !== 'bye') {
+        try {
+          await Matches.startMatch(matchId);
+          match.status = 'in_progress';
+        } catch (_) {
+          // Si falla (ej. modo offline), continuar igual
+        }
+      }
       // Al llamar un combate, limpiamos override para que la pantalla extendida lo muestre
       if (state.projectionModeOverride === 'generic_board' || state.projectionModeOverride === 'category_awards') {
         state.projectionModeOverride = null;
