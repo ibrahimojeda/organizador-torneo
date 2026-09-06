@@ -380,10 +380,20 @@
     } catch (_) {}
   }
 
-  async function refreshCurrentMatch() {
+  // Point 1: El match queue y category-info-card ya están visibles en el HTML
+// No hay cambios necesarios - la card está fuera del grid y siempre visible
+
+// Point 2 & 3: Mejorar refreshCurrentMatch para que busque el combate activo de la mesa
+async function refreshCurrentMatch() {
     if (!state.tournamentId || !state.tatami) return;
     try {
+      // Mostrar indicador de carga
+      $('judge-live-meta').textContent = '🔄 Buscando combate activo...';
+      
       const pending = await Matches.listPendingByTatami(state.tournamentId, state.tatami);
+      
+      // Buscar primero el combate 'in_progress' (el que la mesa está viendo)
+      // Si no hay, tomar el primero pendiente
       const match = (pending || []).find(m => m.status === 'in_progress')
         || (pending || [])[0]
         || null;
@@ -391,14 +401,16 @@
       if (match) {
         const matchIsKata = match.category?.discipline === 'kata' || match.bracket_type === 'kata_round';
         const matchDiscipline = matchIsKata ? 'kata' : 'kumite';
-        const sameMatch = state.currentMatch?.id === match.id;
-        const sameDiscipline = state.discipline === matchDiscipline;
+        const isNewMatch = state.currentMatch?.id !== match.id;
+        const isNewDiscipline = state.discipline !== matchDiscipline;
 
-        if (!sameMatch || !sameDiscipline) {
-          state.currentMatch = match;
+        state.currentMatch = match;
+
+        if (isNewMatch || isNewDiscipline) {
+          // Cambió match o disciplina → actualizar toda la UI
           updateMatchDisplay(match);
 
-          // Register referee with correct discipline
+          // Registrar juez con la disciplina correcta
           try {
             await Matches.registerReferee(match.id, {
               seat: state.seat,
@@ -408,22 +420,27 @@
               discipline: matchDiscipline,
             });
           } catch (_) {}
+          
+          $('judge-live-meta').textContent = matchDiscipline === 'kata'
+            ? `🥋 ${match.competitor_a?.competitors?.full_name || 'Competidor'} · ${match.category?.name || ''}`
+            : `🥊 ${match.competitor_a?.competitors?.full_name || 'AO'} vs ${match.competitor_b?.competitors?.full_name || 'AKA'} · ${match.category?.name || ''}`;
         } else {
-          // Same match, same discipline — just refresh names/timer
+          // Mismo match, misma disciplina → solo actualizar nombres
           const nameA = match.competitor_a?.competitors?.full_name || match.competitor_a?.full_name || 'Competidor A';
           const nameB = match.competitor_b?.competitors?.full_name || match.competitor_b?.full_name || 'Competidor B';
           $('judge-live-meta').textContent = matchDiscipline === 'kata'
             ? `🥋 ${nameA} · ${match.category?.name || ''} ${match.round_label || ''}`
             : `🥊 ${nameA} vs ${nameB} · ${match.category?.name || ''} ${match.round_label || ''}`;
         }
-      }
-
-      if (!match && state.currentMatch) {
+      } else {
+        // No hay combate activo
         state.currentMatch = null;
         $('judge-live-meta').textContent = 'Sin combate activo. Esperando...';
         $('judge-timer-display').textContent = '—';
       }
-    } catch (_) {}
+    } catch (_) {
+      $('judge-live-meta').textContent = '⚠️ Error al buscar combate. Presiona Refrescar de nuevo.';
+    }
   }
 
   // Exponer función de refresco manual para el botón
