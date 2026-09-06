@@ -182,7 +182,7 @@ const Auth = (() => {
         const tournament = tournaments.find(t => t.id === tournamentId);
         if (!_isJudgeCodeAllowedForStatus(tournament?.status)) continue;
         if (parsed.tournamentToken && parsed.tournamentToken !== _getJudgeTournamentToken(tournamentId)) continue;
-        for (const discipline of ['kata', 'kumite']) {
+        for (const discipline of ['unified', 'kata', 'kumite']) {
           const entries = Array.isArray(data?.[discipline]) ? data[discipline] : [];
           const entry = entries.find(item => String(item?.code || '').toUpperCase() === code);
           if (!entry) continue;

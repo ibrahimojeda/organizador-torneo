@@ -280,12 +280,13 @@
 
       if (matchToRegister?.id) {
         try {
+          const matchDiscipline = (matchToRegister.category?.discipline === 'kata' || matchToRegister.bracket_type === 'kata_round') ? 'kata' : 'kumite';
           await Matches.registerReferee(matchToRegister.id, {
             seat: state.seat,
             name: state.judgeName,
             code: state.accessCode,
             tatami: state.tatami,
-            discipline: state.discipline,
+            discipline: matchDiscipline,
           });
         } catch (regErr) {
           // If seat is taken by another judge, show error
@@ -305,6 +306,11 @@
       $('judge-join-view').style.display = 'none';
       $('judge-panel-view').style.display = 'block';
       state.connected = true;
+
+      // Update discipline from match if available
+      if (matchToRegister) {
+        state.discipline = (matchToRegister.category?.discipline === 'kata' || matchToRegister.bracket_type === 'kata_round') ? 'kata' : 'kumite';
+      }
 
       // Update header
       $('judge-live-title').textContent = `${state.discipline.toUpperCase()} — Tatami ${state.tatami || '?'}`;
