@@ -511,12 +511,12 @@ const Categories = (() => {
   }
 
   /* --------------------------------------------------------
-     ¿LA CATEGORÍA ES DE EDAD MIXTA PERMITIDA?
-     Para menores de 7 años (mini y benjamines) se permite
-     fusionar géneros en una categoría mixta (MF).
+     ¿LA CATEGORÍA PERMITE FUSIÓN MIXTA (M+F)?
+     Se permite en categorías infantiles y juveniles de base:
+     mini (4-5), benjamines (6-7), alevines (8-9) e infantil (10-11).
   -------------------------------------------------------- */
   function isMixedAllowed(ageGroupId) {
-    return ['mini', 'benjamines'].includes(ageGroupId || '');
+    return ['mini', 'benjamines', 'alevines', 'infantil'].includes(ageGroupId || '');
   }
 
   /* --------------------------------------------------------

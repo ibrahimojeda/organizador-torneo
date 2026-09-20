@@ -2577,8 +2577,26 @@
       resolved.push({ ...a, compatibles: usable, mixtas });
     }
     _optState.resolveQueue = resolved;
-    _optState.resolveIndex = Math.min(_optState.resolveIndex || 0, resolved.length - 1);
+    // Orden de navegación: disciplina (kata primero) → género (M,F) → edad (mini→veteranos)
+    _optState.resolveQueue.sort(_optSortQueue);
+    _optState.resolveIndex = Math.min(_optState.resolveIndex || 0, _optState.resolveQueue.length - 1);
     _optRenderResolveCard();
+  }
+
+  /* Orden determinista para la navegación: disciplina → género → edad */
+  function _optSortQueue(a, b) {
+    const discOrder = { kata: 0, kumite: 1 };
+    const genderOrder = { M: 0, F: 1, MF: 2 };
+    const ageOrder = ['mini', 'benjamines', 'alevines', 'infantil', 'cadete', 'junior', 'sub21', 'senior', 'veteranos'];
+    const dA = discOrder[a.cat.discipline] ?? 2;
+    const dB = discOrder[b.cat.discipline] ?? 2;
+    if (dA !== dB) return dA - dB;
+    const gA = genderOrder[a.cat.gender] ?? 3;
+    const gB = genderOrder[b.cat.gender] ?? 3;
+    if (gA !== gB) return gA - gB;
+    const ageA = ageOrder.indexOf(a.cat.age_group_id);
+    const ageB = ageOrder.indexOf(b.cat.age_group_id);
+    return (ageA < 0 ? 99 : ageA) - (ageB < 0 ? 99 : ageB);
   }
 
   window._optOnResolveChange = function(catId) {
@@ -2609,9 +2627,12 @@
       : a.count === 1
         ? '<span class="badge badge-gold">1 comp.</span>'
         : `<span class="badge badge-blue">${a.count} comp.</span>`;
+    const isThree = a.count === 3;
     const isOne = a.count === 1;
     const isZero = a.count === 0;
-    const canMixta = entry.mixtas.length > 0;
+    // Para 3 competidores: solo "dejar igual" o "fusionar" (sin mixto/BYE).
+    // Para 2 o menos sí se permite mixto (si hay candidatas).
+    const canMixta = (a.count <= 2) && entry.mixtas.length > 0;
     const hasCompat = entry.compatibles.length > 0;
     const total = _optState.resolveQueue ? _optState.resolveQueue.length : 1;
 
@@ -2673,6 +2694,7 @@
           <span class="badge ${cat.discipline === 'kata' ? 'badge-gold' : 'badge-red'} text-xs">${cat.discipline}</span>
         </div>
         <div style="padding:.75rem 1rem;">
+          ${isThree ? '<p class="text-xs text-info mb-1">Con 3 competidores solo se puede <strong>dejar igual</strong> o <strong>fusionar</strong>.</p>' : ''}
           ${actions}
           ${!hasCompat && !canMixta ? '<p class="text-xs text-warning mt-1">No hay categorías compatibles disponibles para fusión.</p>' : ''}
         </div>
