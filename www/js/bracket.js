@@ -75,26 +75,35 @@ const Bracket = (() => {
      GENERAR LLAVES PARA UNA CATEGORÍA
      Detecta el sistema automáticamente o usa el especificado.
      @param {string} categoryId
+     @param {object} options - Opcional:
+       - system:        'auto' | 'single_elimination' | 'repechage' |
+                        'round_robin' | 'double_elimination' | 'kata_individual' | 'kata_duels'
+       - separateByClub: boolean (default true). Si false, no separa por club en R1.
+       - allowOne:       boolean (default false). Si true, permite generar con 1 competidor (BYE a podio).
      @returns {object[]} Combates (matches) creados
   -------------------------------------------------------- */
-  async function generate(categoryId) {
+  async function generate(categoryId, options = {}) {
     const category    = await Categories.getById(categoryId);
     const competitors = await Competitors.listByCategory(categoryId);
 
-    if (competitors.length < 2) {
+    if (competitors.length < 2 && !options.allowOne) {
       throw new Error('Se necesitan al menos 2 competidores para generar llaves.');
+    }
+    if (!competitors.length) {
+      throw new Error('No hay competidores inscritos en esta categoría.');
     }
 
     await _clearPendingMatches(categoryId);
 
-    const system = _resolveSystem(category.bracket_system, competitors.length);
+    const forcedSystem = options.system || null;
+    const system = forcedSystem ? forcedSystem : _resolveSystem(category.bracket_system, competitors.length);
 
     // --- Separar por club (evita mismo dojo en R1) ---
-    const separated = _separateByClub(competitors);
+    const separated = options.separateByClub === false ? [...competitors] : _separateByClub(competitors);
 
     // Detectar conflictos restantes tras la separación
     const warnings = [];
-    if (system !== 'round_robin') {
+    if (system !== 'round_robin' && competitors.length >= 2) {
       const size      = nextPowerOf2(separated.length);
       const tempBracket = _seedIntoBracket(separated, size);
       const conflicts = _detectClubConflicts(tempBracket);
@@ -107,6 +116,7 @@ const Bracket = (() => {
     let matches;
     switch (system) {
       case 'kata_individual':     matches = _buildKataElimination(competitors, category); break;
+      case 'kata_duels':          matches = _buildSingleElimination(separated, category, true); break;
       case 'round_robin':         matches = _buildRoundRobin(separated, category, true); break;
       case 'single_elimination':  matches = _buildSingleElimination(separated, category, true); break;
       case 'repechage':           matches = _buildRepechage(separated, category, true); break;
@@ -757,15 +767,26 @@ const Bracket = (() => {
         const isKataDuel = allMatches.some(m => m.competitor_b_id);
 
         if (!isKataDuel) {
-          // Kata individual (WKF): todos compiten en una sola ronda, se ordenan por puntaje
-          const kataMatches = allMatches.filter(m => m.status === MATCH_STATUS.FINISHED && Number.isFinite(Number(m.score_a)));
+          // Kata individual: tomar solo los resultados finalizados y puntuados de la ronda más alta,
+          // evitando atletas eliminados en rondas anteriores y dejando una sola entrada por finalista.
+          const scoredKataMatches = allMatches.filter(m => m.bracket_type === 'kata_round' && m.status === MATCH_STATUS.FINISHED && Number.isFinite(Number(m.score_a)));
+          const maxKataRound = Math.max(...scoredKataMatches.map(m => Number(m.round) || 0), 0);
+          const kataMatches = scoredKataMatches.filter(m => (Number(m.round) || 0) === maxKataRound);
           const sorted = [...kataMatches].sort((a, b) => {
             if ((Number(b.score_a) || 0) !== (Number(a.score_a) || 0)) return (Number(b.score_a) || 0) - (Number(a.score_a) || 0);
             const ta = a.finished_at ? Date.parse(a.finished_at) : 0;
             const tb = b.finished_at ? Date.parse(b.finished_at) : 0;
             return (Number.isFinite(ta) ? ta : 0) - (Number.isFinite(tb) ? tb : 0);
           });
-          positions = sorted.slice(0, 3).map((m, i) => ({ position: i + 1, registration_id: m.competitor_a_id }));
+          const finalists = [];
+          const seen = new Set();
+          for (const match of sorted) {
+            const regId = match.competitor_a_id;
+            if (!regId || seen.has(regId)) continue;
+            seen.add(regId);
+            finalists.push(match);
+          }
+          positions = finalists.slice(0, 3).map((m, i) => ({ position: i + 1, registration_id: m.competitor_a_id }));
         } else {
           // Kata por duelos: eliminación (ganador final = 1°, perdedor = 2°, semis = 3°)
           const maxRound    = Math.max(...finished.map(m => m.round));

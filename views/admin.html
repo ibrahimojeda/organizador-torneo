@@ -360,6 +360,7 @@
           <button class="btn btn-outline btn-sm" id="btn-print-bracket-results" title="Imprimir llaves con resultados">🖨 Con resultados</button>
           <button class="btn btn-outline" id="btn-regenerate">🔄 Regenerar</button>
           <button class="btn btn-primary" id="btn-generate">⚡ Generar Llaves</button>
+          <button class="btn btn-gold btn-outline" id="btn-optimize-brackets" title="Asistente paso a paso para optimizar categorías y llaves según edades, cintas y reglas">🚀 Optimizar Llaves</button>
         </div>
       </div>
 
@@ -1154,6 +1155,96 @@
   </div>
 </div>
 
+<!-- Modal: Asistente de Optimización de Llaves -->
+<div class="modal-overlay" id="modal-optimize">
+  <div class="modal" style="max-width:860px;">
+    <div class="modal-header">
+      <h3 class="modal-title">🚀 Optimización de Llaves</h3>
+      <button class="btn btn-ghost btn-icon" onclick="Display.closeModal('modal-optimize')">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Paso 0: Alcance -->
+      <div id="opt-step-scope">
+        <p class="text-sm text-muted mb-3">¿Sobre qué categorías querés optimizar las llaves?</p>
+        <label class="card" style="cursor:pointer;padding:.75rem 1rem;display:flex;align-items:center;gap:.75rem;">
+          <input type="radio" name="opt-scope" value="category" id="opt-scope-category" />
+          <span>🎯 <strong>Solo la categoría seleccionada</strong> — procesa únicamente la categoría activa.</span>
+        </label>
+        <label class="card" style="cursor:pointer;padding:.75rem 1rem;display:flex;align-items:center;gap:.75rem;">
+          <input type="radio" name="opt-scope" value="tournament" id="opt-scope-tournament" checked />
+          <span>🏆 <strong>Todo el torneo</strong> — analiza y procesa todas las categorías con competidores.</span>
+        </label>
+      </div>
+
+      <!-- Paso 1: Análisis -->
+      <div id="opt-step-analysis" style="display:none;">
+        <h4 class="font-semibold mb-2">📊 Análisis de categorías</h4>
+        <p class="text-sm text-muted mb-2" id="opt-analysis-summary"></p>
+        <div class="card p-0" style="max-height:280px;overflow-y:auto;">
+          <table class="table table-sm">
+            <thead><tr><th>Categoría</th><th>Disciplina</th><th>Competidores</th><th>Estado</th></tr></thead>
+            <tbody id="opt-analysis-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Paso 2: Resolución de <2 -->
+      <div id="opt-step-resolve" style="display:none;">
+        <h4 class="font-semibold mb-2">⚠️ Categorías con menos de 2 competidores</h4>
+        <p class="text-sm text-muted mb-2">Decidí qué hacer con cada categoría. Las que tengan ≥2 se generarán normalmente.</p>
+        <div id="opt-resolve-list"></div>
+        <p id="opt-resolve-empty" class="text-sm text-success" style="display:none;">✅ Todas las categorías tienen al menos 2 competidores.</p>
+      </div>
+
+      <!-- Paso 3: Tipo de llave -->
+      <div id="opt-step-type" style="display:none;">
+        <h4 class="font-semibold mb-2">⚙️ Configuración de llaves</h4>
+        <div class="form-group">
+          <label class="form-label">Sistema de llaves</label>
+          <select class="form-control" id="opt-system">
+            <option value="auto">⚡ Automático (≤3 Round-Robin · ≥4 Eliminación Simple)</option>
+            <option value="single_elimination">⚔️ Eliminación Simple</option>
+            <option value="repechage">🏅 Eliminación + Repesca (WKF)</option>
+            <option value="round_robin">🔄 Round-Robin</option>
+            <option value="double_elimination">🔁 Doble Eliminación</option>
+            <option value="kata_individual">🥋 Kata Individual</option>
+            <option value="kata_duels">🥋 Kata por Duelos</option>
+          </select>
+        </div>
+        <label class="card" style="cursor:pointer;padding:.6rem 1rem;display:flex;align-items:center;gap:.6rem;">
+          <input type="checkbox" id="opt-separate-club" checked />
+          <span>🔀 <strong>Separar por club en R1</strong> (evitar mismo dojo en la primera ronda)</span>
+        </label>
+        <label class="card" style="cursor:pointer;padding:.6rem 1rem;display:flex;align-items:center;gap:.6rem;">
+          <input type="checkbox" id="opt-min-two" checked />
+          <span>🚫 <strong>No generar llaves con menos de 2 competidores</strong> (seguridad)</span>
+        </label>
+      </div>
+
+      <!-- Paso 4: Confirmación -->
+      <div id="opt-step-confirm" style="display:none;">
+        <h4 class="font-semibold mb-2">✅ Confirmación</h4>
+        <div id="opt-confirm-summary" class="text-sm mb-3"></div>
+        <div class="alert alert-warning mb-2 text-sm">
+          ⚠️ Si ya existen llaves generadas, el proceso las <strong>regenerará</strong> (se borran los combates pendientes).
+        </div>
+      </div>
+
+      <!-- Resultado -->
+      <div id="opt-step-result" style="display:none;">
+        <h4 class="font-semibold mb-2">📋 Resultado</h4>
+        <div id="opt-result-content"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="btn-opt-back" style="display:none;">← Atrás</button>
+      <button class="btn btn-outline" onclick="Display.closeModal('modal-optimize')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-opt-next">Continuar →</button>
+      <button class="btn btn-primary" id="btn-opt-apply" style="display:none;">🛠 Aplicar y generar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
 <script src="../js/config.js?v=20260424a"></script>
@@ -1229,12 +1320,30 @@
     }
     // Restaurar/refrescar sesión de Supabase Auth (necesario para peticiones autenticadas)
     if (!Auth.isDevMode()) {
-      try { await supabase.auth.getSession(); } catch (_) {}
-      // Refrescar token automáticamente cuando Supabase lo renueve
+      // Restaura la sesión persistida por supabase-js (renueva el refresh_token si expiró).
+      // Si el refresh_token guardado fue invalidado (borrado en Supabase), se limpia el
+      // storage local para evitar el bucle de "Invalid Refresh Token" (401 en REST).
+      let sbOk = false;
+      try { sbOk = await Auth._restoreSupabaseSession(); } catch (_) {}
+      if (!sbOk) {
+        try { Auth._clearSupabaseStorage(); } catch (_) {}
+        try { sbOk = await supabase.auth.getSession() && true; } catch (_) { sbOk = false; }
+        if (sbOk) {
+          const cur = await supabase.auth.getSession().catch(() => null);
+          const sb = cur?.data?.session;
+          if (sb?.access_token) {
+            try { supabase.auth.setSession({
+              access_token: sb.access_token,
+              refresh_token: sb.refresh_token,
+            }); } catch (_) {}
+          }
+        }
+      }
       let isHandlingSignOut = false;
-      supabase.auth.onAuthStateChange((event, session) => {
+      supabase.auth.onAuthStateChange(async (event, session) => {
         if (event === 'TOKEN_REFRESHED') {
           console.log('[Auth] Token renovado automáticamente.');
+          try { Auth._saveDevSession(Auth.getSession()); } catch (_) {}
         }
         if (event === 'SIGNED_OUT' && !isHandlingSignOut) {
           isHandlingSignOut = true;
@@ -1519,7 +1628,7 @@
     document.getElementById('bulk-toolbar').style.display = 'none';
     try {
       _competitorsList = await Competitors.listByTournament(state.activeTournament.id);
-      await Dojos.ensureCache();
+      await Dojos.ensureCache(state.activeTournament.id);
       if (!_competitorsList.length) {
         tbody.innerHTML = `<tr><td colspan="11"><div class="empty-state"><div class="empty-icon">👤</div><h3>Sin competidores</h3><p>Registra el primer competidor del torneo.</p></div></td></tr>`;
         document.getElementById('competitors-count-label').textContent = '0 competidor(es) inscrito(s)';
@@ -1594,7 +1703,7 @@
     if (!el) return;
     el.innerHTML = '<div class="text-center p-4"><span class="spinner"></span></div>';
     try {
-      let dojos = await Dojos.list();
+      let dojos = await Dojos.list(state.activeTournament.id);
       // Los clubes históricos pueden existir solo en competitors. Incorpóralos
       // al gestor para que el organizador pueda asignarles país y logo.
       if (state.activeTournament) {
@@ -1605,15 +1714,15 @@
           if (!name) continue;
           let dojo = byName.get(name.toLowerCase());
           if (!dojo) {
-            dojo = await Dojos.create(name, {});
+            dojo = await Dojos.create(name, {}, state.activeTournament.id);
             byName.set(name.toLowerCase(), dojo);
           }
           if (!competitor.dojo_id && dojo?.id && competitor.id) {
             try { await Competitors.update(competitor.id, { dojo_id: dojo.id }); } catch (_) {}
           }
         }
-        dojos = await Dojos.list();
-        await Dojos.ensureCache();
+        dojos = await Dojos.list(state.activeTournament.id);
+        await Dojos.ensureCache(state.activeTournament.id);
       }
       el.innerHTML = dojos.length ? `<div class="card p-0"><div class="table-wrapper"><table class="table"><thead><tr><th>Logo</th><th>Dojo</th><th>País</th><th>Acciones</th></tr></thead><tbody>${dojos.map(d => `
         <tr><td>${d.logo_url ? `<img src="${d.logo_url}" alt="" style="width:42px;height:42px;object-fit:contain;border-radius:5px;" />` : '<span class="text-muted">Sin logo</span>'}</td>
@@ -1667,7 +1776,7 @@
     if (!name || !country) { Display.toast('Nombre y país son obligatorios.', 'warning'); return; }
     if (file && file.size > 2 * 1024 * 1024) { Display.toast('La imagen supera los 2MB.', 'error'); return; }
     try {
-      const dojo = _editingDojoId ? await Dojos.update(_editingDojoId, { name, country_code: country }) : await Dojos.create(name, { country_code: country });
+      const dojo = _editingDojoId ? await Dojos.update(_editingDojoId, { name, country_code: country }) : await Dojos.create(name, { country_code: country }, state.activeTournament.id);
       if (file) await Dojos.uploadLogo(dojo.id, file);
       Dojos.invalidateCache();
       _resetDojoForm();
@@ -2353,6 +2462,342 @@
       Display.toast(e.message, 'error');
     }
   });
+  /* ============================================================
+     ASISTENTE DE OPTIMIZACIÓN DE LLAVES
+     Flujo paso a paso (alcance → análisis → resolución de <2 →
+     tipo de llave → confirmación → resultado).
+  ============================================================ */
+  const _optState = {
+    step: 0,
+    scope: 'tournament',
+    categories: [],        // [{ cat, count, status }]
+    resolve: {},           // catId -> { action: 'skip'|'fuse'|'one'|null, dest: catId }
+    system: 'auto',
+    separateByClub: true,
+    minTwo: true,
+  };
+
+  function _optShowStep(step) {
+    _optState.step = step;
+    ['scope', 'analysis', 'resolve', 'type', 'confirm', 'result'].forEach((name, i) => {
+      const el = document.getElementById(`opt-step-${name}`);
+      if (el) el.style.display = (i + 1) === step ? 'block' : 'none';
+    });
+    const nextBtn  = document.getElementById('btn-opt-next');
+    const backBtn  = document.getElementById('btn-opt-back');
+    const applyBtn = document.getElementById('btn-opt-apply');
+    backBtn.style.display  = step > 1 ? 'inline-flex' : 'none';
+    applyBtn.style.display = step === 5 ? 'inline-flex' : 'none';
+    nextBtn.style.display  = step === 5 ? 'none' : 'inline-flex';
+    nextBtn.textContent    = step === 4 ? 'Ver resumen →' : 'Continuar →';
+  }
+
+  function _optCategoryLabel(cat) {
+    return cat.name || Categories.buildLabel(cat) || (cat.id || '').slice(0, 8);
+  }
+
+  /* Paso 1: análisis */
+  async function _optRunAnalysis() {
+    const scope = document.querySelector('input[name="opt-scope"]:checked')?.value || 'tournament';
+    _optState.scope = scope;
+    const tbody = document.getElementById('opt-analysis-tbody');
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center"><span class="spinner"></span></td></tr>';
+
+    let cats;
+    if (scope === 'category') {
+      if (!state.activeCategory) { Display.toast('Primero seleccioná una categoría.', 'warning'); return false; }
+      cats = [state.activeCategory];
+    } else {
+      cats = await Categories.listByTournament(state.activeTournament ? state.activeTournament.id : Auth.getTournamentId());
+    }
+
+    // Enriquecer con conteo real de inscritos por categoría
+    const analyzed = [];
+    for (const cat of cats) {
+      let count = 0;
+      try {
+        const comps = await Competitors.listByCategory(cat.id);
+        count = comps.length;
+      } catch (_) {
+        count = cat.registrations?.[0]?.count ?? cat.registrations_count ?? 0;
+      }
+      analyzed.push({ cat, count, status: count >= 2 ? 'OK' : (count === 1 ? 'WARN' : 'EMPTY') });
+    }
+    _optState.categories = analyzed;
+
+    tbody.innerHTML = analyzed.map(a => {
+      const stateBadge = a.status === 'OK'
+        ? '<span class="badge badge-green">✅ OK</span>'
+        : a.status === 'WARN'
+          ? '<span class="badge badge-gold">⚠️ 1 competidor</span>'
+          : '<span class="badge badge-muted">⬜ 0 competidores</span>';
+      return `<tr>
+        <td class="text-sm">${_optCategoryLabel(a.cat)}</td>
+        <td class="text-sm">${a.cat.discipline}</td>
+        <td class="text-sm">${a.count}</td>
+        <td>${stateBadge}</td>
+      </tr>`;
+    }).join('');
+
+    const warnCount = analyzed.filter(a => a.status !== 'OK').length;
+    document.getElementById('opt-analysis-summary').textContent =
+      `${analyzed.length} categoría(s) analizada(s) · ${warnCount} con menos de 2 competidores.`;
+    _optShowStep(2);
+    return true;
+  }
+
+  /* Paso 2: resolver categorías <2 */
+  async function _optRenderResolve() {
+    const problems = _optState.categories.filter(a => a.status !== 'OK');
+    const listEl = document.getElementById('opt-resolve-list');
+    const emptyEl = document.getElementById('opt-resolve-empty');
+
+    if (!problems.length) {
+      emptyEl.style.display = 'block';
+      listEl.innerHTML = '';
+      _optState.resolve = {};
+      return;
+    }
+    emptyEl.style.display = 'none';
+
+    const rows = [];
+    for (const a of problems) {
+      const cat = a.cat;
+      let compatibles = [];
+      try {
+        compatibles = await Categories.getCompatibleCategories(cat.id);
+      } catch (_) { compatibles = []; }
+      const problemIds = new Set(_optState.categories.filter(x => x.status !== 'OK').map(x => x.cat.id));
+      const usable = compatibles.filter(c => !problemIds.has(c.id) || c.id === _optState.resolve[cat.id]?.dest);
+
+      const name = _optCategoryLabel(cat);
+      rows.push(`
+        <div class="card mb-2">
+          <div class="flex items-center justify-between" style="padding:.6rem 1rem;border-bottom:1px solid var(--border);">
+            <strong class="text-sm">${name} <span class="badge badge-gold">${a.count} comp.</span></strong>
+          </div>
+          <div style="padding:.75rem 1rem;">
+            <label class="flex items-center gap-2 text-sm" style="cursor:pointer;">
+              <input type="radio" name="opt-act-${cat.id}" value="skip" checked onchange="window._optOnResolveChange('${cat.id}')" />
+              🚫 No generar llaves (omitir)
+            </label>
+            <label class="flex items-center gap-2 text-sm" style="cursor:pointer;">
+              <input type="radio" name="opt-act-${cat.id}" value="one" onchange="window._optOnResolveChange('${cat.id}')" />
+              🦵 Generar llave de 1 competidor (BYE a podio)
+            </label>
+            <label class="flex items-center gap-2 text-sm" style="cursor:pointer;">
+              <input type="radio" name="opt-act-${cat.id}" value="fuse" onchange="window._optOnResolveChange('${cat.id}')" />
+              🔀 Fusionar con otra categoría
+              <select class="form-control" style="max-width:280px;margin-left:8px;" disabled id="opt-fuse-dest-${cat.id}">
+                <option value="">— elegir categoría destino —</option>
+                ${usable.map(c => `<option value="${c.id}">${_optCategoryLabel(c)}</option>`).join('')}
+              </select>
+            </label>
+            ${!usable.length ? '<p class="text-xs text-warning mt-1">No hay categorías compatibles disponibles para fusión.</p>' : ''}
+          </div>
+        </div>
+      `);
+    }
+    listEl.innerHTML = rows.join('');
+    _optShowStep(3);
+  }
+
+  window._optOnResolveChange = function(catId) {
+    const selected = document.querySelector(`input[name="opt-act-${catId}"]:checked`)?.value;
+    const destSelect = document.getElementById(`opt-fuse-dest-${catId}`);
+    if (destSelect) destSelect.disabled = selected !== 'fuse';
+    if (_optState.resolve[catId]) _optState.resolve[catId].action = selected || null;
+    else _optState.resolve[catId] = { action: selected || null, dest: null };
+    if (selected === 'fuse' && destSelect) {
+      _optState.resolve[catId].dest = destSelect.value || null;
+    }
+  };
+
+
+
+
+  /* Paso 4: confirmación */
+  function _optBuildConfirm() {
+    const problems = _optState.categories.filter(a => a.status !== 'OK');
+    const okCats   = _optState.categories.filter(a => a.status === 'OK');
+    const skips = [], fuses = [], ones = [];
+    for (const a of problems) {
+      const dec = _optState.resolve[a.cat.id];
+      if (dec?.action === 'skip') skips.push(_optCategoryLabel(a.cat));
+      else if (dec?.action === 'one') ones.push(_optCategoryLabel(a.cat));
+      else if (dec?.action === 'fuse') {
+        const destCat = _optState.categories.find(x => x.cat.id === dec.dest)?.cat;
+        fuses.push(`${_optCategoryLabel(a.cat)} → ${destCat ? _optCategoryLabel(destCat) : dec.dest}`);
+      }
+      else skips.push(_optCategoryLabel(a.cat));
+    }
+
+    const parts = [];
+    if (okCats.length) parts.push(`<div class="mb-1">✅ <strong>${okCats.length}</strong> categoría(s) con ≥2 competidores → se generarán llaves.</div>`);
+    if (fuses.length)  parts.push(`<div class="mb-1">🔀 <strong>${fuses.length}</strong> fusión(es):<ul class="mt-1">${fuses.map(f => `<li>${f}</li>`).join('')}</ul></div>`);
+    if (ones.length)   parts.push(`<div class="mb-1">🦵 <strong>${ones.length}</strong> llave(s) de 1 competidor (BYE directo).</div>`);
+    if (skips.length)  parts.push(`<div class="mb-1">🚫 <strong>${skips.length}</strong> categoría(s) omitida(s):<ul class="mt-1">${skips.map(s => `<li>${s}</li>`).join('')}</ul></div>`);
+
+    document.getElementById('opt-confirm-summary').innerHTML = parts.join('') || '<div class="text-sm">No hay categorías para procesar.</div>';
+    _optShowStep(5);
+  }
+
+  async function _optCount(categoryId) {
+    try {
+      const comps = await Competitors.listByCategory(categoryId);
+  /* Aplicar */
+  async function _optApply() {
+    const applyBtn = document.getElementById('btn-opt-apply');
+    applyBtn.disabled = true;
+    applyBtn.innerHTML = '<span class="spinner"></span> Generando...';
+    const resultEl = document.getElementById('opt-result-content');
+    resultEl.innerHTML = '<div class="text-center p-3"><span class="spinner"></span> Procesando categorías...</div>';
+    _optShowStep(6);
+
+    const warningsAll = [];
+    const errors = [];
+    const generated = [];
+    const skipped = [];
+    const fused = [];
+    const byes = [];
+
+    try {
+      const system = document.getElementById('opt-system').value;
+      const separateByClub = document.getElementById('opt-separate-club').checked;
+      const minTwo = document.getElementById('opt-min-two').checked;
+
+      // 1) Aplicar fusiones
+      const problems = _optState.categories.filter(a => a.status !== 'OK');
+      for (const a of problems) {
+        const dec = _optState.resolve[a.cat.id];
+        if (dec?.action === 'fuse' && dec.dest) {
+          try {
+            const res = await Categories.fuseCompetitors(a.cat.id, dec.dest);
+            const destCat = _optState.categories.find(x => x.cat.id === dec.dest)?.cat;
+            fused.push({ from: _optCategoryLabel(a.cat), to: destCat ? _optCategoryLabel(destCat) : dec.dest, moved: res.moved });
+          } catch (e) {
+            errors.push(`Fusión de "${_optCategoryLabel(a.cat)}": ${e.message}`);
+          }
+        }
+      }
+
+      // 2) Categorías finales: OK + destinos de fusión
+      const finalCats = [];
+      const seen = new Set();
+      for (const a of _optState.categories.filter(x => x.status === 'OK')) {
+        if (seen.has(a.cat.id)) continue;
+        seen.add(a.cat.id);
+        finalCats.push(a.cat);
+      }
+      for (const f of fused) {
+        const srcEntry = _optState.categories.find(x => _optCategoryLabel(x.cat) === f.from);
+        const srcDec = srcEntry ? _optState.resolve[srcEntry.cat.id] : null;
+        const destCat = srcDec ? _optState.categories.find(x => x.cat.id === srcDec.dest)?.cat : null;
+        if (destCat && !seen.has(destCat.id)) {
+          seen.add(destCat.id);
+          finalCats.push(destCat);
+        }
+      }
+
+      for (const cat of finalCats) {
+        const count = await _optCount(cat.id);
+        if (count === 0) { skipped.push(_optCategoryLabel(cat)); continue; }
+        if (count === 1 && minTwo) {
+          const dec = _optState.resolve[cat.id];
+          if (dec?.action === 'one') {
+            try {
+              const res = await Bracket.generate(cat.id, { system, separateByClub, allowOne: true });
+              byes.push(_optCategoryLabel(cat));
+              generated.push(_optCategoryLabel(cat));
+              if (res.warnings?.length) warningsAll.push(...res.warnings);
+            } catch (e) { errors.push(`Llave 1 comp "${_optCategoryLabel(cat)}": ${e.message}`); }
+          } else {
+            skipped.push(_optCategoryLabel(cat));
+          }
+          continue;
+        }
+        if (count < 2 && minTwo) { skipped.push(_optCategoryLabel(cat)); continue; }
+
+        try {
+          const res = await Bracket.generate(cat.id, { system, separateByClub });
+          generated.push(_optCategoryLabel(cat));
+          if (res.warnings?.length) warningsAll.push(...res.warnings);
+        } catch (e) { errors.push(`"${_optCategoryLabel(cat)}": ${e.message}`); }
+      }
+
+      // 3) Reporte
+      let html = '';
+      if (generated.length) html += `<div class="alert alert-success">✅ ${generated.length} llave(s) generada(s).</div>`;
+      if (fused.length)     html += `<div class="alert alert-info">🔀 ${fused.length} fusión(es):<ul class="mt-1">${fused.map(f => `<li>${f.from} → ${f.to} (${f.moved} comp.)</li>`).join('')}</ul></div>`;
+      if (byes.length)      html += `<div class="alert alert-info">🦵 ${byes.length} llave(s) de 1 competidor (BYE directo).</div>`;
+      if (skipped.length)   html += `<div class="alert alert-warning">🚫 ${skipped.length} categoría(s) omitida(s):<ul class="mt-1">${skipped.map(s => `<li>${s}</li>`).join('')}</ul></div>`;
+      if (warningsAll.length) html += `<div class="alert alert-warning">⚠️ Avisos:<ul class="mt-1">${warningsAll.slice(0, 8).map(w => `<li>${w}</li>`).join('')}</ul></div>`;
+      if (errors.length)    html += `<div class="alert alert-danger">❌ ${errors.length} error(es):<ul class="mt-1">${errors.slice(0, 8).map(e => `<li>${e}</li>`).join('')}</ul></div>`;
+
+      resultEl.innerHTML = html || '<div class="alert alert-info">No se generó nada.</div>';
+    } catch (e) {
+      resultEl.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    } finally {
+      applyBtn.disabled = false;
+      applyBtn.innerHTML = '🛠 Aplicar y generar';
+      await _loadCategories();
+      await _loadBracketPanel();
+      if (state.activeCategory) await _loadBracket(state.activeCategory);
+    }
+  }
+
+
+      return comps.length;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+
+  /* Handlers del asistente */
+  document.getElementById('btn-optimize-brackets').addEventListener('click', () => {
+    if (!state.activeTournament) { Display.toast('Seleccioná un torneo primero.', 'warning'); return; }
+    _optState.resolve = {};
+    _optState.categories = [];
+    document.querySelector('input[name="opt-scope"][value="tournament"]').checked = true;
+    document.getElementById('btn-opt-next').style.display = 'inline-flex';
+    document.getElementById('btn-opt-apply').style.display = 'none';
+    _optShowStep(1);
+    Display.openModal('modal-optimize');
+  });
+
+  document.getElementById('btn-opt-next').addEventListener('click', async () => {
+    if (_optState.step === 1) {
+      await _optRunAnalysis();
+    } else if (_optState.step === 2) {
+      await _optRenderResolve();
+    } else if (_optState.step === 3) {
+      const problems = _optState.categories.filter(a => a.status !== 'OK');
+      for (const a of problems) {
+        const selected = document.querySelector(`input[name="opt-act-${a.cat.id}"]:checked`)?.value;
+        const dec = _optState.resolve[a.cat.id];
+        if (selected === 'fuse' && !dec?.dest) {
+          const destSel = document.getElementById(`opt-fuse-dest-${a.cat.id}`);
+          if (destSel) destSel.focus();
+          Display.toast(`Elegí la categoría destino para "${_optCategoryLabel(a.cat)}".`, 'warning');
+          return;
+        }
+      }
+      _optShowStep(4);
+    } else if (_optState.step === 4) {
+      _optBuildConfirm();
+    }
+  });
+
+  document.getElementById('btn-opt-back').addEventListener('click', () => {
+    const prev = { 2: 1, 3: 2, 4: 3, 5: 4 };
+    const step = Boolean(prev[_optState.step]) ? prev[_optState.step] : 1;
+    _optShowStep(step);
+  });
+
+  document.getElementById('btn-opt-apply').addEventListener('click', _optApply);
+
+
 
   /* ---- Selector de sistema de llave ---- */
   document.getElementById('select-bracket-system').addEventListener('change', async (e) => {
@@ -2418,6 +2863,33 @@
         ? `✓ ${assigned} inscripción(es) creada(s)${alreadyHad ? ` · ${alreadyHad} ya existían` : ''}.`
         : `Todos los competidores ya estaban asignados a sus categorías.`;
       Display.toast(msg, assigned > 0 ? 'success' : 'info');
+      // Eliminar categorías vacías que no fueron creadas manualmente por el admin
+      try {
+        const removed = await Categories.removeEmpty(state.activeTournament.id);
+        if (removed > 0) Display.toast(`🗑 ${removed} categoría(s) vacía(s) eliminada(s).`, 'info');
+      } catch (emptyErr) {
+        console.warn('[Categories] No se pudieron limpiar categorías vacías:', emptyErr.message || emptyErr);
+      }
+      await _loadCategories();
+    } catch (e) {
+      Display.toast(e.message, 'error');
+    }
+  });
+
+  /* ---- Crear categoría manual (el admin la conserva aunque quede vacía) ---- */
+  document.getElementById('btn-new-category')?.addEventListener('click', async () => {
+    if (!state.activeTournament) { Display.toast('Seleccioná un torneo primero.', 'warning'); return; }
+    const name = prompt('Nombre de la categoría manual (ej: Kumite Senior Femenino):');
+    if (!name?.trim()) return;
+    try {
+      await Categories.create({
+        tournament_id: state.activeTournament.id,
+        discipline: 'kumite',
+        gender: 'MF',
+        name: name.trim(),
+        is_manual: true,
+      });
+      Display.toast('Categoría manual creada.', 'success');
       await _loadCategories();
     } catch (e) {
       Display.toast(e.message, 'error');
@@ -2437,7 +2909,7 @@
         Competitors.listByTournament(state.activeTournament.id),
         Categories.listByTournament(state.activeTournament.id),
       ]);
-      await Dojos.ensureCache();
+      await Dojos.ensureCache(state.activeTournament.id);
       if (!competitors.length) {
         tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No hay competidores inscritos.</td></tr>';
         return;
@@ -2866,10 +3338,10 @@
   document.getElementById('btn-save-competitor').addEventListener('click', async () => {
     const clubName = document.getElementById('c-club').value.trim();
     let dojoId = null;
-    // Auto-crear dojo si se especificó un club
+    // Auto-crear dojo si se especificó un club (en el torneo activo)
     if (clubName) {
       try {
-        const dojo = await Dojos.create(clubName);
+        const dojo = await Dojos.create(clubName, {}, state.activeTournament.id);
         dojoId = dojo?.id || null;
       } catch (e) {
         console.warn('No se pudo crear dojo automáticamente:', e);

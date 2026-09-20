@@ -94,10 +94,11 @@ CREATE TABLE IF NOT EXISTS tournament_codes (
 CREATE INDEX IF NOT EXISTS idx_codes_tournament ON tournament_codes(tournament_id);
 
 -- =====================================================
--- 4. COMPETIDORES (maestro global)
+-- 4. COMPETIDORES (maestro por torneo — datos aislados)
 -- =====================================================
 CREATE TABLE IF NOT EXISTS competitors (
   id            UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+  tournament_id UUID         NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
   full_name     TEXT         NOT NULL,
   document_id   TEXT,               -- DNI / cédula / pasaporte
   gender        TEXT         NOT NULL CHECK (gender IN ('M','F')),
@@ -110,8 +111,10 @@ CREATE TABLE IF NOT EXISTS competitors (
   created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
--- Índice para búsqueda por documento
-CREATE INDEX IF NOT EXISTS idx_competitors_doc ON competitors(document_id);
+-- Índice para búsqueda por documento (por torneo)
+CREATE INDEX IF NOT EXISTS idx_competitors_tournament ON competitors(tournament_id);
+CREATE INDEX IF NOT EXISTS idx_competitors_doc ON competitors(tournament_id, document_id);
+
 
 -- =====================================================
 -- 5. CATEGORÍAS
@@ -128,6 +131,7 @@ CREATE TABLE IF NOT EXISTS categories (
   bracket_system  TEXT         NOT NULL DEFAULT 'auto'
                                CHECK (bracket_system IN ('auto','single_elimination','repechage','round_robin','double_elimination','kata_individual','kata_duels')),
   tatami          TEXT,               -- Tatami/área asignada a esta categoría
+  is_manual       BOOLEAN      NOT NULL DEFAULT false,  -- Categoría creada manualmente por el admin (no se elimina al limpiar vacías)
   created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
@@ -311,16 +315,24 @@ CREATE POLICY "codes: eliminar por organizador" ON tournament_codes
     tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
   );
 
--- ---- competitors ----
+-- ---- competitors (por torneo) ----
 DROP POLICY IF EXISTS "competitors: ver todos (autenticados)" ON competitors;
-CREATE POLICY "competitors: ver todos (autenticados)" ON competitors
-  FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "competitors: ver del torneo (autenticados)" ON competitors
+  FOR SELECT USING (
+    tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
+    OR tournament_id IN (SELECT id FROM tournaments WHERE is_public = TRUE)
+  );
 DROP POLICY IF EXISTS "competitors: crear autenticados" ON competitors;
-CREATE POLICY "competitors: crear autenticados" ON competitors
-  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "competitors: crear en torneo propio" ON competitors
+  FOR INSERT WITH CHECK (
+    auth.role() = 'authenticated'
+    AND tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
+  );
 DROP POLICY IF EXISTS "competitors: editar autenticados" ON competitors;
-CREATE POLICY "competitors: editar autenticados" ON competitors
-  FOR UPDATE USING (auth.role() = 'authenticated');
+CREATE POLICY "competitors: editar en torneo propio" ON competitors
+  FOR UPDATE USING (
+    tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
+  );
 
 -- ---- categories ----
 DROP POLICY IF EXISTS "categories: ver públicas" ON categories;
@@ -435,7 +447,8 @@ CREATE INDEX IF NOT EXISTS idx_registrations_status ON registrations(status);
 -- =====================================================
 CREATE TABLE IF NOT EXISTS dojos (
   id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
-  name        TEXT         NOT NULL UNIQUE,
+  tournament_id UUID       NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+  name        TEXT         NOT NULL,
   logo_url    TEXT,
   country_code TEXT,
   website     TEXT,
@@ -443,6 +456,32 @@ CREATE TABLE IF NOT EXISTS dojos (
   created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
   updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
+
+-- Un dojo con el mismo nombre puede existir en distintos torneos,
+-- pero no duplicado dentro del mismo torneo.
+
+-- Eliminar la constraint UNIQUE global de nombre de dojos (si existe),
+-- ya que ahora la unicidad es por torneo.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'dojos_name_key'
+      AND conrelid = 'dojos'::regclass
+      AND contype IN ('u', 'p', 'x')
+  ) THEN
+    ALTER TABLE dojos DROP CONSTRAINT dojos_name_key;
+  ELSIF EXISTS (
+    SELECT 1 FROM pg_indexes
+    WHERE schemaname = 'public' AND tablename = 'dojos' AND indexname = 'dojos_name_key'
+  ) THEN
+    DROP INDEX dojos_name_key;
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_dojos_tournament ON dojos(tournament_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_dojos_name_per_tournament ON dojos(tournament_id, lower(name));
+
 
 -- =====================================================
 -- MIGRACIÓN: Agregar columna dojo_id a competitors
@@ -461,10 +500,59 @@ ADD COLUMN IF NOT EXISTS country_code TEXT;
 
 ALTER TABLE dojos ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "dojos_select_public" ON dojos;
-CREATE POLICY "dojos_select_public" ON dojos FOR SELECT USING (true);
+CREATE POLICY "dojos_select_public" ON dojos
+  FOR SELECT USING (
+    tournament_id IN (SELECT id FROM tournaments WHERE is_public = TRUE)
+    OR tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
+  );
 DROP POLICY IF EXISTS "dojos_write_authenticated" ON dojos;
 CREATE POLICY "dojos_write_authenticated" ON dojos
-  FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+  FOR ALL USING (
+    auth.uid() IS NOT NULL
+    AND tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
+  ) WITH CHECK (
+    tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
+  );
+
+-- =====================================================
+-- MIGRACIÓN: AISLAMIENTO TOTAL POR TORNEO
+-- Agregar tournament_id a competitors y dojos para que
+-- cada torneo tenga sus propios competidores y dojos,
+-- sin que se mezclen ni se reutilicen entre torneos.
+-- =====================================================
+ALTER TABLE competitors
+  ADD COLUMN IF NOT EXISTS tournament_id UUID REFERENCES tournaments(id) ON DELETE CASCADE;
+
+ALTER TABLE dojos
+  ADD COLUMN IF NOT EXISTS tournament_id UUID REFERENCES tournaments(id) ON DELETE CASCADE;
+
+-- Backfill: para registros existentes, asignar el torneo de su inscripción
+UPDATE competitors c
+SET tournament_id = r.tournament_id
+FROM registrations r
+WHERE c.tournament_id IS NULL
+  AND r.competitor_id = c.id;
+
+UPDATE dojos d
+SET tournament_id = comp.tournament_id
+FROM competitors comp
+WHERE d.tournament_id IS NULL
+  AND comp.dojo_id = d.id;
+
+-- Hacer NOT NULL solo si ya existen datos asignados (si no hay datos, queda como está)
+ALTER TABLE competitors ALTER COLUMN tournament_id DROP NOT NULL;
+ALTER TABLE dojos        ALTER COLUMN tournament_id DROP NOT NULL;
+
+-- Índices de aislamiento
+CREATE INDEX IF NOT EXISTS idx_competitors_tournament ON competitors(tournament_id);
+CREATE INDEX IF NOT EXISTS idx_dojos_tournament ON dojos(tournament_id);
+
+-- Marcar categorías manuales: las creadas por el admin con is_manual=true
+-- no serán eliminadas al limpiar categorías vacías.
+ALTER TABLE categories
+  ADD COLUMN IF NOT EXISTS is_manual boolean NOT NULL DEFAULT false;
+
+NOTIFY pgrst, 'reload schema';
 
 -- =====================================================
 -- RPC: validate_tournament_code

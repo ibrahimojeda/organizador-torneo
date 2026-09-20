@@ -31,7 +31,15 @@
       Display.toast('Error de conexion con Supabase.', 'error'); return;
     }
     if (!Auth.isDevMode()) {
-      try { await supabase.auth.getSession(); } catch (_) {}
+      // Restaura la sesión persistida por supabase-js (renueva el refresh_token si expiró).
+      // Si el refresh_token guardado fue invalidado (borrado en Supabase), se limpia el
+      // storage local para evitar el bucle de "Invalid Refresh Token" (401 en REST).
+      var sbOk = false;
+      try { sbOk = await Auth._restoreSupabaseSession(); } catch (_) {}
+      if (!sbOk) {
+        try { Auth._clearSupabaseStorage(); } catch (_) {}
+        try { await supabase.auth.getSession(); sbOk = true; } catch (_) { sbOk = false; }
+      }
       var isHandlingSignOut = false;
       supabase.auth.onAuthStateChange(function(event, session) {
         if (event === 'SIGNED_OUT' && !isHandlingSignOut) { isHandlingSignOut = true; Auth.logout(); }

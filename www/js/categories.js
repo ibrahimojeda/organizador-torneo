@@ -96,6 +96,7 @@ const Categories = (() => {
       belt_group_id:   data.belt_group_id   || null,
       bracket_system:  data.bracket_system  || 'auto',
       name:            data.name || _buildName(data),
+      is_manual:       data.is_manual === undefined ? !!data.manual : !!data.is_manual,
     };
     if (Auth.isDevMode()) return _devCreate(payload);
     const { data: created, error } = await supabase.from(TABLE).insert(payload).select().single();
@@ -341,6 +342,174 @@ const Categories = (() => {
     if (!data.gender)        throw new Error('El género es requerido.');
   }
 
+  /* --------------------------------------------------------
+     ELIMINAR CATEGORÍAS VACÍAS DE UN TORNEO
+     Borra las categorías del torneo que no tienen
+     inscripciones, EXCEPTO las creadas manualmente
+     por el administrador (is_manual = true).
+     @param {string} tournamentId
+     @returns {number} Cantidad eliminada
+  -------------------------------------------------------- */
+  async function removeEmpty(tournamentId) {
+    if (!tournamentId) return 0;
+    if (Auth.isDevMode()) {
+      const list = _devList();
+      const regs = JSON.parse(localStorage.getItem('ot_dev_registrations') || '[]');
+      const withReg = new Set(regs.filter(r => r.tournament_id === tournamentId).map(r => r.category_id));
+      const remaining = list.filter(c =>
+        c.tournament_id !== tournamentId || withReg.has(c.id) || c.is_manual
+      );
+      const removed = list.length - remaining.length;
+      _devSave(remaining);
+      return removed;
+    }
+    // Obtener categorías del torneo
+    const { data: cats, error: catError } = await supabase
+      .from(TABLE)
+      .select('id, is_manual')
+      .eq('tournament_id', tournamentId);
+    if (catError) throw catError;
+
+    // Obtener categorías con inscripciones en ese torneo
+    const { data: regs, error: regError } = await supabase
+      .from('registrations')
+      .select('category_id')
+      .eq('tournament_id', tournamentId);
+    if (regError) throw regError;
+
+    const used = new Set((regs || []).map(r => r.category_id));
+
+    const toDelete = (cats || [])
+      .filter(c => !used.has(c.id) && !c.is_manual)
+      .map(c => c.id);
+
+    if (!toDelete.length) return 0;
+
+    // Solo borrar si no tienen combates generados
+    const { data: matches, error: mError } = await supabase
+      .from('matches')
+      .select('id')
+      .in('category_id', toDelete)
+      .limit(1);
+    if (mError) throw mError;
+    if (matches && matches.length) return 0;
+
+    const { error: delError } = await supabase.from(TABLE).delete().in('id', toDelete);
+    if (delError) throw delError;
+    return toDelete.length;
+  }
+
+  /* --------------------------------------------------------
+     OBTENER CATEGORÍAS COMPATIBLES PARA FUSIÓN
+     Devuelve las categorías del mismo torneo que podrían
+     recibir competidores de `sourceCategoryId`:
+       - Misma disciplina
+       - Mismo género
+       - Mismo grupo de cinturón (si age_belt) o clase de peso
+         contigua (si age_weight), o edad consecutiva (±1)
+     @param {string} sourceCategoryId
+     @returns {object[]} Categorías candidatas (sin la propia)
+  -------------------------------------------------------- */
+  async function getCompatibleCategories(sourceCategoryId) {
+    const source = await getById(sourceCategoryId);
+    if (!source) return [];
+    const all = await listByTournament(source.tournament_id);
+    const tournament = await Tournament.getById(source.tournament_id);
+    const mode = tournament.category_mode || 'age_belt';
+
+    const ageOrder = ['mini', 'benjamines', 'alevines', 'infantil', 'cadete', 'junior', 'sub21', 'senior', 'veteranos'];
+    const idxFrom = ageOrder.indexOf(source.age_group_id);
+
+    return all.filter(c =>
+      c.id !== source.id &&
+      c.discipline === source.discipline &&
+      c.gender === source.gender
+    ).filter(c => {
+      if (mode === 'age_weight') {
+        // Clases de peso: contiguas (mismo gender). age_group igual o consecutivo.
+        const ageOk = !source.age_group_id || !c.age_group_id ||
+          c.age_group_id === source.age_group_id ||
+          (idxFrom >= 0 && Math.abs(ageOrder.indexOf(c.age_group_id) - idxFrom) <= 1);
+        if (!ageOk) return false;
+        if (!source.weight_class_id || !c.weight_class_id) return true;
+        // Mismo torneo, misma disciplina y género: comparar contiguas por label numérico
+        return true; // Dejamos la decisión fina al admin en el dropdown
+      }
+      // age_belt: mismo grupo de cinturón O edad consecutiva
+      if (source.belt_group_id && c.belt_group_id && source.belt_group_id === c.belt_group_id) return true;
+      if (idxFrom >= 0 && c.age_group_id && Math.abs(ageOrder.indexOf(c.age_group_id) - idxFrom) <= 1) return true;
+      return false;
+    }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }
+
+  /* --------------------------------------------------------
+     FUSIONAR categorías: mover competidores de una a otra
+     Mueve todas las inscripciones de `sourceCategoryId` hacia
+     `destCategoryId`. Luego elimina la categoría origen si
+     queda vacía (excepto si es manual).
+     @param {string} sourceCategoryId
+     @param {string} destCategoryId
+     @returns {object} { moved, sourceRemoved }
+  -------------------------------------------------------- */
+  async function fuseCompetitors(sourceCategoryId, destCategoryId) {
+    if (sourceCategoryId === destCategoryId) throw new Error('La categoría de origen y destino son iguales.');
+
+    if (Auth.isDevMode()) {
+      const regs = JSON.parse(localStorage.getItem('ot_dev_registrations') || '[]');
+      let moved = 0;
+      const updated = regs.map(r => {
+        if (r.category_id === sourceCategoryId) {
+          moved++;
+          return { ...r, category_id: destCategoryId };
+        }
+        return r;
+      });
+      localStorage.setItem('ot_dev_registrations', JSON.stringify(updated));
+      const catList = _devList();
+      const source = catList.find(c => c.id === sourceCategoryId);
+      const stillHas = updated.filter(r => r.category_id === sourceCategoryId).length;
+      let sourceRemoved = false;
+      if (!stillHas && source && !source.is_manual) {
+        _devSave(catList.filter(c => c.id !== sourceCategoryId));
+        sourceRemoved = true;
+      }
+      return { moved, sourceRemoved };
+    }
+
+    // Supabase: mover registrations
+    const { data: movedRows, error: moveError } = await supabase
+      .from('registrations')
+      .select('id')
+      .eq('category_id', sourceCategoryId);
+    if (moveError) throw moveError;
+    const moved = (movedRows || []).length;
+
+    if (moved) {
+      const { error: updError } = await supabase
+        .from('registrations')
+        .update({ category_id: destCategoryId })
+        .eq('category_id', sourceCategoryId);
+      if (updError) throw updError;
+    }
+
+    // Eliminar la categoría origen si quedó vacía (y no es manual)
+    const { data: cat } = await supabase
+      .from(TABLE).select('is_manual').eq('id', sourceCategoryId).maybeSingle();
+    let sourceRemoved = false;
+    if (cat && !cat.is_manual) {
+      const { count } = await supabase
+        .from('registrations')
+        .select('id', { count: 'exact' })
+        .eq('category_id', sourceCategoryId);
+      if ((count || 0) === 0) {
+        const { error: delError } = await supabase
+          .from(TABLE).delete().eq('id', sourceCategoryId);
+        if (!delError) sourceRemoved = true;
+      }
+    }
+    return { moved, sourceRemoved };
+  }
+
   return {
     autoGenerate,
     create,
@@ -348,7 +517,10 @@ const Categories = (() => {
     getById,
     update,
     remove,
+    removeEmpty,
     assignCompetitor,
+    getCompatibleCategories,
+    fuseCompetitors,
     buildLabel,
   };
 })();

@@ -4,6 +4,24 @@
 
 // superadmin.js — Panel exclusivo para super_admin
 (function () {
+  // --- Supabase: inicializar cliente y restaurar sesión Auth persistida ---
+  (async () => {
+    try {
+      if (typeof window.supabase === 'undefined' || typeof window.supabase.from !== 'function') {
+        if (window.supabase && typeof window.supabase.createClient === 'function') {
+          window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        }
+      }
+      if (!Auth.isDevMode()) {
+        let sbOk = false;
+        try { sbOk = await Auth._restoreSupabaseSession(); } catch (_) {}
+        if (!sbOk) {
+          try { Auth._clearSupabaseStorage(); } catch (_) {}
+          try { sbOk = await supabase.auth.getSession() && true; } catch (_) { sbOk = false; }
+        }
+      }
+    } catch (_) {}
+  })();
   // --- Helpers ---
   function showPanel(panel) {
     // Oculta todos los paneles

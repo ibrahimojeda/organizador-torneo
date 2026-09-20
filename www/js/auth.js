@@ -6,18 +6,70 @@ const Auth = (() => {
 
   const SESSION_KEY = 'ot_session';
 
+  /* ---- Claves de respaldo de la sesión de Supabase Auth ---- */
+  const SB_AUTH_KEY     = 'sb-' + (SUPABASE_URL || '').split('//')[1]?.split('.')[0] + '-auth-token';
+  const SB_ACCESS_KEY   = 'ot_sb_access_token';
+  const SB_REFRESH_KEY  = 'ot_sb_refresh_token';
+
   /* ---- Estado interno ---- */
   let _session = null;
+
+  /* ---- Init fallido (protección anti-reintento) ---- */
+  let _sbInitFailed = false;
+
+  /* ---- Guarda un respaldo de la sesión de Supabase Auth ---- */
+  function _backupSupabaseSession(sbSession) {
+    if (!sbSession) return;
+    try {
+      const access = sbSession.access_token || null;
+      const refresh = sbSession.refresh_token || null;
+      if (access) localStorage.setItem(SB_ACCESS_KEY, access);
+      if (refresh) localStorage.setItem(SB_REFRESH_KEY, refresh);
+    } catch (_) {}
+  }
+
+  /* ---- Restaura la sesión de Supabase Auth en el cliente (si hizo falta) ---- */
+  async function _restoreSupabaseSession() {
+    if (!supabase || typeof supabase.auth?.getSession !== 'function') return false;
+    try {
+      const current = await supabase.auth.getSession();
+      const sbSession = current?.data?.session;
+      if (sbSession?.access_token) {
+        _backupSupabaseSession(sbSession);
+        return true;
+      }
+      const cached = await supabase.auth.getSession(); // 2º intento (fuerza lectura del storage)
+      if (cached?.data?.session?.access_token) {
+        _backupSupabaseSession(cached.data.session);
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  /* ---- Limpia TODOS los restos de sesión de Supabase en el navegador ---- */
+  function _clearSupabaseStorage() {
+    try {
+      const remove = [SB_AUTH_KEY, SB_ACCESS_KEY, SB_REFRESH_KEY, 'sb-auth-token'];
+      remove.forEach(key => localStorage.removeItem(key));
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && key.indexOf('sb-') === 0) localStorage.removeItem(key);
+      }
+    } catch (_) {}
+  }
 
   /* ---- Inicializa Supabase si las credenciales están disponibles ---- */
   function _initSupabase() {
     if (supabase && typeof supabase.from === 'function') return true;
+    if (_sbInitFailed) return false;
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return false;
     try {
       window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       return true;
     } catch (e) {
       console.error('[Auth] Error al inicializar Supabase:', e);
+      _sbInitFailed = true;
       return false;
     }
   }
@@ -211,6 +263,10 @@ const Auth = (() => {
       throw new Error(ERR_NETWORK);
     }
     if (error) throw error;
+
+    // Respaldo local de la sesión de Supabase Auth (access + refresh)
+    // para poder restaurarla en el próximo arranque sin volver a iniciar sesión.
+    _backupSupabaseSession(data.session);
 
     const role = await _fetchRole(data.user.id);
     const session = {
@@ -598,6 +654,7 @@ const Auth = (() => {
       if (supabase) {
         try { await supabase.auth.signOut(); } catch (_) {}
       }
+      _clearSupabaseStorage();
       _saveSession(null);
       const isLocalHost = /localhost|127\.0\.0\.1/.test(window.location.hostname);
       window.location.href = isLocalHost ? '/index.html' : '/organizador-torneo/index.html';
@@ -691,6 +748,8 @@ const Auth = (() => {
     changePassword,
     updateActive,
     toggleActive,
+    _clearSupabaseStorage,
+    _restoreSupabaseSession,
     _saveDevSession: _saveSession,
   };
 })();

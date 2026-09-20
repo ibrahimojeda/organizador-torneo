@@ -16,9 +16,11 @@ const Competitors = (() => {
   function _devSaveC(l)     { localStorage.setItem(DEV_KEY_C, JSON.stringify(l)); }
   function _devSaveR(l)     { localStorage.setItem(DEV_KEY_R, JSON.stringify(l)); }
 
-  function _devFindByDoc(docId) {
+  function _devFindByDoc(docId, tournamentId) {
     if (!docId) return null;
-    return _devCompList().find(c => c.document_id === docId) || null;
+    return _devCompList().find(c =>
+      c.document_id === docId && String(c.tournament_id || '') === String(tournamentId || '')
+    ) || null;
   }
   function _devCreateComp(payload) {
     const c = { ...payload, id: generateId(), created_at: new Date().toISOString() };
@@ -68,12 +70,12 @@ const Competitors = (() => {
     _validate(data);
     // El dojo se determina siempre desde el texto libre del formulario/CSV.
     // Así todos los flujos conservan dojo_id y pueden mostrar su logo.
-    const normalizedData = await _attachDojo(data);
+    const normalizedData = await _attachDojo(data, tournamentId);
 
     if (Auth.isDevMode()) {
-      let competitor = _devFindByDoc(normalizedData.document_id);
-      if (!competitor) competitor = _devCreateComp(_buildPayload(normalizedData));
-      else competitor = _devUpdateComp(competitor.id, _buildPayload(normalizedData));
+      let competitor = _devFindByDoc(normalizedData.document_id, tournamentId);
+      if (!competitor) competitor = _devCreateComp(_buildPayload(normalizedData, tournamentId));
+      else competitor = _devUpdateComp(competitor.id, _buildPayload(normalizedData, tournamentId));
       if (_devIsRegistered(competitor.id, tournamentId))
         throw new Error(`${competitor.full_name} ya está inscrito en este torneo.`);
       // Asigna categorías reales (categories.js ya tiene guardas dev)
@@ -84,10 +86,10 @@ const Competitors = (() => {
       return { competitor, registrations };
     }
 
-    // 1. Busca o crea el competidor por DNI/pasaporte
-    let competitor = await _findByDocument(normalizedData.document_id);
+    // 1. Busca o crea el competidor por DNI/pasaporte (SOLO en este torneo)
+    let competitor = await _findByDocument(normalizedData.document_id, tournamentId);
     if (!competitor) {
-      competitor = await _createCompetitor(normalizedData);
+      competitor = await _createCompetitor(normalizedData, tournamentId);
     } else {
       // Actualiza datos si cambiaron
       competitor = await _updateCompetitor(competitor.id, normalizedData);
@@ -402,40 +404,43 @@ const Competitors = (() => {
   /* --------------------------------------------------------
      BUSCAR COMPETIDORES (para autocompletado)
   -------------------------------------------------------- */
-  async function search(query) {
-    const { data, error } = await supabase
+  async function search(query, tournamentId) {
+    let q = supabase
       .from(TABLE_COMP)
-      .select('id, full_name, document_id, club, country, belt_id, dojo_id')
+      .select('id, full_name, document_id, club, country, belt_id, dojo_id, tournament_id')
       .or(`full_name.ilike.%${query}%,document_id.ilike.%${query}%,club.ilike.%${query}%`)
       .limit(10);
+    if (tournamentId) q = q.eq('tournament_id', tournamentId);
+    const { data, error } = await q;
     if (error) throw error;
     return data || [];
   }
 
   /* ---- Helpers privados ---- */
 
-  async function _findByDocument(documentId) {
+  async function _findByDocument(documentId, tournamentId) {
     if (!documentId) return null;
-    if (Auth.isDevMode()) return _devFindByDoc(documentId);
-    const { data } = await supabase
+    if (Auth.isDevMode()) return _devFindByDoc(documentId, tournamentId);
+    let q = supabase
       .from(TABLE_COMP)
       .select('*')
-      .eq('document_id', documentId)
-      .maybeSingle();
+      .eq('document_id', documentId);
+    if (tournamentId) q = q.eq('tournament_id', tournamentId);
+    const { data } = await q.maybeSingle();
     return data || null;
   }
 
-  async function _attachDojo(data) {
+  async function _attachDojo(data, tournamentId) {
     const club = data.club?.trim();
     if (!club || typeof Dojos === 'undefined' || !Dojos.create) return { ...data, dojo_id: data.dojo_id || null };
     const country = getCountryInfo(data.country);
-    const dojo = await Dojos.create(club, country.code ? { country_code: country.code } : {});
+    const dojo = await Dojos.create(club, country.code ? { country_code: country.code } : {}, tournamentId);
     return { ...data, country: data.country || dojo?.country_code || '', dojo_id: dojo?.id || data.dojo_id || null };
   }
 
-  async function _createCompetitor(data) {
-    if (Auth.isDevMode()) return _devCreateComp(_buildPayload(data));
-    const payload = _buildPayload(data);
+  async function _createCompetitor(data, tournamentId) {
+    if (Auth.isDevMode()) return _devCreateComp(_buildPayload(data, tournamentId));
+    const payload = _buildPayload(data, tournamentId);
     const { data: created, error } = await supabase
       .from(TABLE_COMP)
       .insert(payload)
@@ -496,7 +501,7 @@ const Competitors = (() => {
     return data;
   }
 
-  function _buildPayload(data) {
+  function _buildPayload(data, tournamentId) {
     const payload = {};
     if (data.full_name)    payload.full_name    = data.full_name.trim();
     if (data.document_id)  payload.document_id  = data.document_id.trim();
@@ -510,6 +515,7 @@ const Competitors = (() => {
     if (data.photo_url)    payload.photo_url    = data.photo_url;
     // 'kata' | 'kumite' | 'both' — default: 'kumite'
     payload.discipline = ['kata', 'kumite', 'both'].includes(data.discipline) ? data.discipline : 'kumite';
+    if (tournamentId)      payload.tournament_id = tournamentId;
     return payload;
   }
 

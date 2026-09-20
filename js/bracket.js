@@ -75,26 +75,35 @@ const Bracket = (() => {
      GENERAR LLAVES PARA UNA CATEGORÍA
      Detecta el sistema automáticamente o usa el especificado.
      @param {string} categoryId
+     @param {object} options - Opcional:
+       - system:        'auto' | 'single_elimination' | 'repechage' |
+                        'round_robin' | 'double_elimination' | 'kata_individual' | 'kata_duels'
+       - separateByClub: boolean (default true). Si false, no separa por club en R1.
+       - allowOne:       boolean (default false). Si true, permite generar con 1 competidor (BYE a podio).
      @returns {object[]} Combates (matches) creados
   -------------------------------------------------------- */
-  async function generate(categoryId) {
+  async function generate(categoryId, options = {}) {
     const category    = await Categories.getById(categoryId);
     const competitors = await Competitors.listByCategory(categoryId);
 
-    if (competitors.length < 2) {
+    if (competitors.length < 2 && !options.allowOne) {
       throw new Error('Se necesitan al menos 2 competidores para generar llaves.');
+    }
+    if (!competitors.length) {
+      throw new Error('No hay competidores inscritos en esta categoría.');
     }
 
     await _clearPendingMatches(categoryId);
 
-    const system = _resolveSystem(category.bracket_system, competitors.length);
+    const forcedSystem = options.system || null;
+    const system = forcedSystem ? forcedSystem : _resolveSystem(category.bracket_system, competitors.length);
 
     // --- Separar por club (evita mismo dojo en R1) ---
-    const separated = _separateByClub(competitors);
+    const separated = options.separateByClub === false ? [...competitors] : _separateByClub(competitors);
 
     // Detectar conflictos restantes tras la separación
     const warnings = [];
-    if (system !== 'round_robin') {
+    if (system !== 'round_robin' && competitors.length >= 2) {
       const size      = nextPowerOf2(separated.length);
       const tempBracket = _seedIntoBracket(separated, size);
       const conflicts = _detectClubConflicts(tempBracket);
@@ -107,6 +116,7 @@ const Bracket = (() => {
     let matches;
     switch (system) {
       case 'kata_individual':     matches = _buildKataElimination(competitors, category); break;
+      case 'kata_duels':          matches = _buildSingleElimination(separated, category, true); break;
       case 'round_robin':         matches = _buildRoundRobin(separated, category, true); break;
       case 'single_elimination':  matches = _buildSingleElimination(separated, category, true); break;
       case 'repechage':           matches = _buildRepechage(separated, category, true); break;

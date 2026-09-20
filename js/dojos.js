@@ -11,14 +11,19 @@ const Dojos = (() => {
   function _devSave(list) { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); }
 
   /* --------------------------------------------------------
-     LISTAR DOJOS
+     LISTAR DOJOS DE UN TORNEO
+     Solo devuelve los dojos del torneo activo (aislamiento).
   -------------------------------------------------------- */
-  async function list() {
-    if (Auth.isDevMode()) return _devList();
-    const { data, error } = await supabase
+  async function list(tournamentId) {
+    if (Auth.isDevMode()) {
+      return _devList().filter(d => String(d.tournament_id || '') === String(tournamentId || ''));
+    }
+    let query = supabase
       .from(TABLE_DOJOS)
-      .select('id, name, logo_url, country_code, website, notes')
+      .select('id, name, logo_url, country_code, website, notes, tournament_id')
       .order('name');
+    if (tournamentId) query = query.eq('tournament_id', tournamentId);
+    const { data, error } = await query;
     if (error) throw error;
     return data || [];
   }
@@ -39,13 +44,17 @@ const Dojos = (() => {
   }
 
   /* --------------------------------------------------------
-     CREAR DOJO
+     CREAR DOJO (en un torneo)
+     Cada torneo tiene su copia; nunca se reutiliza de otro.
   -------------------------------------------------------- */
-  async function create(name, payload = {}) {
+  async function create(name, payload = {}, tournamentId) {
     if (!name?.trim()) throw new Error('El nombre del dojo es obligatorio.');
     if (Auth.isDevMode()) {
       const list = _devList();
-      const exists = list.find(d => d.name.toLowerCase() === name.trim().toLowerCase());
+      const exists = list.find(d =>
+        d.name.toLowerCase() === name.trim().toLowerCase() &&
+        String(d.tournament_id || '') === String(tournamentId || '')
+      );
       if (exists) {
         if (payload.country_code && exists.country_code !== payload.country_code) {
           Object.assign(exists, payload);
@@ -53,21 +62,30 @@ const Dojos = (() => {
         }
         return exists;
       }
-      const dojo = { id: generateId(), name: name.trim(), logo_url: null, ...payload };
+      const dojo = { id: generateId(), name: name.trim(), logo_url: null, tournament_id: tournamentId || null, ...payload };
       list.push(dojo);
       _devSave(list);
       invalidateCache();
       return dojo;
     }
+    const insertPayload = {
+      name: name.trim(),
+      tournament_id: tournamentId || null,
+      ...payload,
+    };
     const { data, error } = await supabase
       .from(TABLE_DOJOS)
-      .insert({ name: name.trim(), ...payload })
+      .insert(insertPayload)
       .select()
       .single();
     if (error) {
       if (error.code === '23505') {
-        const { data: existing } = await supabase
-          .from(TABLE_DOJOS).select('*').eq('name', name.trim()).maybeSingle();
+        // Duplicado: buscar el dojo del MISMO torneo
+        let q = supabase.from(TABLE_DOJOS)
+          .select('*')
+          .eq('name', name.trim());
+        if (tournamentId) q = q.eq('tournament_id', tournamentId);
+        const { data: existing } = await q.maybeSingle();
         if (existing && payload.country_code && existing.country_code !== payload.country_code) {
           return await update(existing.id, payload);
         }
@@ -169,11 +187,13 @@ const Dojos = (() => {
   }
 
   /**
-   * Carga la lista de dojos en caché (para renderizado rápido)
+   * Carga la lista de dojos en caché (para renderizado rápido).
+   * Si se pasa tournamentId, solo carga los dojos del torneo;
+   * si no, carga todos (compatibilidad con referee/judge/public).
    */
-  async function ensureCache() {
+  async function ensureCache(tournamentId) {
     if (_cachedDojos && _cachedDojos.size) return _cachedDojos;
-    const dojos = await list();
+    const dojos = await list(tournamentId);
     const map = new Map();
     dojos.forEach(d => map.set(d.id, d));
     _cachedDojos = map;
