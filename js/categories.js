@@ -510,6 +510,183 @@ const Categories = (() => {
     return { moved, sourceRemoved };
   }
 
+  /* --------------------------------------------------------
+     ¿LA CATEGORÍA ES DE EDAD MIXTA PERMITIDA?
+     Para menores de 7 años (mini y benjamines) se permite
+     fusionar géneros en una categoría mixta (MF).
+  -------------------------------------------------------- */
+  function isMixedAllowed(ageGroupId) {
+    return ['mini', 'benjamines'].includes(ageGroupId || '');
+  }
+
+  /* --------------------------------------------------------
+     OBTENER CATEGORÍAS COMPATIBLES PARA FUSIÓN MIXTA
+     Devuelve categorías del gender opuesto (M<->F) de la
+     misma disciplina y grupo etario (o consecutivo), solo
+     si la categoría fuente es de menores de 7 años.
+     @param {string} sourceCategoryId
+     @returns {object[]} Categorías candidatas mixtas
+  -------------------------------------------------------- */
+  async function getCompatibleMixtaCategories(sourceCategoryId) {
+    const source = await getById(sourceCategoryId);
+    if (!source || !isMixedAllowed(source.age_group_id)) return [];
+
+    const all = await listByTournament(source.tournament_id);
+    const ageOrder = ['mini', 'benjamines', 'alevines', 'infantil', 'cadete', 'junior', 'sub21', 'senior', 'veteranos'];
+    const idxFrom = ageOrder.indexOf(source.age_group_id);
+    const oppositeGender = source.gender === 'M' ? 'F' : (source.gender === 'F' ? 'M' : null);
+    if (!oppositeGender) return [];
+
+    return all.filter(c =>
+      c.id !== source.id &&
+      c.discipline === source.discipline &&
+      c.gender === oppositeGender
+    ).filter(c => {
+      if (!source.age_group_id || !c.age_group_id) return true;
+      return c.age_group_id === source.age_group_id ||
+        (idxFrom >= 0 && Math.abs(ageOrder.indexOf(c.age_group_id) - idxFrom) <= 1);
+    }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }
+  /* --------------------------------------------------------
+     FUSIONAR COMO MIXTO (M+F) para menores de 7 años
+     Crea (o reutiliza) una categoría con gender 'MF',
+     mueve las inscripciones de las categorías indicadas y
+     elimina las fuentes (excepto manuales).
+     @param {string[]} sourceIds - Categorías a mezclar (2+)
+     @param {string} tournamentId
+     @returns {object} { category, moved, removed }
+  -------------------------------------------------------- */
+  async function fuseMixed(sourceIds, tournamentId) {
+    if (!Array.isArray(sourceIds) || sourceIds.length < 2) {
+      throw new Error('Se necesitan al menos 2 categorías para crear una categoría mixta.');
+    }
+    const ids = [...new Set(sourceIds)];
+    if (!tournamentId) throw new Error('tournament_id es requerido.');
+
+    /* ---- Dev mode ---- */
+    if (Auth.isDevMode()) {
+      const catList = _devList();
+      const regs = JSON.parse(localStorage.getItem('ot_dev_registrations') || '[]');
+      const sources = catList.filter(c => ids.includes(c.id));
+      if (sources.length < 2) throw new Error('No se encontraron las categorías origen.');
+
+      const first = sources[0];
+      const ageGroupId = first.age_group_id || null;
+
+      let destCat = catList.find(c =>
+        c.tournament_id === tournamentId &&
+        c.discipline === first.discipline &&
+        c.gender === 'MF' &&
+        (c.age_group_id || null) === ageGroupId
+      ) || null;
+
+      if (!destCat) {
+        destCat = {
+          id: generateId(),
+          tournament_id: tournamentId,
+          discipline: first.discipline,
+          gender: 'MF',
+          age_group_id: ageGroupId,
+          weight_class_id: null,
+          belt_group_id: null,
+          bracket_system: 'auto',
+          name: `Mixto · ${first.name || buildLabel(first) || 'Categoría'}`,
+          is_manual: false,
+          created_at: new Date().toISOString(),
+        };
+        catList.push(destCat);
+      }
+
+      let moved = 0;
+      const updatedRegs = regs.map(r => {
+        if (ids.includes(r.category_id)) {
+          moved++;
+          return { ...r, category_id: destCat.id };
+        }
+        return r;
+      });
+      localStorage.setItem('ot_dev_registrations', JSON.stringify(updatedRegs));
+
+      let removed = 0;
+      const filteredCats = catList.filter(c => {
+        if (!ids.includes(c.id)) return true;
+        const stillHas = updatedRegs.filter(r => r.category_id === c.id).length;
+        if (stillHas > 0 || c.is_manual) return true;
+        removed++;
+        return false;
+      });
+      _devSave(filteredCats);
+
+      return { category: destCat, moved, removed };
+    }
+
+    /* ---- Supabase ---- */
+    const sources = [];
+    for (const id of ids) {
+      const { data } = await supabase.from(TABLE).select('*').eq('id', id).maybeSingle();
+      if (data) sources.push(data);
+    }
+    if (sources.length < 2) throw new Error('No se encontraron las categorías origen.');
+
+    const first = sources[0];
+    const ageGroupId = first.age_group_id || null;
+
+    let qSearch = supabase.from(TABLE)
+      .select('*')
+      .eq('tournament_id', tournamentId)
+      .eq('discipline', first.discipline)
+      .eq('gender', 'MF');
+    if (ageGroupId) qSearch = qSearch.eq('age_group_id', ageGroupId);
+    const { data: existing } = await qSearch.maybeSingle();
+    let destCat = existing || null;
+
+    if (!destCat) {
+      const payload = {
+        tournament_id: tournamentId,
+        discipline: first.discipline,
+        gender: 'MF',
+        age_group_id: ageGroupId,
+        weight_class_id: null,
+        belt_group_id: null,
+        bracket_system: 'auto',
+        name: `Mixto · ${first.name || buildLabel(first) || 'Categoría'}`,
+        is_manual: false,
+      };
+      const { data: created, error: createError } = await supabase.from(TABLE).insert(payload).select().single();
+      if (createError) throw createError;
+      destCat = created;
+    }
+
+    // Mover inscripciones
+    const { error: updError } = await supabase
+      .from('registrations')
+      .update({ category_id: destCat.id })
+      .in('category_id', ids);
+    if (updError) throw updError;
+
+    // Eliminar fuentes vacías no manuales
+    let removed = 0;
+    for (const source of sources) {
+      if (source.is_manual) continue;
+      const { count } = await supabase
+        .from('registrations')
+        .select('id', { count: 'exact' })
+        .eq('category_id', source.id);
+      if ((count || 0) === 0) {
+        const { error: delError } = await supabase.from(TABLE).delete().eq('id', source.id);
+        if (!delError) removed++;
+      }
+    }
+
+    const { count: movedCount } = await supabase
+      .from('registrations')
+      .select('id', { count: 'exact' })
+      .eq('category_id', destCat.id);
+    return { category: destCat, moved: movedCount || 0, removed };
+  }
+
+
+
   return {
     autoGenerate,
     create,
@@ -520,7 +697,10 @@ const Categories = (() => {
     removeEmpty,
     assignCompetitor,
     getCompatibleCategories,
+    getCompatibleMixtaCategories,
     fuseCompetitors,
+    fuseMixed,
+    isMixedAllowed,
     buildLabel,
   };
 })();

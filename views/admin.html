@@ -2546,9 +2546,11 @@
     return true;
   }
 
-  /* Paso 2: resolver categorías <2 */
+  /* Paso 2: resolver categorías con menos de 4 competidores
+     (2-3 pueden quedar igual o fusionarse; 1 = omitir/BYE/fusionar;
+     0 = omitir). Navegación anterior/siguiente. */
   async function _optRenderResolve() {
-    const problems = _optState.categories.filter(a => a.status !== 'OK');
+    const problems = _optState.categories.filter(a => a.count < 4);
     const listEl = document.getElementById('opt-resolve-list');
     const emptyEl = document.getElementById('opt-resolve-empty');
 
@@ -2556,85 +2558,174 @@
       emptyEl.style.display = 'block';
       listEl.innerHTML = '';
       _optState.resolve = {};
+      _optState.resolveIndex = 0;
       return;
     }
     emptyEl.style.display = 'none';
 
-    const rows = [];
-    for (const a of problems) {
-      const cat = a.cat;
-      let compatibles = [];
-      try {
-        compatibles = await Categories.getCompatibleCategories(cat.id);
-      } catch (_) { compatibles = []; }
-      const problemIds = new Set(_optState.categories.filter(x => x.status !== 'OK').map(x => x.cat.id));
-      const usable = compatibles.filter(c => !problemIds.has(c.id) || c.id === _optState.resolve[cat.id]?.dest);
+    _optState.problems = problems;
 
-      const name = _optCategoryLabel(cat);
-      rows.push(`
-        <div class="card mb-2">
-          <div class="flex items-center justify-between" style="padding:.6rem 1rem;border-bottom:1px solid var(--border);">
-            <strong class="text-sm">${name} <span class="badge badge-gold">${a.count} comp.</span></strong>
-          </div>
-          <div style="padding:.75rem 1rem;">
-            <label class="flex items-center gap-2 text-sm" style="cursor:pointer;">
-              <input type="radio" name="opt-act-${cat.id}" value="skip" checked onchange="window._optOnResolveChange('${cat.id}')" />
-              🚫 No generar llaves (omitir)
-            </label>
-            <label class="flex items-center gap-2 text-sm" style="cursor:pointer;">
-              <input type="radio" name="opt-act-${cat.id}" value="one" onchange="window._optOnResolveChange('${cat.id}')" />
-              🦵 Generar llave de 1 competidor (BYE a podio)
-            </label>
-            <label class="flex items-center gap-2 text-sm" style="cursor:pointer;">
-              <input type="radio" name="opt-act-${cat.id}" value="fuse" onchange="window._optOnResolveChange('${cat.id}')" />
-              🔀 Fusionar con otra categoría
-              <select class="form-control" style="max-width:280px;margin-left:8px;" disabled id="opt-fuse-dest-${cat.id}">
-                <option value="">— elegir categoría destino —</option>
-                ${usable.map(c => `<option value="${c.id}">${_optCategoryLabel(c)}</option>`).join('')}
-              </select>
-            </label>
-            ${!usable.length ? '<p class="text-xs text-warning mt-1">No hay categorías compatibles disponibles para fusión.</p>' : ''}
-          </div>
-        </div>
-      `);
+    // Pre-cargar compatibles (normales y mixtas) de cada problemática
+    const resolved = [];
+    for (const a of problems) {
+      let compatibles = [];
+      let mixtas = [];
+      try { compatibles = await Categories.getCompatibleCategories(a.cat.id); } catch (_) {}
+      try { mixtas = await Categories.getCompatibleMixtaCategories(a.cat.id); } catch (_) {}
+      const problemIds = new Set(problems.map(x => x.cat.id));
+      const usable = compatibles.filter(c => !problemIds.has(c.id) || c.id === _optState.resolve[a.cat.id]?.dest);
+      resolved.push({ ...a, compatibles: usable, mixtas });
     }
-    listEl.innerHTML = rows.join('');
-    _optShowStep(3);
+    _optState.resolveQueue = resolved;
+    _optState.resolveIndex = Math.min(_optState.resolveIndex || 0, resolved.length - 1);
+    _optRenderResolveCard();
   }
 
   window._optOnResolveChange = function(catId) {
-    const selected = document.querySelector(`input[name="opt-act-${catId}"]:checked`)?.value;
+    const selected = document.querySelector(`input[name="opt-act-${catId}"]:checked`)?.value || 'keep';
     const destSelect = document.getElementById(`opt-fuse-dest-${catId}`);
+    const mixtaSelect = document.getElementById(`opt-fuse-mixta-${catId}`);
     if (destSelect) destSelect.disabled = selected !== 'fuse';
-    if (_optState.resolve[catId]) _optState.resolve[catId].action = selected || null;
-    else _optState.resolve[catId] = { action: selected || null, dest: null };
-    if (selected === 'fuse' && destSelect) {
-      _optState.resolve[catId].dest = destSelect.value || null;
-    }
+    if (mixtaSelect) mixtaSelect.disabled = selected !== 'mixto';
+    if (!_optState.resolve[catId]) _optState.resolve[catId] = { action: selected, dest: null, mixto: null };
+    _optState.resolve[catId].action = selected;
+    if (selected === 'fuse' && destSelect) _optState.resolve[catId].dest = destSelect.value || null;
+    if (selected === 'mixto' && mixtaSelect) _optState.resolve[catId].mixto = mixtaSelect.value || null;
   };
+
+  /* Renderiza la tarjeta actual de la cola de resolución */
+  function _optRenderResolveCard() {
+    const idx = _optState.resolveIndex || 0;
+    const listEl = document.getElementById('opt-resolve-list');
+    const entry = _optState.resolveQueue ? _optState.resolveQueue[idx] : null;
+    if (!entry) { listEl.innerHTML = ''; return; }
+
+    const a = entry;
+    const cat = a.cat;
+    const dec = _optState.resolve[cat.id] || { action: '', dest: null, mixto: null };
+    const name = _optCategoryLabel(cat);
+    const countBadge = a.count === 0
+      ? '<span class="badge badge-muted">0 comp.</span>'
+      : a.count === 1
+        ? '<span class="badge badge-gold">1 comp.</span>'
+        : `<span class="badge badge-blue">${a.count} comp.</span>`;
+    const isOne = a.count === 1;
+    const isZero = a.count === 0;
+    const canMixta = entry.mixtas.length > 0;
+    const hasCompat = entry.compatibles.length > 0;
+    const total = _optState.resolveQueue ? _optState.resolveQueue.length : 1;
+
+    const radioChecked = (val) => (dec.action === val || (!dec.action && val === 'keep') ? ' checked' : '');
+    const keepWording = isZero
+      ? '⬜ Dejar vacía (no generar, no fusionar)'
+      : a.count >= 2
+        ? '✅ Dejar igual (generar llave con los participantes actuales)'
+        : '🚫 Omitir (no generar llaves)';
+
+    let actions = '';
+    actions += `<label class="flex items-center gap-2 text-sm" style="cursor:pointer;">
+      <input type="radio" name="opt-act-${cat.id}" value="keep" onchange="window._optOnResolveChange('${cat.id}')" ${radioChecked('keep')} />
+      ${keepWording}
+    </label>`;
+
+    if (isOne) {
+      actions += `<label class="flex items-center gap-2 text-sm" style="cursor:pointer;">
+        <input type="radio" name="opt-act-${cat.id}" value="one" onchange="window._optOnResolveChange('${cat.id}')" ${radioChecked('one')} />
+        🦵 Generar llave de 1 competidor (BYE directo a podio)
+      </label>`;
+    }
+
+    if (hasCompat) {
+      actions += `<div class="mb-1 mt-1">
+        <label class="flex items-center gap-2 text-sm" style="cursor:pointer;">
+          <input type="radio" name="opt-act-${cat.id}" value="fuse" onchange="window._optOnResolveChange('${cat.id}')" ${radioChecked('fuse')} />
+          🔀 Fusionar con otra categoría
+        </label>
+        <select class="form-control" style="max-width:320px;margin-left:28px;margin-top:4px;" disabled id="opt-fuse-dest-${cat.id}">
+          <option value="">— elegir categoría destino —</option>
+          ${entry.compatibles.map(c => `<option value="${c.id}"${dec.dest === c.id ? ' selected' : ''}>${_optCategoryLabel(c)}</option>`).join('')}
+        </select>
+      </div>`;
+    }
+
+    if (canMixta) {
+      actions += `<div class="mb-1 mt-1">
+        <label class="flex items-center gap-2 text-sm" style="cursor:pointer;">
+          <input type="radio" name="opt-act-${cat.id}" value="mixto" onchange="window._optOnResolveChange('${cat.id}')" ${radioChecked('mixto')} />
+          🧒 Fusionar como <strong>MIXTO</strong> (M+F) con:
+        </label>
+        <select class="form-control" style="max-width:320px;margin-left:28px;margin-top:4px;" disabled id="opt-fuse-mixta-${cat.id}">
+          <option value="">— elegir categoría del otro género —</option>
+          ${entry.mixtas.map(c => `<option value="${c.id}"${dec.mixto === c.id ? ' selected' : ''}>${_optCategoryLabel(c)}</option>`).join('')}
+        </select>
+      </div>`;
+    }
+    const navButtons = `<div class="flex items-center gap-2 mt-2" style="border-top:1px solid var(--border);padding-top:.5rem;">
+      <button class="btn btn-outline btn-sm" type="button" onclick="window._optResolveNav(-1)" ${idx <= 0 ? 'disabled' : ''}>← Anterior</button>
+      <span class="text-xs text-muted" style="flex:1;text-align:center;">Categoría ${idx + 1} de ${total}</span>
+      <button class="btn btn-outline btn-sm" type="button" onclick="window._optResolveNav(1)" ${idx >= total - 1 ? 'disabled' : ''}>Siguiente →</button>
+    </div>`;
+
+    listEl.innerHTML = `
+      <div class="card mb-2">
+        <div class="flex items-center justify-between" style="padding:.6rem 1rem;border-bottom:1px solid var(--border);">
+          <strong class="text-sm">${name} ${countBadge}</strong>
+          <span class="badge ${cat.discipline === 'kata' ? 'badge-gold' : 'badge-red'} text-xs">${cat.discipline}</span>
+        </div>
+        <div style="padding:.75rem 1rem;">
+          ${actions}
+          ${!hasCompat && !canMixta ? '<p class="text-xs text-warning mt-1">No hay categorías compatibles disponibles para fusión.</p>' : ''}
+        </div>
+        ${navButtons}
+      </div>`;
+
+    // Reflejar estado de selects según decisión guardada
+    const destSel = document.getElementById(`opt-fuse-dest-${cat.id}`);
+    const mixtaSel = document.getElementById(`opt-fuse-mixta-${cat.id}`);
+    if (destSel) { destSel.disabled = dec.action !== 'fuse'; if (dec.dest) destSel.value = dec.dest; }
+    if (mixtaSel) { mixtaSel.disabled = dec.action !== 'mixto'; if (dec.mixto) mixtaSel.value = dec.mixto; }
+  }
+
+  /* Navegación anterior/siguiente en la cola de resolución */
+  window._optResolveNav = function(dir) {
+    const total = _optState.resolveQueue ? _optState.resolveQueue.length : 0;
+    if (!total) return;
+    const next = Math.min(Math.max((_optState.resolveIndex || 0) + dir, 0), total - 1);
+    _optState.resolveIndex = next;
+    _optRenderResolveCard();
+  };
+
 
 
 
 
   /* Paso 4: confirmación */
   function _optBuildConfirm() {
-    const problems = _optState.categories.filter(a => a.status !== 'OK');
-    const okCats   = _optState.categories.filter(a => a.status === 'OK');
-    const skips = [], fuses = [], ones = [];
+    const all = _optState.categories;
+    const problems = all.filter(a => a.count < 4);
+    const okCats   = all.filter(a => a.count >= 4);
+    const skips = [], fuses = [], mixtas = [], ones = [], keeps = [];
     for (const a of problems) {
       const dec = _optState.resolve[a.cat.id];
-      if (dec?.action === 'skip') skips.push(_optCategoryLabel(a.cat));
-      else if (dec?.action === 'one') ones.push(_optCategoryLabel(a.cat));
-      else if (dec?.action === 'fuse') {
-        const destCat = _optState.categories.find(x => x.cat.id === dec.dest)?.cat;
-        fuses.push(`${_optCategoryLabel(a.cat)} → ${destCat ? _optCategoryLabel(destCat) : dec.dest}`);
+      const action = dec?.action || 'keep';
+      if (action === 'skip') skips.push(_optCategoryLabel(a.cat));
+      else if (action === 'one') ones.push(_optCategoryLabel(a.cat));
+      else if (action === 'mixto') {
+        const destCat = _optState.categories.find(x => x.cat.id === dec?.mixto)?.cat;
+        mixtas.push(`${_optCategoryLabel(a.cat)} + ${destCat ? _optCategoryLabel(destCat) : dec?.mixto} → Mixto`);
       }
-      else skips.push(_optCategoryLabel(a.cat));
+      else if (action === 'fuse') {
+        const destCat = _optState.categories.find(x => x.cat.id === dec?.dest)?.cat;
+        fuses.push(`${_optCategoryLabel(a.cat)} → ${destCat ? _optCategoryLabel(destCat) : dec?.dest}`);
+      }
+      else keeps.push(_optCategoryLabel(a.cat));
     }
 
     const parts = [];
-    if (okCats.length) parts.push(`<div class="mb-1">✅ <strong>${okCats.length}</strong> categoría(s) con ≥2 competidores → se generarán llaves.</div>`);
+    if (okCats.length) parts.push(`<div class="mb-1">✅ <strong>${okCats.length}</strong> categoría(s) con ≥4 competidores → se generarán llaves.</div>`);
+    if (keeps.length)  parts.push(`<div class="mb-1">✅ <strong>${keeps.length}</strong> categoría(s) de 2-3 → se dejan igual y se generan.</div>`);
     if (fuses.length)  parts.push(`<div class="mb-1">🔀 <strong>${fuses.length}</strong> fusión(es):<ul class="mt-1">${fuses.map(f => `<li>${f}</li>`).join('')}</ul></div>`);
+    if (mixtas.length) parts.push(`<div class="mb-1">🧒 <strong>${mixtas.length}</strong> fusión(es) mixta(s):<ul class="mt-1">${mixtas.map(f => `<li>${f}</li>`).join('')}</ul></div>`);
     if (ones.length)   parts.push(`<div class="mb-1">🦵 <strong>${ones.length}</strong> llave(s) de 1 competidor (BYE directo).</div>`);
     if (skips.length)  parts.push(`<div class="mb-1">🚫 <strong>${skips.length}</strong> categoría(s) omitida(s):<ul class="mt-1">${skips.map(s => `<li>${s}</li>`).join('')}</ul></div>`);
 
@@ -2645,8 +2736,17 @@
   async function _optCount(categoryId) {
     try {
       const comps = await Competitors.listByCategory(categoryId);
+      return comps.length;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   /* Aplicar */
   async function _optApply() {
+
+
+
     const applyBtn = document.getElementById('btn-opt-apply');
     applyBtn.disabled = true;
     applyBtn.innerHTML = '<span class="spinner"></span> Generando...';
@@ -2667,10 +2767,19 @@
       const minTwo = document.getElementById('opt-min-two').checked;
 
       // 1) Aplicar fusiones
-      const problems = _optState.categories.filter(a => a.status !== 'OK');
+      const problems = _optState.categories.filter(a => a.count < 4);
       for (const a of problems) {
         const dec = _optState.resolve[a.cat.id];
-        if (dec?.action === 'fuse' && dec.dest) {
+        const action = dec?.action || 'keep';
+
+        if (action === 'mixto' && dec?.mixto) {
+          try {
+            const res = await Categories.fuseMixed([a.cat.id, dec.mixto], state.activeTournament.id);
+            mixtas.push({ from: _optCategoryLabel(a.cat), to: res.category?.name || 'Mixto', moved: res.moved });
+          } catch (e) {
+            errors.push(`Fusión mixta de "${_optCategoryLabel(a.cat)}": ${e.message}`);
+          }
+        } else if (action === 'fuse' && dec?.dest) {
           try {
             const res = await Categories.fuseCompetitors(a.cat.id, dec.dest);
             const destCat = _optState.categories.find(x => x.cat.id === dec.dest)?.cat;
@@ -2681,14 +2790,33 @@
         }
       }
 
-      // 2) Categorías finales: OK + destinos de fusión
+      // 2) Categorías finales a generar:
+      //    - OK (>=4)
+      //    - Problemas con acción 'keep' (2-3 que se dejan igual, o 1 transformado a BYE)
+      //    - Destinos de fusiones normales
+      //    - Categorías mixtas creadas (se registran en mixtasCats)
       const finalCats = [];
       const seen = new Set();
-      for (const a of _optState.categories.filter(x => x.status === 'OK')) {
+
+      for (const a of _optState.categories.filter(x => x.count >= 4)) {
         if (seen.has(a.cat.id)) continue;
         seen.add(a.cat.id);
         finalCats.push(a.cat);
       }
+
+      for (const a of _optState.categories.filter(x => x.count < 4)) {
+        const dec = _optState.resolve[a.cat.id];
+        const action = dec?.action || 'keep';
+        if (action === 'keep') {
+          if (a.count === 0) { skipped.push(_optCategoryLabel(a.cat)); continue; }
+          if (seen.has(a.cat.id)) continue;
+          seen.add(a.cat.id);
+          finalCats.push(a.cat);
+        }
+        // las que se fusionaron (fuse/mixto) ya no se generan como fuente
+      }
+
+      // Destinos de fusión que no estén en seen (categorías receptoras)
       for (const f of fused) {
         const srcEntry = _optState.categories.find(x => _optCategoryLabel(x.cat) === f.from);
         const srcDec = srcEntry ? _optState.resolve[srcEntry.cat.id] : null;
@@ -2702,9 +2830,12 @@
       for (const cat of finalCats) {
         const count = await _optCount(cat.id);
         if (count === 0) { skipped.push(_optCategoryLabel(cat)); continue; }
-        if (count === 1 && minTwo) {
-          const dec = _optState.resolve[cat.id];
-          if (dec?.action === 'one') {
+
+        if (count === 1) {
+          const srcEntry = _optState.categories.find(x => x.cat.id === cat.id);
+          const dec = srcEntry ? _optState.resolve[srcEntry.cat.id] : null;
+          const wantBye = dec?.action === 'one' || (dec?.action === 'keep' && srcEntry?.count === 1);
+          if (wantBye) {
             try {
               const res = await Bracket.generate(cat.id, { system, separateByClub, allowOne: true });
               byes.push(_optCategoryLabel(cat));
@@ -2716,6 +2847,7 @@
           }
           continue;
         }
+
         if (count < 2 && minTwo) { skipped.push(_optCategoryLabel(cat)); continue; }
 
         try {
@@ -2729,6 +2861,7 @@
       let html = '';
       if (generated.length) html += `<div class="alert alert-success">✅ ${generated.length} llave(s) generada(s).</div>`;
       if (fused.length)     html += `<div class="alert alert-info">🔀 ${fused.length} fusión(es):<ul class="mt-1">${fused.map(f => `<li>${f.from} → ${f.to} (${f.moved} comp.)</li>`).join('')}</ul></div>`;
+      if (mixtas.length)    html += `<div class="alert alert-info">🧒 ${mixtas.length} fusión(es) mixta(s):<ul class="mt-1">${mixtas.map(f => `<li>${f.from} + ${f.to}</li>`).join('')}</ul></div>`;
       if (byes.length)      html += `<div class="alert alert-info">🦵 ${byes.length} llave(s) de 1 competidor (BYE directo).</div>`;
       if (skipped.length)   html += `<div class="alert alert-warning">🚫 ${skipped.length} categoría(s) omitida(s):<ul class="mt-1">${skipped.map(s => `<li>${s}</li>`).join('')}</ul></div>`;
       if (warningsAll.length) html += `<div class="alert alert-warning">⚠️ Avisos:<ul class="mt-1">${warningsAll.slice(0, 8).map(w => `<li>${w}</li>`).join('')}</ul></div>`;
@@ -2743,13 +2876,6 @@
       await _loadCategories();
       await _loadBracketPanel();
       if (state.activeCategory) await _loadBracket(state.activeCategory);
-    }
-  }
-
-
-      return comps.length;
-    } catch (_) {
-      return 0;
     }
   }
 
@@ -2772,7 +2898,7 @@
     } else if (_optState.step === 2) {
       await _optRenderResolve();
     } else if (_optState.step === 3) {
-      const problems = _optState.categories.filter(a => a.status !== 'OK');
+      const problems = _optState.categories.filter(a => a.count < 4);
       for (const a of problems) {
         const selected = document.querySelector(`input[name="opt-act-${a.cat.id}"]:checked`)?.value;
         const dec = _optState.resolve[a.cat.id];
@@ -2780,6 +2906,12 @@
           const destSel = document.getElementById(`opt-fuse-dest-${a.cat.id}`);
           if (destSel) destSel.focus();
           Display.toast(`Elegí la categoría destino para "${_optCategoryLabel(a.cat)}".`, 'warning');
+          return;
+        }
+        if (selected === 'mixto' && !dec?.mixto) {
+          const mixtaSel = document.getElementById(`opt-fuse-mixta-${a.cat.id}`);
+          if (mixtaSel) mixtaSel.focus();
+          Display.toast(`Elegí la categoría del otro género para la fusión mixta de "${_optCategoryLabel(a.cat)}".`, 'warning');
           return;
         }
       }
