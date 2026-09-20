@@ -1704,31 +1704,56 @@
     el.innerHTML = '<div class="text-center p-4"><span class="spinner"></span></div>';
     try {
       let dojos = await Dojos.list(state.activeTournament.id);
-      // Los clubes históricos pueden existir solo en competitors. Incorpóralos
-      // al gestor para que el organizador pueda asignarles país y logo.
-      if (state.activeTournament) {
-        const competitors = await Competitors.listByTournament(state.activeTournament.id);
-        const byName = new Map(dojos.map(d => [d.name.trim().toLowerCase(), d]));
-        for (const competitor of competitors) {
-          const name = competitor.club?.trim();
-          if (!name) continue;
-          let dojo = byName.get(name.toLowerCase());
-          if (!dojo) {
-            dojo = await Dojos.create(name, {}, state.activeTournament.id);
-            byName.set(name.toLowerCase(), dojo);
-          }
-          if (!competitor.dojo_id && dojo?.id && competitor.id) {
-            try { await Competitors.update(competitor.id, { dojo_id: dojo.id }); } catch (_) {}
-          }
-        }
-        dojos = await Dojos.list(state.activeTournament.id);
-        await Dojos.ensureCache(state.activeTournament.id);
-      }
-      el.innerHTML = dojos.length ? `<div class="card p-0"><div class="table-wrapper"><table class="table"><thead><tr><th>Logo</th><th>Dojo</th><th>País</th><th>Acciones</th></tr></thead><tbody>${dojos.map(d => `
+      // Los clubes históricos de inscripciones del torneo ya son visibles
+      // vía Dojos.list(); solo los incorporamos al caché local.
+      await Dojos.ensureCache(state.activeTournament.id);
+      el.innerHTML = dojos.length ? `<div class="card p-0"><div class="table-wrapper"><table class="table"><thead><tr><th>Logo</th><th>Dojo</th><th>País</th><th>Contacto</th><th>Acciones</th></tr></thead><tbody>${dojos.map(d => `
         <tr><td>${d.logo_url ? `<img src="${d.logo_url}" alt="" style="width:42px;height:42px;object-fit:contain;border-radius:5px;" />` : '<span class="text-muted">Sin logo</span>'}</td>
-        <td><strong>${d.name}</strong></td><td>${_renderDojoCountry(d.country_code)}</td>
-        <td><button class="btn btn-outline btn-sm" onclick="_editDojo('${d.id}')">✏️ Editar</button></td></tr>`).join('')}</tbody></table></div></div>` : '<div class="empty-state"><div class="empty-icon">🥋</div><h3>Sin dojos</h3><p>Crea el primer dojo y asígnale país y logo.</p></div>';
+        <td><strong>${d.name}</strong></td>
+        <td>${_renderDojoCountry(d.country_code || d.country_name)}</td>
+        <td class="text-sm text-muted">${d.contact_name || '—'}${d.email ? ' · ' + d.email : ''}</td>
+        <td><button class="btn btn-outline btn-sm" onclick="window.openEditDojoView('${d.id}')">Ver datos</button></td></tr>`).join('')}</tbody></table></div></div>` : '<div class="empty-state"><div class="empty-icon">🥋</div><h3>Sin dojos visibles</h3><p>Los dojos autorizados por el super admin para este torneo o los de tus inscripciones aparecerán aquí.</p></div>';
     } catch (e) { el.innerHTML = `<div class="alert alert-danger">${e.message}</div>`; }
+  }
+
+  /* Vista de datos de un dojo (solo lectura para el organizador) */
+  window.openEditDojoView = async function(id) {
+    const d = await Dojos.getById(id);
+    if (!d) return;
+    const infoHtml = `
+      <div class="grid-2">
+        <div><strong>Nombre:</strong> ${d.name || '—'}</div>
+        <div><strong>País:</strong> ${d.country_name || d.country_code || '—'}</div>
+        <div><strong>Contacto:</strong> ${d.contact_name || '—'}</div>
+        <div><strong>Email:</strong> ${d.email || '—'}</div>
+        <div><strong>Teléfono:</strong> ${d.phone || '—'}</div>
+        <div><strong>WhatsApp:</strong> ${d.whatsapp || '—'}</div>
+        <div><strong>Dirección:</strong> ${d.address || '—'}</div>
+        <div><strong>Ciudad:</strong> ${d.city || '—'}</div>
+        <div><strong>Sitio web:</strong> ${d.website || '—'}</div>
+        <div><strong>Instagram:</strong> ${d.instagram || '—'}</div>
+        <div><strong>Facebook:</strong> ${d.facebook || '—'}</div>
+        <div><strong>TikTok:</strong> ${d.tiktok || '—'}</div>
+        <div><strong>YouTube:</strong> ${d.youtube || '—'}</div>
+        <div><strong>Notas:</strong> ${d.notes || '—'}</div>
+      </div>`;
+    const modal = document.getElementById('sa-dojo-view-modal') || _createDojoViewModal();
+    document.getElementById('sa-dojo-view-content').innerHTML = infoHtml;
+    Display.openModal('sa-dojo-view-modal');
+  };
+
+  function _createDojoViewModal() {
+    const div = document.createElement('div');
+    div.className = 'modal-overlay'; div.id = 'sa-dojo-view-modal';
+    div.innerHTML = `
+      <div class="modal" style="max-width:560px;">
+        <div class="modal-header"><h3 class="modal-title">🥋 Datos del Dojo</h3>
+        <button class="btn btn-ghost btn-icon" onclick="Display.closeModal('sa-dojo-view-modal')">✕</button></div>
+        <div class="modal-body" id="sa-dojo-view-content"></div>
+        <div class="modal-footer"><button class="btn btn-outline" onclick="Display.closeModal('sa-dojo-view-modal')">Cerrar</button></div>
+      </div>`;
+    document.body.appendChild(div);
+    return div;
   }
 
   function _resetDojoForm() {
@@ -1758,6 +1783,10 @@
   };
 
   document.getElementById('btn-new-dojo')?.addEventListener('click', () => {
+    if (!Auth.isSuperAdmin()) {
+      Display.toast('La base de dojos la administra el super admin. Podés usar los dojos visibles en tus inscripciones.', 'info');
+      return;
+    }
     _resetDojoForm();
     document.getElementById('dojos-form-card').style.display = 'block';
   });

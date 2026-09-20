@@ -11,21 +11,69 @@ const Dojos = (() => {
   function _devSave(list) { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); }
 
   /* --------------------------------------------------------
-     LISTAR DOJOS DE UN TORNEO
-     Solo devuelve los dojos del torneo activo (aislamiento).
+     LISTAR DOJOS VISIBLES PARA UN TORNEO
+     = autorizados (tournament_dojos) ∪ dojos de inscripciones
+       del torneo ∪ (si super_admin) todos los globales.
+     @param {string} tournamentId
   -------------------------------------------------------- */
   async function list(tournamentId) {
     if (Auth.isDevMode()) {
-      return _devList().filter(d => String(d.tournament_id || '') === String(tournamentId || ''));
+      const all = _devList();
+      if (Auth.isSuperAdmin() && !tournamentId) return all;
+      if (tournamentId) {
+        const authorized = (JSON.parse(localStorage.getItem('ot_dev_tournament_dojos') || '[]'))
+          .filter(td => String(td.tournament_id) === String(tournamentId))
+          .map(td => td.dojo_id);
+        return all.filter(d => authorized.includes(d.id) || String(d.tournament_id) === String(tournamentId));
+      }
+      return all;
     }
     let query = supabase
       .from(TABLE_DOJOS)
-      .select('id, name, logo_url, country_code, website, notes, tournament_id')
+      .select('id, name, logo_url, country_code, country_name, email, phone, whatsapp, address, city, instagram, facebook, tiktok, youtube, contact_name, website, notes, tournament_id, open_registration')
       .order('name');
-    if (tournamentId) query = query.eq('tournament_id', tournamentId);
+    if (Auth.isSuperAdmin() && !tournamentId) {
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    }
+    // Organizador: dojos autorizados para su torneo O con inscripciones en él.
+    if (tournamentId) {
+      const authed = await _getAuthorizedIds(tournamentId);
+      const inscritos = await _getInscribedIds(tournamentId);
+      const allowed = new Set([...authed, ...inscritos]);
+      query = query.in('id', [...allowed]);
+    }
     const { data, error } = await query;
     if (error) throw error;
     return data || [];
+  }
+
+  /* ---- Auxiliares de visibilidad ---- */
+  async function _getAuthorizedIds(tournamentId) {
+    try {
+      const { data } = await supabase
+        .from('tournament_dojos')
+        .select('dojo_id')
+        .eq('tournament_id', tournamentId);
+      return (data || []).map(r => r.dojo_id);
+    } catch (_) { return []; }
+  }
+
+  async function _getInscribedIds(tournamentId) {
+    try {
+      const { data } = await supabase
+        .from('registrations')
+        .select('competitors!inner(dojo_id)')
+        .eq('tournament_id', tournamentId)
+        .not('competitors.dojo_id', 'is', null);
+      const ids = new Set();
+      (data || []).forEach(r => {
+        const dojoId = r?.competitors?.dojo_id;
+        if (dojoId) ids.add(dojoId);
+      });
+      return [...ids];
+    } catch (_) { return []; }
   }
 
   /* --------------------------------------------------------
@@ -44,34 +92,54 @@ const Dojos = (() => {
   }
 
   /* --------------------------------------------------------
-     CREAR DOJO (en un torneo)
-     Cada torneo tiene su copia; nunca se reutiliza de otro.
+     CREAR DOJO (GLOBAL ÚNICO por nombre)
+     Si ya existe un dojo con ese nombre, NO se duplica:
+     se reutiliza y (si viene tournamentId) se otorga visibilidad
+     al torneo. El super admin es quien administra los datos
+     maestros. Si un organizador aporta datos nuevos al coincidir,
+     se avisa al super admin (se guardan como solicitud).
   -------------------------------------------------------- */
   async function create(name, payload = {}, tournamentId) {
     if (!name?.trim()) throw new Error('El nombre del dojo es obligatorio.');
+
+    const existing = await _findByNameGlobal(name.trim());
+    if (existing) {
+      // No duplicar. Otorgar visibilidad al torneo si aplica.
+      if (tournamentId) {
+        try { await grantAccess(existing.id, tournamentId); } catch (_) {}
+      }
+      // Si el organizador aporta datos (y no es super admin), NO sobrescribir:
+      // se registra como "solicitud de actualización" para el super admin.
+      const cleanPayload = _cleanContact(payload);
+      const hasNewData = Object.keys(cleanPayload).length > 0;
+      if (hasNewData && existing && !Auth.isSuperAdmin()) {
+        _notifyUpdateRequest(existing, cleanPayload);
+        return existing;
+      }
+      if (hasNewData && Auth.isSuperAdmin()) {
+        return await update(existing.id, cleanPayload);
+      }
+      return existing;
+    }
+
     if (Auth.isDevMode()) {
       const list = _devList();
-      const exists = list.find(d =>
-        d.name.toLowerCase() === name.trim().toLowerCase() &&
-        String(d.tournament_id || '') === String(tournamentId || '')
-      );
-      if (exists) {
-        if (payload.country_code && exists.country_code !== payload.country_code) {
-          Object.assign(exists, payload);
-          _devSave(list);
-        }
-        return exists;
-      }
-      const dojo = { id: generateId(), name: name.trim(), logo_url: null, tournament_id: tournamentId || null, ...payload };
+      const dojo = { id: generateId(), name: name.trim(), logo_url: null, tournament_id: tournamentId || null, ...cleanContact(payload) };
       list.push(dojo);
       _devSave(list);
+      if (tournamentId) {
+        const tds = JSON.parse(localStorage.getItem('ot_dev_tournament_dojos') || '[]');
+        tds.push({ id: generateId(), tournament_id: tournamentId, dojo_id: dojo.id });
+        localStorage.setItem('ot_dev_tournament_dojos', JSON.stringify(tds));
+      }
       invalidateCache();
       return dojo;
     }
+
     const insertPayload = {
       name: name.trim(),
+      ...cleanContact(payload),
       tournament_id: tournamentId || null,
-      ...payload,
     };
     const { data, error } = await supabase
       .from(TABLE_DOJOS)
@@ -80,21 +148,56 @@ const Dojos = (() => {
       .single();
     if (error) {
       if (error.code === '23505') {
-        // Duplicado: buscar el dojo del MISMO torneo
-        let q = supabase.from(TABLE_DOJOS)
-          .select('*')
-          .eq('name', name.trim());
-        if (tournamentId) q = q.eq('tournament_id', tournamentId);
-        const { data: existing } = await q.maybeSingle();
-        if (existing && payload.country_code && existing.country_code !== payload.country_code) {
-          return await update(existing.id, payload);
-        }
-        return existing || null;
+        const existing2 = await _findByNameGlobal(name.trim());
+        if (tournamentId) { try { await grantAccess(existing2.id, tournamentId); } catch (_) {} }
+        return existing2 || null;
       }
       throw error;
     }
+    if (tournamentId) { try { await grantAccess(data.id, tournamentId); } catch (_) {} }
     invalidateCache();
     return data;
+  }
+
+  /* ---- Buscar dojo global por nombre (case-insensitive) ---- */
+  async function _findByNameGlobal(name) {
+    if (Auth.isDevMode()) {
+      return _devList().find(d => d.name.toLowerCase() === name.toLowerCase()) || null;
+    }
+    const { data } = await supabase
+      .from(TABLE_DOJOS)
+      .select('*')
+      .ilike('name', name)   // PostgREST ilike: coincidencia sin importar mayúsculas
+      .maybeSingle();
+    return data || null;
+  }
+
+  /* ---- Limpiar payload de contacto ---- */
+  function _cleanContact(payload = {}) {
+    const out = {};
+    ['email', 'phone', 'whatsapp', 'address', 'city', 'country_code', 'country_name',
+     'instagram', 'facebook', 'tiktok', 'youtube', 'contact_name', 'website', 'notes',
+     'open_registration'].forEach(k => {
+      if (payload[k] !== undefined) out[k] = payload[k] === '' ? null : payload[k];
+    });
+    return out;
+  }
+
+  /* ---- Notificar al super admin de datos aportados por un organizador ---- */
+  function _notifyUpdateRequest(dojo, payload) {
+    // Por ahora se guarda en localStorage como pendiente (el superadmin lo ve al abrir su panel).
+    try {
+      const reqs = JSON.parse(localStorage.getItem('ot_dojo_update_requests') || '[]');
+      reqs.push({
+        dojoId: dojo.id,
+        dojoName: dojo.name,
+        payload,
+        by: Auth.getUserId(),
+        at: new Date().toISOString(),
+      });
+      localStorage.setItem('ot_dojo_update_requests', JSON.stringify(reqs));
+    } catch (_) {}
+    console.warn('[Dojos] Se solicitó actualizar datos del dojo (pendiente aprobación super admin):', dojo.name, payload);
   }
 /* --------------------------------------------------------
      ACTUALIZAR DOJO
@@ -209,6 +312,87 @@ const Dojos = (() => {
     _cachedDojos = null;
   }
 
+  /* --------------------------------------------------------
+     OTORGAR VISIBILIDAD de un dojo a un torneo (tournament_dojos)
+     Solo super_admin (RLS). Si el organizador lo necesita, el
+     sistema registra el dojo y llama a esto (falla silenciosa).
+  -------------------------------------------------------- */
+  async function grantAccess(dojoId, tournamentId) {
+    if (!dojoId || !tournamentId) return null;
+    if (Auth.isDevMode()) {
+      const tds = JSON.parse(localStorage.getItem('ot_dev_tournament_dojos') || '[]');
+      if (!tds.some(t => String(t.tournament_id) === String(tournamentId) && String(t.dojo_id) === String(dojoId))) {
+        tds.push({ id: generateId(), tournament_id: tournamentId, dojo_id: dojoId });
+        localStorage.setItem('ot_dev_tournament_dojos', JSON.stringify(tds));
+      }
+      return { dojo_id: dojoId, tournament_id: tournamentId };
+    }
+    const { data, error } = await supabase
+      .from('tournament_dojos')
+      .insert({ tournament_id: tournamentId, dojo_id: dojoId, granted_by: Auth.getUserId() })
+      .select()
+      .single();
+    if (error) {
+      // 23505 = ya otorgado
+      if (error.code === '23505') return { dojo_id: dojoId, tournament_id: tournamentId };
+      throw error;
+    }
+    return data;
+  }
+
+  /* --------------------------------------------------------
+     QUITAR VISIBILIDAD de un dojo a un torneo
+  -------------------------------------------------------- */
+  async function revokeAccess(dojoId, tournamentId) {
+    if (Auth.isDevMode()) {
+      const tds = JSON.parse(localStorage.getItem('ot_dev_tournament_dojos') || '[]');
+      localStorage.setItem('ot_dev_tournament_dojos', JSON.stringify(
+        tds.filter(t => !(String(t.tournament_id) === String(tournamentId) && String(t.dojo_id) === String(dojoId)))
+      ));
+      return true;
+    }
+    const { error } = await supabase
+      .from('tournament_dojos')
+      .delete()
+      .eq('tournament_id', tournamentId)
+      .eq('dojo_id', dojoId);
+    if (error) throw error;
+    return true;
+  }
+
+  /* --------------------------------------------------------
+     LISTAR IDS DE DOJOS AUTORIZADOS a un torneo
+     @returns {string[]} ids de dojos con acceso
+  -------------------------------------------------------- */
+  async function listAuthorized(tournamentId) {
+    if (!tournamentId) return [];
+    if (Auth.isDevMode()) {
+      return (JSON.parse(localStorage.getItem('ot_dev_tournament_dojos') || '[]'))
+        .filter(t => String(t.tournament_id) === String(tournamentId))
+        .map(t => t.dojo_id);
+    }
+    const { data, error } = await supabase
+      .from('tournament_dojos')
+      .select('dojo_id')
+      .eq('tournament_id', tournamentId);
+    if (error) throw error;
+    return (data || []).map(r => r.dojo_id);
+  }
+
+  /* --------------------------------------------------------
+     LISTAR DOJOS VISIBLES PARA SUPER ADMIN (todos los globales)
+     Con datos de contacto completos.
+  -------------------------------------------------------- */
+  async function listAllForSuperAdmin() {
+    if (Auth.isDevMode()) return _devList();
+    const { data, error } = await supabase
+      .from(TABLE_DOJOS)
+      .select('*')
+      .order('name');
+    if (error) throw error;
+    return data || [];
+  }
+
   return {
     list,
     getById,
@@ -218,6 +402,10 @@ const Dojos = (() => {
     ensureCache,
     getFromCache,
     invalidateCache,
+    grantAccess,
+    revokeAccess,
+    listAuthorized,
+    listAllForSuperAdmin,
     renderDojoBadge,
     renderCountryBadge,
     renderCompetitorIdentity,

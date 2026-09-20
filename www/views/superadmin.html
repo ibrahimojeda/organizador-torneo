@@ -9,7 +9,17 @@
     window.onerror = function(msg, url, line, col, error) {
       const alertDiv = document.createElement('div');
       alertDiv.style = 'position:fixed;top:20px;right:20px;z-index:9999;background:#ef4444;color:white;padding:1rem;border-radius:8px;font-family:monospace;box-shadow:0 4px 12px rgba(0,0,0,0.3);max-width:400px;border:2px solid white;';
-      alertDiv.innerHTML = `<strong>🚨 ERROR CRÍTICO</strong><br><small>${msg}</small><br>Línea: ${line}, Col: ${col}`;
+      const heading = document.createElement('strong');
+      heading.textContent = '🚨 ERROR CRÍTICO';
+      const msgEl = document.createElement('small');
+      msgEl.textContent = String(msg);
+      const locEl = document.createElement('span');
+      locEl.textContent = 'Línea: ' + line + ', Col: ' + col;
+      alertDiv.appendChild(heading);
+      alertDiv.appendChild(document.createElement('br'));
+      alertDiv.appendChild(msgEl);
+      alertDiv.appendChild(document.createElement('br'));
+      alertDiv.appendChild(locEl);
       document.body.appendChild(alertDiv);
       setTimeout(() => alertDiv.remove(), 10000);
       return false;
@@ -17,7 +27,13 @@
     window.onunhandledrejection = function(event) {
       const alertDiv = document.createElement('div');
       alertDiv.style = 'position:fixed;top:20px;right:20px;z-index:9999;background:#f59e0b;color:white;padding:1rem;border-radius:8px;font-family:monospace;box-shadow:0 4px 12px rgba(0,0,0,0.3);max-width:400px;border:2px solid white;';
-      alertDiv.innerHTML = `<strong>⚠️ PROMESA RECHAZADA</strong><br><small>${event.reason}</small>`;
+      const heading = document.createElement('strong');
+      heading.textContent = '⚠️ PROMESA RECHAZADA';
+      const reasonEl = document.createElement('small');
+      reasonEl.textContent = String(event.reason);
+      alertDiv.appendChild(heading);
+      alertDiv.appendChild(document.createElement('br'));
+      alertDiv.appendChild(reasonEl);
       document.body.appendChild(alertDiv);
       setTimeout(() => alertDiv.remove(), 10000);
     };
@@ -66,6 +82,10 @@
     </div>
     <div class="sidebar-section">
       <div class="sidebar-label">Gestión</div>
+      <div class="sidebar-item" data-panel="dojos">
+        <span class="icon">🥋</span> Dojos
+      </div>
+
       <div class="sidebar-item" data-panel="competitors">
         <span class="icon">👤</span> Competidores
       </div>
@@ -144,6 +164,12 @@
           <h1 class="page-title">Centro de Reportes e Impresiones</h1>
           <p class="page-subtitle">Genera y exporta todos los documentos oficiales del torneo</p>
         </div>
+        <div class="flex items-center gap-2">
+          <label class="form-label mb-0">Torneo:</label>
+          <select class="form-control" id="report-tournament-select" style="min-width:220px;max-width:320px;">
+            <option value="">— Selecciona un torneo —</option>
+          </select>
+        </div>
       </div>
       <div class="grid-3 gap-4">
         <div class="card">
@@ -172,6 +198,88 @@
     </section>
 
     <!-- Paneles de gestión extendidos -->
+    <section id="panel-dojos" class="panel" style="display:none;">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Dojos (Base Global)</h1>
+          <p class="page-subtitle">Base maestra de dojos con datos de contacto. Asigná visibilidad por torneo y gestioná solicitudes de actualización.</p>
+        </div>
+        <button class="btn btn-primary" id="btn-sa-new-dojo">+ Nuevo Dojo</button>
+      </div>
+      <div class="alert alert-info mb-3">
+        <span>ℹ️</span>
+        <span><strong>Dojo global único:</strong> si un organizador inscribe a un competidor de un dojo ya existente, no se duplica; sus datos nuevos quedan como <strong>solicitud de actualización</strong> que podés aprobar o rechazar aquí.</span>
+      </div>
+      <!-- Solicitudes pendientes -->
+      <div id="sa-dojo-requests" style="display:none;" class="mb-3"></div>
+      <!-- Formulario -->
+      <div id="sa-dojo-form-card" class="card mb-3" style="display:none;">
+        <input type="hidden" id="sa-dojo-form-id" />
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="card-title" id="sa-dojo-form-title">Nuevo Dojo</h3>
+          <button class="btn btn-ghost btn-sm" id="btn-sa-cancel-dojo">Cancelar</button>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Nombre del dojo *</label><input type="text" class="form-control" id="sa-dojo-form-name" placeholder="Ej: Dojo Sakura" /></div>
+          <div class="form-group"><label class="form-label">País</label><input type="text" class="form-control" id="sa-dojo-form-country" placeholder="Ej: Argentina" /></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Contacto (nombre)</label><input type="text" class="form-control" id="sa-dojo-form-contact" placeholder="Sensei / representante" /></div>
+          <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-control" id="sa-dojo-form-email" placeholder="dojo@email.com" /></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Teléfono</label><input type="text" class="form-control" id="sa-dojo-form-phone" placeholder="+54 11..." /></div>
+          <div class="form-group"><label class="form-label">WhatsApp</label><input type="text" class="form-control" id="sa-dojo-form-whatsapp" placeholder="+54 11..." /></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Dirección</label><input type="text" class="form-control" id="sa-dojo-form-address" placeholder="Calle y número" /></div>
+          <div class="form-group"><label class="form-label">Ciudad</label><input type="text" class="form-control" id="sa-dojo-form-city" placeholder="Ciudad" /></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Sitio web</label><input type="url" class="form-control" id="sa-dojo-form-website" placeholder="https://..." /></div>
+          <div class="form-group"><label class="form-label">Instagram</label><input type="text" class="form-control" id="sa-dojo-form-instagram" placeholder="@dojo" /></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Facebook</label><input type="text" class="form-control" id="sa-dojo-form-facebook" placeholder="facebook.com/dojo" /></div>
+          <div class="form-group"><label class="form-label">TikTok</label><input type="text" class="form-control" id="sa-dojo-form-tiktok" placeholder="@dojo" /></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">YouTube</label><input type="text" class="form-control" id="sa-dojo-form-youtube" placeholder="youtube.com/@dojo" /></div>
+          <div class="form-group">
+            <label class="form-label">Logo</label>
+            <input type="file" class="form-control" id="sa-dojo-form-logo" accept="image/png,image/jpeg,image/svg+xml,image/webp" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notas</label>
+          <textarea class="form-control" id="sa-dojo-form-notes" rows="2" placeholder="Información adicional..."></textarea>
+        </div>
+        <label class="flex items-center gap-2 text-sm" style="cursor:pointer;margin-bottom:.75rem;">
+          <input type="checkbox" id="sa-dojo-form-open" checked />
+          <span>Acepta inscripciones libremente (open_registration)</span>
+        </label>
+        <button class="btn btn-primary" id="btn-sa-save-dojo">Guardar Dojo</button>
+      </div>
+      <!-- Listado -->
+      <div id="sa-dojos-list"><div class="text-center p-4"><span class="spinner"></span></div></div>
+      <!-- Gestión de visibilidad por torneo -->
+      <div id="sa-dojo-access" class="card mt-3" style="display:none;">
+        <div class="flex items-center justify-between" style="padding:.75rem 1rem;border-bottom:1px solid var(--border);">
+          <h3 class="card-title" style="margin:0;">👁 Visibilidad del dojo</h3>
+          <button class="btn btn-ghost btn-sm" id="btn-sa-close-access">✕</button>
+        </div>
+        <div style="padding:.75rem 1rem;">
+          <p class="text-sm text-muted mb-2" id="sa-dojo-access-name">—</p>
+          <p class="text-xs text-muted mb-2">Seleccioná los torneos donde este dojo será visible para el organizador.</p>
+          <table class="table table-sm">
+            <thead><tr><th>Torneo</th><th>Visible</th></tr></thead>
+            <tbody id="sa-dojo-access-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+
     <section id="panel-competitors" class="panel" style="display:none;"></section>
     <section id="panel-categories" class="panel" style="display:none;"></section>
     <section id="panel-brackets" class="panel" style="display:none;"></section>
@@ -186,6 +294,8 @@
   <script src="../js/competitors.js"></script>
   <script src="../js/categories.js"></script>
   <script src="../js/bracket.js"></script>
+  <script src="../js/dojos.js"></script>
+  <script src="../js/display.js"></script>
   <script src="../js/matches.js"></script>
   <script src="../js/superadmin.js"></script>
   <script src="../js/superadmin-users.js"></script>
@@ -195,7 +305,9 @@
   <script src="../js/superadmin-management.js"></script>
   <script src="../js/superadmin-logs.js"></script>
   <script src="../js/superadmin-settings.js"></script>
+  <script src="../js/reports.js"></script>
   <script src="../js/reports-center.js"></script>
+  <script src="../js/superadmin-dojos.js"></script>
   <!-- superadmin-reports.js eliminado para evitar conflictos con reports-center.js -->
 </body>
 </html>
