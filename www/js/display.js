@@ -326,14 +326,29 @@ const Display = (() => {
 
   /* --------------------------------------------------------
      LISTA DE CATEGORÍAS CON PROGRESO
+     @param {HTMLElement} container
+     @param {object[]} categories
+     @param {Function} onSelect
+     @param {object} options
+       - hideEmpty: boolean → oculta categorías con 0 inscritos
+                    (excepto manuales, is_manual).
   -------------------------------------------------------- */
-  function renderCategoryList(container, categories, onSelect) {
-    if (!categories.length) {
+  function renderCategoryList(container, categories, onSelect, options = {}) {
+    const hideEmpty = !!options.hideEmpty;
+    let visible = categories;
+    if (hideEmpty) {
+      visible = categories.filter(cat => {
+        const count = cat.registrations_count ?? cat.registrations?.[0]?.count ?? 0;
+        if (count > 0 || cat.is_manual) return true;
+        return false;
+      });
+    }
+    if (!visible.length) {
       container.innerHTML = _emptyState('No hay categorías registradas.');
       return;
     }
     container.innerHTML = '';
-    categories.forEach(cat => {
+    visible.forEach(cat => {
       const card = document.createElement('div');
       card.className = 'card mb-2';
       card.style.cursor = 'pointer';

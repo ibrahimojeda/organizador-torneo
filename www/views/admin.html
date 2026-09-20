@@ -1987,7 +1987,7 @@
       Display.renderCategoryList(el, cats, cat => {
         state.activeCategory = cat;
         switchPanel('brackets');
-      });
+      }, { hideEmpty: true });
       // Añadir botón de edición a cada tarjeta de categoría
       el.querySelectorAll('.card').forEach((card, idx) => {
         const cat = cats[idx];
@@ -2076,7 +2076,7 @@
     Display.renderCategoryList(listEl, filtered, async cat => {
       state.activeCategory = cat;
       await _loadBracket(cat);
-    });
+    }, { hideEmpty: true });
   }
 
   function _enrichDevMatchesWithCompetitors(matches = []) {

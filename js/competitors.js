@@ -75,7 +75,11 @@ const Competitors = (() => {
     if (Auth.isDevMode()) {
       let competitor = _devFindByDoc(normalizedData.document_id, tournamentId);
       if (!competitor) competitor = _devCreateComp(_buildPayload(normalizedData, tournamentId));
-      else competitor = _devUpdateComp(competitor.id, _buildPayload(normalizedData, tournamentId));
+      else {
+        competitor = _devUpdateComp(competitor.id, _buildPayload(normalizedData, tournamentId));
+        // Sincronizar copias del mismo documento en dev
+        await _syncSiblingCompetitors(competitor.id, normalizedData.document_id, _buildPayload(normalizedData, tournamentId));
+      }
       if (_devIsRegistered(competitor.id, tournamentId))
         throw new Error(`${competitor.full_name} ya está inscrito en este torneo.`);
       // Asigna categorías reales (categories.js ya tiene guardas dev)
@@ -459,7 +463,64 @@ const Competitors = (() => {
       .select()
       .single();
     if (error) throw error;
+    // Sincronizar copias del mismo documento en otros torneos (actualiza datos del perfil)
+    if (updated && data.document_id) {
+      await _syncSiblingCompetitors(id, data.document_id, payload);
+    }
     return updated;
+  }
+
+  /* --------------------------------------------------------
+     SINCRONIZAR COPIAS DEL MISMO DOCUMENTO EN OTROS TORNEOS
+     Mantiene actualizada la misma persona (mismo DNI/pasaporte)
+     en todas las copias por torneo. No toca tournament_id ni
+     registrations.
+     @param {string} excludeId - ID de la copia que se está editando
+     @param {string} documentId - Documento del competidor
+     @param {object} payload - Campos de perfil a propagar
+  -------------------------------------------------------- */
+  async function _syncSiblingCompetitors(excludeId, documentId, payload) {
+    if (!documentId) return 0;
+    if (Auth.isDevMode()) {
+      const list = _devCompList();
+      let synced = 0;
+      const syncData = { ...payload };
+      delete syncData.tournament_id;
+      delete syncData.dojo_id;
+      const updated = list.map(c => {
+        if (c.document_id === documentId && c.id !== excludeId) {
+          synced++;
+          return { ...c, ...syncData };
+        }
+        return c;
+      });
+      _devSaveC(updated);
+      return synced;
+    }
+    let q = supabase
+      .from(TABLE_COMP)
+      .select('id')
+      .eq('document_id', documentId);
+    if (excludeId) q = q.neq('id', excludeId);
+    const { data: siblings } = await q;
+    if (!siblings || !siblings.length) return 0;
+
+    // No propagar campos de identidad que solo aplican al torneo actual
+    const syncData = { ...payload };
+    delete syncData.tournament_id;
+    delete syncData.dojo_id;
+
+    let synced = 0;
+    for (const sibling of siblings) {
+      try {
+        const { error } = await supabase
+          .from(TABLE_COMP)
+          .update(syncData)
+          .eq('id', sibling.id);
+        if (!error) synced++;
+      } catch (_) {}
+    }
+    return synced;
   }
 
   async function _isRegistered(competitorId, tournamentId) {
@@ -555,6 +616,20 @@ const Competitors = (() => {
     await supabase.from(TABLE_REG).delete().eq('competitor_id', id);
   }
 
+  /* --------------------------------------------------------
+     SINCRONIZAR TODAS LAS COPIAS DE UN DOCUMENTO (acción pública)
+     Útil para forzar la actualización de datos de una misma
+     persona en todos los torneos donde tiene copia.
+     @param {string} documentId
+  -------------------------------------------------------- */
+  async function syncByDocument(documentId) {
+    const { data: copies } = await supabase
+      .from(TABLE_COMP)
+      .select('id')
+      .eq('document_id', documentId);
+    return (copies || []).length;
+  }
+
   return {
     register,
     registerBatch,
@@ -569,5 +644,6 @@ const Competitors = (() => {
     search,
     detectDuplicates,
     remove,
+    syncByDocument,
   };
 })();
