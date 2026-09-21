@@ -2,9 +2,10 @@
    TOURNAMENT.JS — CRUD de torneos
    ============================================================ */
 
-const Tournament = (() => {
+if (!window.Tournament) {
+  window.Tournament = (() => {
 
-  const TABLE   = 'tournaments';
+    const TABLE   = 'tournaments';
   const DEV_KEY = 'ot_dev_tournaments';
   const ARCHIVE_KEY = 'ot_archived_tournaments';
 
@@ -194,6 +195,9 @@ const Tournament = (() => {
 
   /* --------------------------------------------------------
      OBTENER ESTADÍSTICAS RÁPIDAS DEL TORNEO
+     Nota: `categories` cuenta SOLO las categorías que tienen
+     al menos 1 competidor inscrito (las vacías no se cuentan,
+     de forma coherente con que se ocultan en las pantallas).
   -------------------------------------------------------- */
   async function getStats(tournamentId) {
     if (Auth.isDevMode()) {
@@ -203,20 +207,25 @@ const Tournament = (() => {
         const allMatches= JSON.parse(localStorage.getItem('ot_dev_matches')        || '[]').filter(m => m.tournament_id === tournamentId);
         const finished  = allMatches.filter(m => m.status === 'finished').length;
         const total     = allMatches.length;
-        return { categories: cats.length, competitors: regs.length, totalMatches: total, finishedMatches: finished,
+        // Categorías con al menos 1 inscripción
+        const withReg   = new Set(regs.map(r => r.category_id));
+        const catCount  = cats.filter(c => withReg.has(c.id) || c.is_manual).length;
+        return { categories: catCount, competitors: regs.length, totalMatches: total, finishedMatches: finished,
                  progress: total > 0 ? Math.round((finished / total) * 100) : 0 };
       } catch { return { categories: 0, competitors: 0, totalMatches: 0, finishedMatches: 0, progress: 0 }; }
     }
-    const [categories, competitors, matches] = await Promise.all([
-      supabase.from('categories').select('id', { count: 'exact' }).eq('tournament_id', tournamentId),
+    const [categoriesRes, competitionsRes, matches] = await Promise.all([
+      supabase.from('categories').select('id, is_manual, registrations(count)').eq('tournament_id', tournamentId),
       supabase.from('registrations').select('id', { count: 'exact' }).eq('tournament_id', tournamentId),
       supabase.from('matches').select('id, status', { count: 'exact' }).eq('tournament_id', tournamentId),
     ]);
+    const catsArr     = categoriesRes.data || [];
+    const catCount    = catsArr.filter(c => (c.registrations?.[0]?.count ?? 0) > 0 || c.is_manual).length;
     const totalMatches    = matches.count || 0;
     const finishedMatches = (matches.data || []).filter(m => m.status === MATCH_STATUS.FINISHED).length;
     return {
-      categories:    categories.count  || 0,
-      competitors:   competitors.count || 0,
+      categories:    catCount,
+      competitors:   competitionsRes.count || 0,
       totalMatches,
       finishedMatches,
       progress: totalMatches > 0 ? Math.round((finishedMatches / totalMatches) * 100) : 0,
@@ -467,3 +476,4 @@ const Tournament = (() => {
     remove,
   };
 })();
+}
