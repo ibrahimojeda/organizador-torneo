@@ -53,15 +53,14 @@ ALTER TABLE dojos
 ALTER TABLE dojos
   ADD COLUMN IF NOT EXISTS open_registration BOOLEAN NOT NULL DEFAULT true; -- Recibe inscripciones libremente
 
--- 3) Unicidad global por nombre (sin tournament_id)
+-- 3) Devuelve índices previos (para permitir re-ejecución)
 DROP INDEX IF EXISTS idx_dojos_name_per_tournament;
 DROP INDEX IF EXISTS dojos_name_key;
 DROP INDEX IF EXISTS idx_dojos_name_global;
 
--- Re-crear índice único global por nombre
-CREATE UNIQUE INDEX IF NOT EXISTS idx_dojos_name_global ON dojos(lower(name));
-
--- 4) Deduplicar dojos existentes (mismo nombre → conservar uno, reasignar referencias)
+-- 4) DEDUPLICAR dojos existentes (mismo nombre → conservar uno, reasignar referencias)
+--    IMPORTANTE: la deduplicación va ANTES de crear el índice único global,
+--    para no fallar cuando ya existan duplicados.
 -- 4a) Reasignar competitors.dojo_id hacia la fila canónica (la más antigua) por nombre
 WITH canonical AS (
   SELECT DISTINCT ON (lower(name)) id, lower(name) AS lname
@@ -75,20 +74,8 @@ JOIN canonical c ON c.lname = lower(d.name)
 WHERE comp.dojo_id = d.id
   AND d.id <> c.id;
 
--- 4b) Reasignar tournament_dojos (si existiera) hacia la fila canónica
-WITH canonical AS (
-  SELECT DISTINCT ON (lower(name)) id, lower(name) AS lname
-  FROM dojos
-  ORDER BY lower(name), created_at
-)
-UPDATE tournament_dojos td
-SET dojo_id = c.id
-FROM dojos d
-JOIN canonical c ON c.lname = lower(d.name)
-WHERE td.dojo_id = d.id
-  AND d.id <> c.id;
-
--- 4c) Eliminar las filas duplicadas (las que no son canónicas)
+-- 4b) Eliminar las filas duplicadas (las que no son canónicas)
+--     La reasignación de tournament_dojos se hace al final (después de crear la tabla).
 DELETE FROM dojos d
 WHERE NOT EXISTS (
   SELECT 1 FROM (
@@ -98,6 +85,9 @@ WHERE NOT EXISTS (
   ) c
   WHERE c.id = d.id
 );
+
+-- 4c) Ahora SÍ: crear el índice único global por nombre
+CREATE UNIQUE INDEX IF NOT EXISTS idx_dojos_name_global ON dojos(lower(name));
 
 
 -- 5) TABLA tournament_dojos (visibilidad por torneo)
@@ -112,6 +102,22 @@ CREATE TABLE IF NOT EXISTS tournament_dojos (
 
 CREATE INDEX IF NOT EXISTS idx_tournament_dojos_tournament ON tournament_dojos(tournament_id);
 CREATE INDEX IF NOT EXISTS idx_tournament_dojos_dojo ON tournament_dojos(dojo_id);
+
+-- 5b) Reasignar tournament_dojos hacia la fila canónica de dojos (si quedaron referencias
+--     a dojos eliminados por deduplicación) — se ejecuta tras crear la tabla.
+WITH canonical AS (
+  SELECT DISTINCT ON (lower(name)) id, lower(name) AS lname
+  FROM dojos
+  ORDER BY lower(name), created_at
+)
+UPDATE tournament_dojos td
+SET dojo_id = c.id
+FROM dojos d
+JOIN canonical c ON c.lname = lower(d.name)
+WHERE td.dojo_id = d.id
+  AND d.id <> c.id;
+
+
 
 -- 6) RLS de tournament_dojos: super_admin gestiona; organizador lee los de su torneo
 ALTER TABLE tournament_dojos ENABLE ROW LEVEL SECURITY;
