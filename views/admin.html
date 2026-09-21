@@ -560,7 +560,7 @@
         <h3 class="card-title mb-3">👑 Gestión de Usuarios</h3>
 
         <!-- Crear usuario -->
-        <div class="mb-4">
+        <form class="mb-4" id="form-create-user" novalidate onsubmit="return false;">
           <h4 class="mb-2" style="font-size:.95rem;font-weight:600;">Crear nuevo usuario</h4>
           <div class="form-group">
             <label class="form-label">Email</label>
@@ -583,9 +583,9 @@
               <option value="super_admin">Super Admin 👑</option>
             </select>
           </div>
-          <button class="btn btn-primary" id="btn-create-user">＋ Crear usuario</button>
+          <button type="button" class="btn btn-primary" id="btn-create-user">＋ Crear usuario</button>
           <div id="create-user-result" class="mt-2"></div>
-        </div>
+        </form>
 
         <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0;" />
 
@@ -610,6 +610,7 @@
       <div class="card container-md mb-3">
         <h3 class="card-title mb-3">🔑 Mi contraseña</h3>
         <form id="form-change-pass" novalidate>
+          <input type="text" autocomplete="username" value="" style="display:none;" aria-hidden="true" tabindex="-1" />
           <div class="alert alert-info mb-2" id="password-policy-change">
             <strong>Requisitos para la contraseña:</strong><br>
             - Mínimo 12 caracteres<br>
