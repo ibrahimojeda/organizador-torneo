@@ -54,8 +54,25 @@ ALTER TABLE dojos
   ADD COLUMN IF NOT EXISTS open_registration BOOLEAN NOT NULL DEFAULT true; -- Recibe inscripciones libremente
 
 -- 3) Devuelve índices previos (para permitir re-ejecución)
+-- dojos_name_key puede ser una CONSTRAINT UNIQUE (creada por `name UNIQUE`)
+-- o un índice suelto según la versión del esquema. Se manejan ambos casos.
 DROP INDEX IF EXISTS idx_dojos_name_per_tournament;
-DROP INDEX IF EXISTS dojos_name_key;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'dojos_name_key'
+      AND conrelid = 'dojos'::regclass
+      AND contype IN ('u', 'p', 'x')
+  ) THEN
+    ALTER TABLE dojos DROP CONSTRAINT dojos_name_key;
+  ELSIF EXISTS (
+    SELECT 1 FROM pg_indexes
+    WHERE schemaname = 'public' AND tablename = 'dojos' AND indexname = 'dojos_name_key'
+  ) THEN
+    DROP INDEX dojos_name_key;
+  END IF;
+END $$;
 DROP INDEX IF EXISTS idx_dojos_name_global;
 
 -- 4) DEDUPLICAR dojos existentes (mismo nombre → conservar uno, reasignar referencias)
