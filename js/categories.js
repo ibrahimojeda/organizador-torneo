@@ -36,9 +36,11 @@ const Categories = (() => {
      @param {string} tournamentId
      @returns {object[]} Categorías creadas
   -------------------------------------------------------- */
-  async function autoGenerate(tournamentId) {
+  async function autoGenerate(tournamentId, onProgress) {
     const tournament  = await Tournament.getById(tournamentId);
     const competitors = await Competitors.listByTournament(tournamentId);
+
+    if (typeof onProgress === 'function') onProgress({ step: 'load', done: false, message: 'Cargando competidores inscritos...' });
 
     if (!competitors.length) {
       throw new Error('No hay competidores inscritos para generar categorías.');
@@ -46,7 +48,11 @@ const Categories = (() => {
 
     const generated = [];
 
-    for (const comp of competitors) {
+    for (let i = 0; i < competitors.length; i++) {
+      const comp = competitors[i];
+      if (typeof onProgress === 'function') {
+        onProgress({ step: 'analyze', done: false, message: `Analizando ${comp.full_name}: determinando categorías...`, index: i, total: competitors.length });
+      }
       const groups = _resolveCategoryKeys(comp, tournament);
       for (const key of groups) {
         const existing = generated.find(c => c._key === key._key) ||
@@ -58,6 +64,9 @@ const Categories = (() => {
     }
 
     const toInsert = generated.filter(c => c._isNew).map(({ _key, _isNew, ...rest }) => rest);
+    if (typeof onProgress === 'function') {
+      onProgress({ step: 'result', done: false, message: `Categorías determinadas: ${generated.length} (nuevas: ${toInsert.length})`, generated: generated.length, total: generated.length });
+    }
     if (!toInsert.length) return _devListByTournament(tournamentId);
 
     // Orden de programa: Kata primero, luego Kumite, luego otros.
