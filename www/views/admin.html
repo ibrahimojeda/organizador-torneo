@@ -1155,31 +1155,6 @@
   </div>
 </div>
 
-<!-- Modal: Progreso Categorías -->
-<div class="modal-overlay" id="modal-cat-progress">
-  <div class="modal" style="max-width:640px;">
-    <div class="modal-header">
-      <h3 class="modal-title" id="cat-progress-title">Procesando...</h3>
-      <button class="btn btn-ghost btn-icon" onclick="Display.closeModal('modal-cat-progress')">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="flex items-center gap-2 mb-2">
-        <span id="cat-progress-label" class="text-sm text-muted">Preparando...</span>
-      </div>
-      <div style="height:10px;background:var(--border);border-radius:99px;overflow:hidden;margin-bottom:1rem;">
-        <div id="cat-progress-bar" style="height:100%;width:0%;background:var(--success);border-radius:99px;transition:width .25s;"></div>
-      </div>
-      <div id="cat-progress-log" class="card p-0" style="max-height:300px;overflow-y:auto;font-size:.85rem;">
-        <div style="padding:.5rem 1rem;" class="text-muted">Iniciando...</div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" id="btn-cat-progress-close" onclick="Display.closeModal('modal-cat-progress')" style="display:none;">Cerrar</button>
-    </div>
-  </div>
-</div>
-
-<!-- Scripts -->
 <!-- Modal: Asistente de Optimización de Llaves -->
 <div class="modal-overlay" id="modal-optimize">
   <div class="modal" style="max-width:860px;">
@@ -1269,6 +1244,35 @@
     </div>
   </div>
 </div>
+
+<!-- Modal: Progreso Categorías -->
+<div class="modal-overlay" id="modal-cat-progress">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-header">
+      <h3 class="modal-title" id="cat-progress-title">Procesando...</h3>
+      <button class="btn btn-ghost btn-icon" onclick="Display.closeModal('modal-cat-progress')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="flex items-center gap-2 mb-2">
+        <span id="cat-progress-label" class="text-sm text-muted">Preparando...</span>
+      </div>
+      <div style="height:10px;background:var(--border);border-radius:99px;overflow:hidden;margin-bottom:1rem;">
+        <div id="cat-progress-bar" style="height:100%;width:0%;background:var(--success);border-radius:99px;transition:width .25s;"></div>
+      </div>
+      <div id="cat-progress-log" class="card p-0" style="max-height:300px;overflow-y:auto;font-size:.85rem;">
+        <div style="padding:.5rem 1rem;" class="text-muted">Iniciando...</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <span id="cat-progress-meta" class="text-sm text-muted" style="margin-right:auto;"></span>
+      <button class="btn btn-outline" id="btn-cat-progress-copy" style="display:none;">📋 Copiar resumen</button>
+      <button class="btn btn-primary" id="btn-cat-progress-close" onclick="Display.closeModal('modal-cat-progress')" style="display:none;">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
 <script src="../js/config.js?v=20260424a"></script>
 <script src="../js/auth.js?v=20260421b"></script>
@@ -1351,6 +1355,16 @@
       if (!sbOk) {
         try { Auth._clearSupabaseStorage(); } catch (_) {}
         try { sbOk = await supabase.auth.getSession() && true; } catch (_) { sbOk = false; }
+        if (sbOk) {
+          const cur = await supabase.auth.getSession().catch(() => null);
+          const sb = cur?.data?.session;
+          if (sb?.access_token) {
+            try { supabase.auth.setSession({
+              access_token: sb.access_token,
+              refresh_token: sb.refresh_token,
+            }); } catch (_) {}
+          }
+        }
       }
       let isHandlingSignOut = false;
       supabase.auth.onAuthStateChange(async (event, session) => {
@@ -1677,12 +1691,30 @@
   function _enhanceCountrySelect(select) {
     if (!select || select.dataset.flagPickerReady) return;
     select.dataset.flagPickerReady = 'true';
-    const wrap = document.createElement('div'); wrap.style.cssText = 'position:relative;'; select.parentNode.insertBefore(wrap, select); wrap.appendChild(select); select.style.display = 'none';
-    const button = document.createElement('button'); button.type = 'button'; button.className = 'form-control'; button.style.cssText = 'text-align:left;display:flex;align-items:center;gap:8px;';
-    const menu = document.createElement('div'); menu.style.cssText = 'display:none;position:absolute;z-index:1000;left:0;right:0;max-height:260px;overflow:auto;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;padding:4px;box-shadow:0 10px 24px rgba(0,0,0,.3);';
-    const render = () => { const info = getCountryInfo(select.value); const url = getCountryFlagUrl(info.code, 64); button.innerHTML = url ? `<img src="${url}" alt="" style="width:24px;height:16px;object-fit:cover;border-radius:2px;" /><span>${info.name}</span>` : '<span>— Seleccionar país —</span>'; };
-    COUNTRIES.forEach(country => { const item = document.createElement('button'); item.type = 'button'; item.className = 'btn btn-ghost'; item.style.cssText = 'width:100%;display:flex;align-items:center;gap:8px;text-align:left;padding:6px 8px;'; const url = getCountryFlagUrl(country.code, 64); item.innerHTML = `${url ? `<img src="${url}" alt="" style="width:24px;height:16px;object-fit:cover;border-radius:2px;" />` : ''}<span>${country.name}</span>`; item.addEventListener('click', () => { select.value = country.code; select.dispatchEvent(new Event('change', { bubbles: true })); menu.style.display = 'none'; }); menu.appendChild(item); });
-    button.addEventListener('click', () => { menu.style.display = menu.style.display === 'none' ? 'block' : 'none'; }); select.addEventListener('change', render); wrap.append(button, menu); render();
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:relative;';
+    select.parentNode.insertBefore(wrap, select);
+    wrap.appendChild(select);
+    select.style.display = 'none';
+    const button = document.createElement('button');
+    button.type = 'button'; button.className = 'form-control'; button.style.cssText = 'text-align:left;display:flex;align-items:center;gap:8px;';
+    const menu = document.createElement('div');
+    menu.style.cssText = 'display:none;position:absolute;z-index:1000;left:0;right:0;max-height:260px;overflow:auto;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;padding:4px;box-shadow:0 10px 24px rgba(0,0,0,.3);';
+    const render = () => {
+      const info = getCountryInfo(select.value);
+      const url = getCountryFlagUrl(info.code, 64);
+      button.innerHTML = url ? `<img src="${url}" alt="" style="width:24px;height:16px;object-fit:cover;border-radius:2px;" /><span>${info.name}</span>` : '<span>— Seleccionar país —</span>';
+    };
+    COUNTRIES.forEach(country => {
+      const item = document.createElement('button'); item.type = 'button'; item.className = 'btn btn-ghost'; item.style.cssText = 'width:100%;display:flex;align-items:center;gap:8px;text-align:left;padding:6px 8px;';
+      const url = getCountryFlagUrl(country.code, 64);
+      item.innerHTML = `${url ? `<img src="${url}" alt="" style="width:24px;height:16px;object-fit:cover;border-radius:2px;" />` : ''}<span>${country.name}</span>`;
+      item.addEventListener('click', () => { select.value = country.code; select.dispatchEvent(new Event('change', { bubbles: true })); menu.style.display = 'none'; });
+      menu.appendChild(item);
+    });
+    button.addEventListener('click', () => { menu.style.display = menu.style.display === 'none' ? 'block' : 'none'; });
+    select.addEventListener('change', render);
+    wrap.append(button, menu); render();
   }
   document.getElementById('dojo-form-country').innerHTML = _countryOptions();
   _enhanceCountrySelect(document.getElementById('dojo-form-country'));
@@ -1751,7 +1783,7 @@
     return div;
   }
 
-
+  function _resetDojoForm() {
     _editingDojoId = null;
     document.getElementById('dojo-form-id').value = '';
     document.getElementById('dojo-form-title').textContent = 'Nuevo Dojo';
@@ -1800,7 +1832,7 @@
     if (!name || !country) { Display.toast('Nombre y país son obligatorios.', 'warning'); return; }
     if (file && file.size > 2 * 1024 * 1024) { Display.toast('La imagen supera los 2MB.', 'error'); return; }
     try {
-      const dojo = _editingDojoId ? await Dojos.update(_editingDojoId, { name, country_code: country }) : await Dojos.create(name, { country_code: country });
+      const dojo = _editingDojoId ? await Dojos.update(_editingDojoId, { name, country_code: country }) : await Dojos.create(name, { country_code: country }, state.activeTournament.id);
       if (file) await Dojos.uploadLogo(dojo.id, file);
       Dojos.invalidateCache();
       _resetDojoForm();
@@ -2368,7 +2400,7 @@
     container.style.display = 'block';
     try {
       const allComps = await Competitors.listByCategory(category.id);
-      await Dojos.ensureCache(state.activeTournament.id);
+      await Dojos.ensureCache();
       // Filtrar solo aceptados (listByCategory ya filtra denied, pero reforzamos)
       const accepted = allComps.filter(c => c.status !== 'denied');
       if (!accepted.length) {
@@ -2486,7 +2518,6 @@
       Display.toast(e.message, 'error');
     }
   });
-
   /* ============================================================
      ASISTENTE DE OPTIMIZACIÓN DE LLAVES
      Flujo paso a paso (alcance → análisis → resolución de <2 →
@@ -2979,7 +3010,6 @@
 
 
   /* ---- Selector de sistema de llave ---- */
-  /* ---- Selector de sistema de llave ---- */
   document.getElementById('select-bracket-system').addEventListener('change', async (e) => {
     if (!state.activeCategory) return;
     const newSystem = e.target.value;
@@ -3011,17 +3041,22 @@
     }
   });
 
-  /* ---- Asignar competidores a categorías: automático ---- */
   /* ============================================================
      VENTANA DE PROGRESO PARA OPERACIONES DE CATEGORÍAS
   ============================================================ */
   const _catProgress = {
+    _start: 0,
+    _summary: '',
     open(title) {
+      this._start = Date.now();
+      this._summary = '';
       document.getElementById('cat-progress-title').textContent = title;
       document.getElementById('cat-progress-label').textContent = 'Preparando...';
       document.getElementById('cat-progress-bar').style.width = '0%';
+      document.getElementById('cat-progress-meta').textContent = '';
       document.getElementById('cat-progress-log').innerHTML = '<div style="padding:.5rem 1rem;" class="text-muted">Iniciando...</div>';
       document.getElementById('btn-cat-progress-close').style.display = 'none';
+      document.getElementById('btn-cat-progress-copy').style.display = 'none';
       Display.openModal('modal-cat-progress');
     },
     set(label, pct) {
@@ -3041,21 +3076,60 @@
       el.scrollTop = el.scrollHeight;
     },
     done(summary) {
+      this._summary = summary || 'Completado';
+      const elapsed = Date.now() - this._start;
       const bar = document.getElementById('cat-progress-bar');
       if (bar) bar.style.width = '100%';
       const lab = document.getElementById('cat-progress-label');
-      if (lab) lab.textContent = summary || 'Completado';
+      if (lab) lab.textContent = this._summary;
+      const meta = document.getElementById('cat-progress-meta');
+      if (meta) meta.textContent = '⏱ ' + _catProgress._fmtDuration(elapsed);
       document.getElementById('cat-progress-log').appendChild((() => {
         const d = document.createElement('div');
         d.style.cssText = 'padding:.6rem 1rem;';
-        d.innerHTML = `<strong>✅ ${summary || 'Proceso completado.'}</strong>`;
+        d.innerHTML = `<strong>✅ ${this._summary}</strong>`;
         return d;
       })());
       document.getElementById('btn-cat-progress-close').style.display = 'inline-flex';
+      document.getElementById('btn-cat-progress-copy').style.display = 'inline-flex';
+    },
+    copy() {
+      const log = document.getElementById('cat-progress-log');
+      const lines = log ? Array.from(log.children).map(n => (n.textContent || '').trim()).filter(Boolean) : [];
+      const title = (document.getElementById('cat-progress-title').textContent || '').trim();
+      const meta = (document.getElementById('cat-progress-meta').textContent || '').trim();
+      const text = `${title}\n${'='.repeat(Math.min(title.length, 40))}\n${lines.join('\n')}\n\n${meta ? meta + '\n' : ''}✅ ${this._summary}`;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => Display.toast('Resumen copiado al portapapeles.', 'success')).catch(() => _catProgress._fallbackCopy(text));
+      } else {
+        _catProgress._fallbackCopy(text);
+      }
+    },
+    _fallbackCopy(text) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); Display.toast('Resumen copiado.', 'success'); }
+      catch (e) { Display.toast('No se pudo copiar automáticamente.', 'warning'); }
+      document.body.removeChild(ta);
+    },
+    _fmtDuration(ms) {
+      const s = Math.round(ms / 1000);
+      if (s < 60) return `${s} segundo(s)`;
+      const m = Math.floor(s / 60);
+      const r = s % 60;
+      return `${m} min ${r} s`;
     },
     close() { Display.closeModal('modal-cat-progress'); },
   };
+  document.getElementById('btn-cat-progress-copy').addEventListener('click', () => _catProgress.copy());
 
+  /* ---- Asignar competidores a categorías: automático ---- */
+
+  /* ---- Asignar competidores a categorías: automático ---- */
   document.getElementById('btn-assign-auto').addEventListener('click', async () => {
     if (!state.activeTournament) { Display.toast('Seleccioná un torneo primero.', 'warning'); return; }
     if (!confirm('¿Asignar automáticamente todos los competidores inscritos a sus categorías correspondientes?')) return;
@@ -3103,8 +3177,8 @@
       }
 
       const msg = assigned > 0
-        ? `✓ ${assigned} inscripción(es) creada(s)${alreadyHad ? ` · ${alreadyHad} ya existían` : ''}${failed ? ` · ${failed} con error` : ''}.`
-        : `Todos los competidores ya estaban asignados a sus categorías.`;
+        ? `✓ ${assigned} inscripción(es) creada(s)${alreadyHad ? ` · ${alreadyHad} ya existían` : ''}${failed ? ` · ${failed} con error` : ''} (de ${total} competidores).`
+        : `Todos los ${total} competidores ya estaban asignados a sus categorías.`;
       _catProgress.done(msg);
       Display.toast(msg, assigned > 0 ? 'success' : 'info');
       await _loadCategories();
@@ -3134,6 +3208,7 @@
       Display.toast(e.message, 'error');
     }
   });
+
   /* ---- Asignar competidores a categorías: manual ---- */
   document.getElementById('btn-assign-manual').addEventListener('click', async () => {
     if (!state.activeTournament) { Display.toast('Seleccioná un torneo primero.', 'warning'); return; }
@@ -3282,6 +3357,7 @@
     if (!confirm('¿Generar categorías automáticamente? Se analizarán todos los competidores inscritos.')) return;
     _catProgress.open('⚡ Auto-generar categorías');
     try {
+      let totalComp = 0;
       const created = await Categories.autoGenerate(state.activeTournament.id, (ev) => {
         if (!ev) return;
         if (ev.step === 'load') {
@@ -3290,6 +3366,7 @@
         } else if (ev.step === 'analyze') {
           const pct = ev.total ? 15 + Math.round(((ev.index + 1) / ev.total) * 70) : 50;
           _catProgress.set(`${ev.message} (${ev.index + 1}/${ev.total})`, pct);
+          totalComp = ev.total || totalComp;
           if ((ev.index + 1) % 5 === 0) _catProgress.log(ev.message, 'arrow');
         } else if (ev.step === 'result') {
           _catProgress.set(ev.message, 85);
@@ -3298,7 +3375,8 @@
       });
       _catProgress.set('Guardando categorías...', 95);
       _catProgress.log(`✅ ${created.length} categoría(s) creada(s)/actualizada(s).`, 'ok');
-      _catProgress.done(`${created.length} categoría(s) listas.`);
+      const _extra = totalComp ? ` · ${totalComp} competidor(es) analizado(s)` : '';
+      _catProgress.done(`${created.length} categoría(s) listas${_extra}.`);
       Display.toast(`${created.length} categoría(s) creada(s).`, 'success');
       await _loadCategories();
     } catch (e) {
@@ -3595,7 +3673,7 @@
   document.getElementById('btn-save-competitor').addEventListener('click', async () => {
     const clubName = document.getElementById('c-club').value.trim();
     let dojoId = null;
-    // Auto-crear dojo si se especificó un club
+    // Auto-crear dojo si se especificó un club (en el torneo activo)
     if (clubName) {
       try {
         const dojo = await Dojos.create(clubName, {}, state.activeTournament.id);

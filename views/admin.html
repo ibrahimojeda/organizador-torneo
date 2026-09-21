@@ -1264,7 +1264,9 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-outline" id="btn-cat-progress-close" onclick="Display.closeModal('modal-cat-progress')" style="display:none;">Cerrar</button>
+      <span id="cat-progress-meta" class="text-sm text-muted" style="margin-right:auto;"></span>
+      <button class="btn btn-outline" id="btn-cat-progress-copy" style="display:none;">📋 Copiar resumen</button>
+      <button class="btn btn-primary" id="btn-cat-progress-close" onclick="Display.closeModal('modal-cat-progress')" style="display:none;">Cerrar</button>
     </div>
   </div>
 </div>
@@ -3043,12 +3045,18 @@
      VENTANA DE PROGRESO PARA OPERACIONES DE CATEGORÍAS
   ============================================================ */
   const _catProgress = {
+    _start: 0,
+    _summary: '',
     open(title) {
+      this._start = Date.now();
+      this._summary = '';
       document.getElementById('cat-progress-title').textContent = title;
       document.getElementById('cat-progress-label').textContent = 'Preparando...';
       document.getElementById('cat-progress-bar').style.width = '0%';
+      document.getElementById('cat-progress-meta').textContent = '';
       document.getElementById('cat-progress-log').innerHTML = '<div style="padding:.5rem 1rem;" class="text-muted">Iniciando...</div>';
       document.getElementById('btn-cat-progress-close').style.display = 'none';
+      document.getElementById('btn-cat-progress-copy').style.display = 'none';
       Display.openModal('modal-cat-progress');
     },
     set(label, pct) {
@@ -3068,20 +3076,56 @@
       el.scrollTop = el.scrollHeight;
     },
     done(summary) {
+      this._summary = summary || 'Completado';
+      const elapsed = Date.now() - this._start;
       const bar = document.getElementById('cat-progress-bar');
       if (bar) bar.style.width = '100%';
       const lab = document.getElementById('cat-progress-label');
-      if (lab) lab.textContent = summary || 'Completado';
+      if (lab) lab.textContent = this._summary;
+      const meta = document.getElementById('cat-progress-meta');
+      if (meta) meta.textContent = '⏱ ' + _catProgress._fmtDuration(elapsed);
       document.getElementById('cat-progress-log').appendChild((() => {
         const d = document.createElement('div');
         d.style.cssText = 'padding:.6rem 1rem;';
-        d.innerHTML = `<strong>✅ ${summary || 'Proceso completado.'}</strong>`;
+        d.innerHTML = `<strong>✅ ${this._summary}</strong>`;
         return d;
       })());
       document.getElementById('btn-cat-progress-close').style.display = 'inline-flex';
+      document.getElementById('btn-cat-progress-copy').style.display = 'inline-flex';
+    },
+    copy() {
+      const log = document.getElementById('cat-progress-log');
+      const lines = log ? Array.from(log.children).map(n => (n.textContent || '').trim()).filter(Boolean) : [];
+      const title = (document.getElementById('cat-progress-title').textContent || '').trim();
+      const meta = (document.getElementById('cat-progress-meta').textContent || '').trim();
+      const text = `${title}\n${'='.repeat(Math.min(title.length, 40))}\n${lines.join('\n')}\n\n${meta ? meta + '\n' : ''}✅ ${this._summary}`;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => Display.toast('Resumen copiado al portapapeles.', 'success')).catch(() => _catProgress._fallbackCopy(text));
+      } else {
+        _catProgress._fallbackCopy(text);
+      }
+    },
+    _fallbackCopy(text) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); Display.toast('Resumen copiado.', 'success'); }
+      catch (e) { Display.toast('No se pudo copiar automáticamente.', 'warning'); }
+      document.body.removeChild(ta);
+    },
+    _fmtDuration(ms) {
+      const s = Math.round(ms / 1000);
+      if (s < 60) return `${s} segundo(s)`;
+      const m = Math.floor(s / 60);
+      const r = s % 60;
+      return `${m} min ${r} s`;
     },
     close() { Display.closeModal('modal-cat-progress'); },
   };
+  document.getElementById('btn-cat-progress-copy').addEventListener('click', () => _catProgress.copy());
 
   /* ---- Asignar competidores a categorías: automático ---- */
 
@@ -3133,8 +3177,8 @@
       }
 
       const msg = assigned > 0
-        ? `✓ ${assigned} inscripción(es) creada(s)${alreadyHad ? ` · ${alreadyHad} ya existían` : ''}${failed ? ` · ${failed} con error` : ''}.`
-        : `Todos los competidores ya estaban asignados a sus categorías.`;
+        ? `✓ ${assigned} inscripción(es) creada(s)${alreadyHad ? ` · ${alreadyHad} ya existían` : ''}${failed ? ` · ${failed} con error` : ''} (de ${total} competidores).`
+        : `Todos los ${total} competidores ya estaban asignados a sus categorías.`;
       _catProgress.done(msg);
       Display.toast(msg, assigned > 0 ? 'success' : 'info');
       await _loadCategories();
@@ -3313,6 +3357,7 @@
     if (!confirm('¿Generar categorías automáticamente? Se analizarán todos los competidores inscritos.')) return;
     _catProgress.open('⚡ Auto-generar categorías');
     try {
+      let totalComp = 0;
       const created = await Categories.autoGenerate(state.activeTournament.id, (ev) => {
         if (!ev) return;
         if (ev.step === 'load') {
@@ -3321,6 +3366,7 @@
         } else if (ev.step === 'analyze') {
           const pct = ev.total ? 15 + Math.round(((ev.index + 1) / ev.total) * 70) : 50;
           _catProgress.set(`${ev.message} (${ev.index + 1}/${ev.total})`, pct);
+          totalComp = ev.total || totalComp;
           if ((ev.index + 1) % 5 === 0) _catProgress.log(ev.message, 'arrow');
         } else if (ev.step === 'result') {
           _catProgress.set(ev.message, 85);
@@ -3329,7 +3375,8 @@
       });
       _catProgress.set('Guardando categorías...', 95);
       _catProgress.log(`✅ ${created.length} categoría(s) creada(s)/actualizada(s).`, 'ok');
-      _catProgress.done(`${created.length} categoría(s) listas.`);
+      const _extra = totalComp ? ` · ${totalComp} competidor(es) analizado(s)` : '';
+      _catProgress.done(`${created.length} categoría(s) listas${_extra}.`);
       Display.toast(`${created.length} categoría(s) creada(s).`, 'success');
       await _loadCategories();
     } catch (e) {
