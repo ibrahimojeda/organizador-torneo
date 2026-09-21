@@ -152,21 +152,34 @@ CREATE POLICY "tournament_dojos_write" ON tournament_dojos
   WITH CHECK (public.is_super_admin());
 
 -- 7) RLS dojos: SELECT solo super_admin (global) u organizador con acceso
+--    IMPORTANTE: NO se hace SELECT sobre la propia tabla dojos dentro de la
+--    política (eso provoca "infinite recursion detected in policy").
+--    Se delega la comprobación a una función SECURITY DEFINER.
+CREATE OR REPLACE FUNCTION public.can_view_dojo(p_dojo_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+  SELECT
+    public.is_super_admin()
+    OR EXISTS (
+      SELECT 1 FROM tournament_dojos td
+      WHERE td.dojo_id = p_dojo_id
+        AND td.tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
+    )
+    OR EXISTS (
+      SELECT 1 FROM registrations r
+      JOIN competitors comp ON comp.id = r.competitor_id
+      WHERE comp.dojo_id = p_dojo_id
+        AND r.tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
+    );
+$$;
+
 DROP POLICY IF EXISTS "dojos_select_public" ON dojos;
 CREATE POLICY "dojos_select_public" ON dojos
-  FOR SELECT USING (
-    public.is_super_admin()
-    OR id IN (
-      SELECT d2.id FROM dojos d2
-      JOIN tournament_dojos td ON td.dojo_id = d2.id
-      WHERE td.tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
-    )
-    OR id IN (
-      SELECT comp.dojo_id FROM competitors comp
-      JOIN registrations r ON r.competitor_id = comp.id
-      WHERE r.tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
-    )
-  );
+  FOR SELECT USING (public.can_view_dojo(id));
 
 DROP POLICY IF EXISTS "dojos_write_authenticated" ON dojos;
 CREATE POLICY "dojos_write_authenticated" ON dojos
