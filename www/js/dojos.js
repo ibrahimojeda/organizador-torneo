@@ -32,8 +32,9 @@ const Dojos = (() => {
       }
       return all;
     }
-    // Intentar con columnas completas; si falla (columnas de contacto aún no creadas
-    // por migración), reintentar con columnas básicas para no romper la app.
+    // Intentar con columnas completas; si falla por cualquier motivo
+    // (columnas de contacto aún no creadas / caché de PostgREST viejo),
+    // reintentar con columnas básicas para no romper la app.
     const attempt = async (cols) => {
       let q = supabase.from(TABLE_DOJOS).select(cols).order('name');
       if (tournamentId) {
@@ -49,16 +50,14 @@ const Dojos = (() => {
     };
     try {
       return await attempt(FULL_COLS);
-    } catch (err) {
-      const msg = String(err?.message || '');
-      const isMissingCol = /column.*does not exist|PGRST204|Could not find/i.test(msg)
-        || err?.code === 'PGRST204'
-        || err?.status === 500;
-      if (!isMissingCol) throw err;
+    } catch (_fullErr) {
+      // Ante cualquier error del SELECT completo, reintentar con columnas básicas.
+      // Las columnas básicas existen desde el esquema original, por lo que esta
+      // consulta solo puede fallar por RLS o red (en cuyo caso si propagamos).
       try {
         return await attempt(BASE_COLS);
-      } catch (_) {
-        return [];
+      } catch (baseErr) {
+        throw baseErr;
       }
     }
   }
