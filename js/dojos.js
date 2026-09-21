@@ -16,6 +16,10 @@ const Dojos = (() => {
        del torneo ∪ (si super_admin) todos los globales.
      @param {string} tournamentId
   -------------------------------------------------------- */
+  /* ---- Columnas según disponibilidad (tolerante a migración incompleta) ---- */
+  const FULL_COLS = 'id, name, logo_url, country_code, country_name, email, phone, whatsapp, address, city, instagram, facebook, tiktok, youtube, contact_name, website, notes, tournament_id, open_registration';
+  const BASE_COLS = 'id, name, logo_url, country_code, website, notes, tournament_id';
+
   async function list(tournamentId) {
     if (Auth.isDevMode()) {
       const all = _devList();
@@ -28,25 +32,35 @@ const Dojos = (() => {
       }
       return all;
     }
-    let query = supabase
-      .from(TABLE_DOJOS)
-      .select('id, name, logo_url, country_code, country_name, email, phone, whatsapp, address, city, instagram, facebook, tiktok, youtube, contact_name, website, notes, tournament_id, open_registration')
-      .order('name');
-    if (Auth.isSuperAdmin() && !tournamentId) {
-      const { data, error } = await query;
+    // Intentar con columnas completas; si falla (columnas de contacto aún no creadas
+    // por migración), reintentar con columnas básicas para no romper la app.
+    const attempt = async (cols) => {
+      let q = supabase.from(TABLE_DOJOS).select(cols).order('name');
+      if (tournamentId) {
+        const authed = await _getAuthorizedIds(tournamentId);
+        const inscritos = await _getInscribedIds(tournamentId);
+        const allowed = new Set([...authed, ...inscritos]);
+        if (allowed.size) q = q.in('id', [...allowed]);
+        else q = q.eq('id', '00000000-0000-0000-0000-000000000000'); // ninguno visible
+      }
+      const { data, error } = await q;
       if (error) throw error;
       return data || [];
+    };
+    try {
+      return await attempt(FULL_COLS);
+    } catch (err) {
+      const msg = String(err?.message || '');
+      const isMissingCol = /column.*does not exist|PGRST204|Could not find/i.test(msg)
+        || err?.code === 'PGRST204'
+        || err?.status === 500;
+      if (!isMissingCol) throw err;
+      try {
+        return await attempt(BASE_COLS);
+      } catch (_) {
+        return [];
+      }
     }
-    // Organizador: dojos autorizados para su torneo O con inscripciones en él.
-    if (tournamentId) {
-      const authed = await _getAuthorizedIds(tournamentId);
-      const inscritos = await _getInscribedIds(tournamentId);
-      const allowed = new Set([...authed, ...inscritos]);
-      query = query.in('id', [...allowed]);
-    }
-    const { data, error } = await query;
-    if (error) throw error;
-    return data || [];
   }
 
   /* ---- Auxiliares de visibilidad ---- */
