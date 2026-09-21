@@ -1163,6 +1163,16 @@
       <button class="btn btn-ghost btn-icon" onclick="Display.closeModal('modal-optimize')">✕</button>
     </div>
     <div class="modal-body">
+      <!-- Barra de progreso de pasos -->
+      <div class="mb-3">
+        <div class="flex items-center justify-between text-xs text-muted mb-1">
+          <span id="opt-progress-label">Paso 1 de 6 · Alcance</span>
+          <span id="opt-progress-pct">17%</span>
+        </div>
+        <div style="height:8px;background:var(--border);border-radius:99px;overflow:hidden;">
+          <div id="opt-progress-bar" style="height:100%;width:0%;background:var(--gold, #d4af37);border-radius:99px;transition:width .25s;"></div>
+        </div>
+      </div>
       <!-- Paso 0: Alcance -->
       <div id="opt-step-scope">
         <p class="text-sm text-muted mb-3">¿Sobre qué categorías querés optimizar las llaves?</p>
@@ -1233,6 +1243,14 @@
       <!-- Resultado -->
       <div id="opt-step-result" style="display:none;">
         <h4 class="font-semibold mb-2">📋 Resultado</h4>
+        <div id="opt-apply-progress" class="mb-3" style="display:none;">
+          <div class="flex items-center justify-between text-xs text-muted mb-1">
+            <span id="opt-apply-label">Generando llaves...</span>
+          </div>
+          <div style="height:8px;background:var(--border);border-radius:99px;overflow:hidden;">
+            <div id="opt-apply-bar" style="height:100%;width:0%;background:var(--gold, #d4af37);border-radius:99px;transition:width .2s;"></div>
+          </div>
+        </div>
         <div id="opt-result-content"></div>
       </div>
     </div>
@@ -2546,6 +2564,15 @@
     applyBtn.style.display = step === 5 ? 'inline-flex' : 'none';
     nextBtn.style.display  = step === 5 ? 'none' : 'inline-flex';
     nextBtn.textContent    = step === 4 ? 'Ver resumen →' : 'Continuar →';
+
+    // Barra de progreso de pasos
+    const stepNames = ['Alcance', 'Análisis', 'Resolución', 'Configuración', 'Confirmación', 'Resultado'];
+    const lbl = document.getElementById('opt-progress-label');
+    const bar = document.getElementById('opt-progress-bar');
+    const pct = document.getElementById('opt-progress-pct');
+    if (lbl) lbl.textContent = `Paso ${step} de ${stepNames.length} · ${stepNames[step - 1] || ''}`;
+    if (bar) bar.style.width = Math.round((step / stepNames.length) * 100) + '%';
+    if (pct) pct.textContent = Math.round((step / stepNames.length) * 100) + '%';
   }
 
   function _optCategoryLabel(cat) {
@@ -2615,6 +2642,7 @@
       listEl.innerHTML = '';
       _optState.resolve = {};
       _optState.resolveIndex = 0;
+      _optShowStep(3);
       return;
     }
     emptyEl.style.display = 'none';
@@ -2637,6 +2665,7 @@
     _optState.resolveQueue.sort(_optSortQueue);
     _optState.resolveIndex = Math.min(_optState.resolveIndex || 0, _optState.resolveQueue.length - 1);
     _optRenderResolveCard();
+    _optShowStep(3);
   }
 
   /* Orden determinista para la navegación: disciplina → género → edad */
@@ -2831,6 +2860,11 @@
     const resultEl = document.getElementById('opt-result-content');
     resultEl.innerHTML = '<div class="text-center p-3"><span class="spinner"></span> Procesando categorías...</div>';
     _optShowStep(6);
+    const applyProgWrap = document.getElementById('opt-apply-progress');
+    const applyProgLabel = document.getElementById('opt-apply-label');
+    const applyProgBar = document.getElementById('opt-apply-bar');
+    if (applyProgWrap) applyProgWrap.style.display = 'block';
+    if (applyProgBar) applyProgBar.style.width = '0%';
 
     const warningsAll = [];
     const errors = [];
@@ -2905,7 +2939,12 @@
         }
       }
 
+      const totalGen = finalCats.length;
+      let genIdx = 0;
       for (const cat of finalCats) {
+        genIdx++;
+        if (applyProgLabel) applyProgLabel.textContent = `Generando llaves... ${genIdx} de ${totalGen}: ${_optCategoryLabel(cat)}`;
+        if (applyProgBar) applyProgBar.style.width = Math.round((genIdx / Math.max(totalGen, 1)) * 100) + '%';
         const count = await _optCount(cat.id);
         if (count === 0) { skipped.push(_optCategoryLabel(cat)); continue; }
 
@@ -2935,6 +2974,8 @@
         } catch (e) { errors.push(`"${_optCategoryLabel(cat)}": ${e.message}`); }
       }
 
+      if (applyProgBar) applyProgBar.style.width = '100%';
+      if (applyProgLabel) applyProgLabel.textContent = 'Proceso completado.';
       // 3) Reporte
       let html = '';
       if (generated.length) html += `<div class="alert alert-success">✅ ${generated.length} llave(s) generada(s).</div>`;
