@@ -65,6 +65,11 @@ CREATE TABLE IF NOT EXISTS tournaments (
   description     TEXT,
   bracket_system  TEXT         NOT NULL DEFAULT 'auto'
                                 CHECK (bracket_system IN ('auto','single_elimination','repechage','round_robin','double_elimination','kata_individual','kata_duels')),
+  kumite_bracket_system TEXT   NOT NULL DEFAULT 'single_elimination'
+                                CHECK (kumite_bracket_system IN ('auto','single_elimination','repechage','round_robin','double_elimination','kata_individual','kata_duels')),
+  kata_bracket_system TEXT     NOT NULL DEFAULT 'kata_individual'
+                                CHECK (kata_bracket_system IN ('auto','single_elimination','repechage','round_robin','double_elimination','kata_individual','kata_duels')),
+  blacks_in_advanced BOOLEAN   NOT NULL DEFAULT TRUE,
   disciplines     JSONB        NOT NULL DEFAULT '["kumite","kata"]',
   status          TEXT         NOT NULL DEFAULT 'draft'
                                CHECK (status IN ('draft','open','closed','ongoing','finished','cancelled')),

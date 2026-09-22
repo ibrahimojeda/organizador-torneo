@@ -233,27 +233,26 @@ const Categories = (() => {
   function buildLabel(category) {
     const parts = [];
     const disc = DISCIPLINES.find(d => d.id === category.discipline);
-    if (disc)  parts.push(disc.label);
+    if (disc) parts.push(disc.label);
 
-    const gender = GENDERS.find(g => g.id === category.gender);
-    if (gender) parts.push(gender.label);
-
+    // Edad como rango "X-Y años"
     const ageGroup = AGE_GROUPS.find(a => a.id === category.age_group_id);
-    if (ageGroup)  parts.push(ageGroup.label);
+    if (ageGroup) parts.push(`${ageGroup.minAge}-${ageGroup.maxAge} años`);
     else if (category.age_min != null) parts.push(`${category.age_min}-${category.age_max} años`);
 
-    // Show weight only if age_weight mode (weight_class_id populated)
+    // Nivel de cinturón (age_belt) o clase de peso (age_weight)
     if (category.weight_class_id) {
       const wClasses = WEIGHT_CLASSES[category.gender] || [];
       const wc = wClasses.find(w => w.id === category.weight_class_id);
       if (wc) parts.push(wc.label);
     }
-
-    // Show belt group only if age_belt mode (belt_group_id populated)
     if (category.belt_group_id) {
       const bg = BELT_GROUPS.find(b => b.id === category.belt_group_id);
       if (bg) parts.push(bg.label);
     }
+
+    const gender = GENDERS.find(g => g.id === category.gender);
+    if (gender) parts.push(gender.label);
 
     return parts.join(' · ');
   }
@@ -268,7 +267,7 @@ const Categories = (() => {
     const keys = [];
     const tournamentDisciplines = tournament.disciplines || ['kumite'];
     const ageGroup  = getAgeGroup(competitor.dob, tournament.date_start);
-    const beltGroup = getBeltGroup(competitor.belt_id);
+    const beltGroup = getBeltGroup(competitor.belt_id, { blacksInAdvanced: tournament.blacks_in_advanced !== false });
 
     // Filter disciplines by competitor's own preference
     const compDiscipline = competitor.discipline || 'kumite';
@@ -296,12 +295,17 @@ const Categories = (() => {
         beltGroupId = beltGroup?.id || null;
       }
 
+      const bracket_system = discipline === 'kata'
+        ? (tournament.kata_bracket_system   || 'kata_individual')
+        : (tournament.kumite_bracket_system || 'single_elimination');
+
       const base = {
         discipline,
         gender:          competitor.gender,
         age_group_id:    ageGroup?.id || null,
         weight_class_id: weightClassId,
         belt_group_id:   beltGroupId,
+        bracket_system,
       };
       const key = _buildKey(base);
       keys.push({ ...base, name: null, _key: key });

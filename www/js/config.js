@@ -66,8 +66,14 @@ const BELT_GROUPS = [
   {
     id: 'avanzado',
     label: 'Avanzado',
-    belts: ['marron', 'negro'],
-    description: 'Cinturón Marrón y Negro',
+    belts: ['marron'],
+    description: 'Cinturón Marrón',
+  },
+  {
+    id: 'experto',
+    label: 'Experto',
+    belts: ['negro'],
+    description: 'Cinturón Negro',
   },
 ];
 
@@ -336,7 +342,13 @@ function getWeightClass(gender, weight) {
  * @param {string} beltId
  * @returns {object|null}
  */
-function getBeltGroup(beltId) {
+function getBeltGroup(beltId, options = {}) {
+  // Por defecto los cinturones negros compiten en "Avanzado".
+  // Si el torneo separa los negros, compiten en "Experto".
+  const blacksInAdvanced = options.blacksInAdvanced !== false;
+  if (beltId === 'negro' && blacksInAdvanced) {
+    return BELT_GROUPS.find(g => g.id === 'avanzado') || null;
+  }
   return BELT_GROUPS.find(g => g.belts.includes(beltId)) || null;
 }
 

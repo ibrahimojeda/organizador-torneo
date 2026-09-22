@@ -709,14 +709,31 @@
           </div>
         </div>
         <div class="form-group">
-          <label class="form-label">Sistema de llaves por defecto</label>
-          <select class="form-control" id="t-bracket-system">
-            <option value="auto">⚡ Automático (recomendado)</option>
-            <option value="single_elimination">⚔️ Eliminación Simple</option>
+          <label class="form-label">Sistema Kumite</label>
+          <select class="form-control" id="t-kumite-system">
+            <option value="single_elimination" selected>⚔️ Eliminación Simple</option>
             <option value="repechage">🏅 Eliminación + Repesca (WKF)</option>
             <option value="round_robin">🔄 Round-Robin</option>
             <option value="double_elimination">🔁 Doble Eliminación</option>
           </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Sistema Kata</label>
+          <select class="form-control" id="t-kata-system">
+            <option value="kata_individual" selected>🥋 Kata Individual</option>
+            <option value="kata_duels">🥋 Kata por Duelos</option>
+            <option value="single_elimination">⚔️ Eliminación Simple</option>
+            <option value="repechage">🏅 Eliminación + Repesca (WKF)</option>
+            <option value="round_robin">🔄 Round-Robin</option>
+          </select>
+        </div>
+        <div class="form-group" id="negros-group">
+          <label class="form-label">Cinturones negros</label>
+          <select class="form-control" id="t-blacks-in-advanced">
+            <option value="1" selected>Incluir negros en Avanzado (Avanzado = marrón + negro)</option>
+            <option value="0">Negros en Experto (Avanzado = marrón, Experto = negro)</option>
+          </select>
+          <p class="text-xs text-muted mt-1">Solo aplica en modo "Edad + Cinturón".</p>
         </div>
         <div class="form-group">
           <label class="form-label">Modo de categorización *</label>
@@ -3539,7 +3556,9 @@
       date_end:       document.getElementById('t-date-end').value,
       location:       document.getElementById('t-location').value,
       description:    document.getElementById('t-description').value,
-      bracket_system: document.getElementById('t-bracket-system').value,
+      kumite_bracket_system: document.getElementById('t-kumite-system').value,
+      kata_bracket_system:   document.getElementById('t-kata-system').value,
+      blacks_in_advanced:    document.getElementById('t-blacks-in-advanced').value === '1',
       num_tatamis:    document.getElementById('t-num-tatamis').value,
       time_start:     document.getElementById('t-time-start').value || '09:00',
       category_mode:  document.getElementById('t-category-mode').value,
@@ -3556,6 +3575,15 @@
       Display.toast(e.message, 'error');
     }
   });
+
+  /* ---- Mostrar/ocultar pregunta de negros según modo de categorización ---- */
+  const _toggleNegrosGroup = () => {
+    const mode = document.getElementById('t-category-mode')?.value;
+    const group = document.getElementById('negros-group');
+    if (group) group.style.display = mode === 'age_belt' ? '' : 'none';
+  };
+  document.getElementById('t-category-mode')?.addEventListener('change', _toggleNegrosGroup);
+  _toggleNegrosGroup();
 
   /* ---- Modal: Registrar / Editar Competidor ---- */
   // Poblar select de cinturones

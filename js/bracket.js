@@ -96,7 +96,7 @@ const Bracket = (() => {
     await _clearPendingMatches(categoryId);
 
     const forcedSystem = options.system || null;
-    const system = forcedSystem ? forcedSystem : _resolveSystem(category.bracket_system, competitors.length);
+    const system = forcedSystem ? forcedSystem : _resolveSystem(category.bracket_system, competitors.length, category.discipline);
 
     // --- Separar por club (evita mismo dojo en R1) ---
     const separated = options.separateByClub === false ? [...competitors] : _separateByClub(competitors);
@@ -249,9 +249,10 @@ const Bracket = (() => {
      ====================================================== */
 
   /* ---- Resolución del sistema según cantidad de competidores ---- */
-  function _resolveSystem(system, count) {
+  function _resolveSystem(system, count, discipline) {
     if (system === 'auto') {
-      return count <= 3 ? 'round_robin' : 'single_elimination';
+      // Kata usa "Kata Individual" por defecto; el resto "Eliminación Simple".
+      return discipline === 'kata' ? 'kata_individual' : 'single_elimination';
     }
     // Kata individual y kata por duelos se manejan en generate()
     if (system === 'kata_individual') return 'kata_individual';

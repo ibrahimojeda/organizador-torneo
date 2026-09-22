@@ -45,7 +45,9 @@ if (!window.Tournament) {
       date_start:     data.date_start,
       date_end:       data.date_end || data.date_start,
       description:    data.description?.trim() || null,
-      bracket_system: data.bracket_system || 'auto',
+      kumite_bracket_system: data.kumite_bracket_system || 'single_elimination',
+      kata_bracket_system:   data.kata_bracket_system   || 'kata_individual',
+      blacks_in_advanced:    data.blacks_in_advanced !== false,
       disciplines:    data.disciplines || ['kumite'],
       num_tatamis:    parseInt(data.num_tatamis, 10) || 1,
       time_start:     data.time_start || '09:00:00',
@@ -142,7 +144,9 @@ if (!window.Tournament) {
     if (data.date_start)     payload.date_start     = data.date_start;
     if (data.date_end)       payload.date_end       = data.date_end;
     if (data.description)    payload.description    = data.description.trim();
-    if (data.bracket_system) payload.bracket_system = data.bracket_system;
+    if (data.kumite_bracket_system != null) payload.kumite_bracket_system = data.kumite_bracket_system;
+    if (data.kata_bracket_system != null)   payload.kata_bracket_system   = data.kata_bracket_system;
+    if (data.blacks_in_advanced != null)    payload.blacks_in_advanced    = data.blacks_in_advanced;
     if (data.disciplines)      payload.disciplines    = data.disciplines;
     if (data.status)           payload.status         = data.status;
     if (data.time_start != null) payload.time_start   = data.time_start;
