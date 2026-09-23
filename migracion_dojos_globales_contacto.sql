@@ -148,8 +148,14 @@ CREATE POLICY "tournament_dojos_select" ON tournament_dojos
 
 DROP POLICY IF EXISTS "tournament_dojos_write" ON tournament_dojos;
 CREATE POLICY "tournament_dojos_write" ON tournament_dojos
-  FOR ALL USING (public.is_super_admin())
-  WITH CHECK (public.is_super_admin());
+  FOR ALL USING (
+    public.is_super_admin()
+    OR tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
+  )
+  WITH CHECK (
+    public.is_super_admin()
+    OR tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
+  );
 
 -- 7) RLS dojos: SELECT solo super_admin (global) u organizador con acceso
 --    IMPORTANTE: NO se hace SELECT sobre la propia tabla dojos dentro de la
@@ -182,8 +188,23 @@ CREATE POLICY "dojos_select_public" ON dojos
   FOR SELECT USING (public.can_view_dojo(id));
 
 DROP POLICY IF EXISTS "dojos_write_authenticated" ON dojos;
-CREATE POLICY "dojos_write_authenticated" ON dojos
-  FOR ALL USING (public.is_super_admin())
+DROP POLICY IF EXISTS "dojos_insert" ON dojos;
+CREATE POLICY "dojos_insert" ON dojos
+  FOR INSERT WITH CHECK (
+    public.is_super_admin()
+    OR (
+      auth.uid() IS NOT NULL
+      AND tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
+    )
+  );
+
+DROP POLICY IF EXISTS "dojos_update" ON dojos;
+CREATE POLICY "dojos_update" ON dojos
+  FOR UPDATE USING (public.is_super_admin())
   WITH CHECK (public.is_super_admin());
+
+DROP POLICY IF EXISTS "dojos_delete" ON dojos;
+CREATE POLICY "dojos_delete" ON dojos
+  FOR DELETE USING (public.is_super_admin());
 
 NOTIFY pgrst, 'reload schema';

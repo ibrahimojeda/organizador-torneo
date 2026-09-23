@@ -1846,10 +1846,6 @@
   };
 
   document.getElementById('btn-new-dojo')?.addEventListener('click', () => {
-    if (!Auth.isSuperAdmin()) {
-      Display.toast('La base de dojos la administra el super admin. Podés usar los dojos visibles en tus inscripciones.', 'info');
-      return;
-    }
     _resetDojoForm();
     document.getElementById('dojos-form-card').style.display = 'block';
   });
@@ -1868,8 +1864,14 @@
     if (!name || !country) { Display.toast('Nombre y país son obligatorios.', 'warning'); return; }
     if (file && file.size > 2 * 1024 * 1024) { Display.toast('La imagen supera los 2MB.', 'error'); return; }
     try {
-      const dojo = _editingDojoId ? await Dojos.update(_editingDojoId, { name, country_code: country }) : await Dojos.create(name, { country_code: country }, state.activeTournament.id);
-      if (file) await Dojos.uploadLogo(dojo.id, file);
+      if (_editingDojoId) {
+        const dojo = await Dojos.update(_editingDojoId, { name, country_code: country });
+        if (file) await Dojos.uploadLogo(dojo.id, file);
+      } else {
+        let logoUrl = null;
+        if (file) logoUrl = await Dojos.uploadLogoToStorage(file);
+        await Dojos.create(name, { country_code: country, logo_url: logoUrl }, state.activeTournament.id);
+      }
       Dojos.invalidateCache();
       _resetDojoForm();
       await _loadDojos();

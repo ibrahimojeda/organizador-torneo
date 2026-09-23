@@ -137,7 +137,7 @@ const Dojos = (() => {
 
     if (Auth.isDevMode()) {
       const list = _devList();
-      const dojo = { id: generateId(), name: name.trim(), logo_url: null, tournament_id: tournamentId || null, ...cleanContact(payload) };
+      const dojo = { id: generateId(), name: name.trim(), logo_url: null, tournament_id: tournamentId || null, ..._cleanContact(payload) };
       list.push(dojo);
       _devSave(list);
       if (tournamentId) {
@@ -151,7 +151,7 @@ const Dojos = (() => {
 
     const insertPayload = {
       name: name.trim(),
-      ...cleanContact(payload),
+      ..._cleanContact(payload),
       tournament_id: tournamentId || null,
     };
     const { data, error } = await supabase
@@ -190,7 +190,7 @@ const Dojos = (() => {
     const out = {};
     ['email', 'phone', 'whatsapp', 'address', 'city', 'country_code', 'country_name',
      'instagram', 'facebook', 'tiktok', 'youtube', 'contact_name', 'website', 'notes',
-     'open_registration'].forEach(k => {
+     'open_registration', 'logo_url'].forEach(k => {
       if (payload[k] !== undefined) out[k] = payload[k] === '' ? null : payload[k];
     });
     return out;
@@ -234,32 +234,42 @@ const Dojos = (() => {
   /* --------------------------------------------------------
      SUBIR LOGO A SUPABASE STORAGE
   -------------------------------------------------------- */
-  async function uploadLogo(dojoId, file) {
-    if (!dojoId || !file) throw new Error('Dojo ID y archivo requeridos.');
+  /* --------------------------------------------------------
+     SUBIR LOGO A SUPABASE STORAGE (solo devuelve la URL)
+     Lo usa el organizador para incluir el logo al CREAR.
+  -------------------------------------------------------- */
+  async function uploadLogoToStorage(file) {
+    if (!file) throw new Error('Archivo requerido.');
     if (!/^image\/(png|jpeg|svg\+xml|webp)$/.test(file.type)) throw new Error('El logo debe ser PNG, JPG, SVG o WEBP.');
     if (file.size > 2 * 1024 * 1024) throw new Error('La imagen supera los 2MB.');
     if (Auth.isDevMode()) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = () => {
-          const dataUrl = reader.result;
-          const list = _devList().map(d => d.id === dojoId ? { ...d, logo_url: dataUrl } : d);
-          _devSave(list);
-          resolve(dataUrl);
-        };
+        reader.onload = () => resolve(reader.result);
         reader.onerror = () => reject(new Error('Error al leer archivo'));
         reader.readAsDataURL(file);
       });
     }
     const ext = file.name.split('.').pop().toLowerCase();
-    const fileName = `dojo_logos/${dojoId}_${Date.now()}.${ext}`;
-    const { data: _up, error: uploadError } = await supabase.storage
+    const fileName = `dojo_logos/${generateId()}_${Date.now()}.${ext}`;
+    const { error: uploadError } = await supabase.storage
       .from('tournament-assets')
       .upload(fileName, file, { upsert: true, contentType: file.type, cacheControl: '3600' });
     if (uploadError) throw new Error(`No se pudo subir el logo. Verifica el bucket tournament-assets y sus políticas en Supabase. ${uploadError.message || ''}`.trim());
     const { data: { publicUrl } } = supabase.storage
       .from('tournament-assets')
       .getPublicUrl(fileName);
+    return publicUrl;
+  }
+
+  async function uploadLogo(dojoId, file) {
+    if (!dojoId || !file) throw new Error('Dojo ID y archivo requeridos.');
+    const publicUrl = await uploadLogoToStorage(file);
+    if (Auth.isDevMode()) {
+      const list = _devList().map(d => d.id === dojoId ? { ...d, logo_url: publicUrl } : d);
+      _devSave(list);
+      return publicUrl;
+    }
     const { error: updateError } = await supabase
       .from(TABLE_DOJOS)
       .update({ logo_url: publicUrl })
@@ -406,12 +416,33 @@ const Dojos = (() => {
     return data || [];
   }
 
+  /* --------------------------------------------------------
+     ELIMINAR DOJO (solo super admin vía RLS)
+  -------------------------------------------------------- */
+  async function remove(id) {
+    if (!id) return true;
+    if (Auth.isDevMode()) {
+      _devSave(_devList().filter(d => d.id !== id));
+      invalidateCache();
+      return true;
+    }
+    const { error } = await supabase
+      .from(TABLE_DOJOS)
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    invalidateCache();
+    return true;
+  }
+
   return {
     list,
     getById,
     create,
     update,
     uploadLogo,
+    uploadLogoToStorage,
+    remove,
     ensureCache,
     getFromCache,
     invalidateCache,

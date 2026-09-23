@@ -504,20 +504,58 @@ ALTER TABLE dojos
 ADD COLUMN IF NOT EXISTS country_code TEXT;
 
 ALTER TABLE dojos ENABLE ROW LEVEL SECURITY;
+
+-- Helpers para permisos por rol (evitan recursión en RLS)
+CREATE OR REPLACE FUNCTION public.is_super_admin()
+RETURNS boolean LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid() AND role = 'super_admin'
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION public.can_view_dojo(p_dojo_id uuid)
+RETURNS boolean LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public
+AS $$
+  SELECT
+    public.is_super_admin()
+    OR EXISTS (
+      SELECT 1 FROM tournament_dojos td
+      WHERE td.dojo_id = p_dojo_id
+        AND td.tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
+    )
+    OR EXISTS (
+      SELECT 1 FROM registrations r
+      JOIN competitors comp ON comp.id = r.competitor_id
+      WHERE comp.dojo_id = p_dojo_id
+        AND r.tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
+    );
+$$;
+
 DROP POLICY IF EXISTS "dojos_select_public" ON dojos;
 CREATE POLICY "dojos_select_public" ON dojos
-  FOR SELECT USING (
-    tournament_id IN (SELECT id FROM tournaments WHERE is_public = TRUE)
-    OR tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
-  );
+  FOR SELECT USING (public.can_view_dojo(id));
+
 DROP POLICY IF EXISTS "dojos_write_authenticated" ON dojos;
-CREATE POLICY "dojos_write_authenticated" ON dojos
-  FOR ALL USING (
-    auth.uid() IS NOT NULL
-    AND tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
-  ) WITH CHECK (
-    tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
+DROP POLICY IF EXISTS "dojos_insert" ON dojos;
+CREATE POLICY "dojos_insert" ON dojos
+  FOR INSERT WITH CHECK (
+    public.is_super_admin()
+    OR (
+      auth.uid() IS NOT NULL
+      AND tournament_id IN (SELECT id FROM tournaments WHERE organizer_id = auth.uid())
+    )
   );
+
+DROP POLICY IF EXISTS "dojos_update" ON dojos;
+CREATE POLICY "dojos_update" ON dojos
+  FOR UPDATE USING (public.is_super_admin())
+  WITH CHECK (public.is_super_admin());
+
+DROP POLICY IF EXISTS "dojos_delete" ON dojos;
+CREATE POLICY "dojos_delete" ON dojos
+  FOR DELETE USING (public.is_super_admin());
 
 -- =====================================================
 -- MIGRACIÓN: AISLAMIENTO TOTAL POR TORNEO
