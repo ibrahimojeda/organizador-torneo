@@ -1,9 +1,40 @@
 -- =====================================================
--- MIGRACIÓN 009: Permisos de Dojos por rol
+-- MIGRACIÓN 009: Dojos completos + permisos por rol
+--   - Agrega columnas de contacto y la tabla tournament_dojos
+--     (por si aún no existen en la base).
 --   - Super admin: crear, modificar y borrar dojos.
 --   - Organizador: solo crear y ver dojos.
 -- Idempotente. Ejecutar en Supabase → SQL Editor.
 -- =====================================================
+
+-- Columnas de contacto (por si aún no existen)
+ALTER TABLE dojos ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE dojos ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE dojos ADD COLUMN IF NOT EXISTS whatsapp TEXT;
+ALTER TABLE dojos ADD COLUMN IF NOT EXISTS address TEXT;
+ALTER TABLE dojos ADD COLUMN IF NOT EXISTS city TEXT;
+ALTER TABLE dojos ADD COLUMN IF NOT EXISTS country_name TEXT;
+ALTER TABLE dojos ADD COLUMN IF NOT EXISTS instagram TEXT;
+ALTER TABLE dojos ADD COLUMN IF NOT EXISTS facebook TEXT;
+ALTER TABLE dojos ADD COLUMN IF NOT EXISTS tiktok TEXT;
+ALTER TABLE dojos ADD COLUMN IF NOT EXISTS youtube TEXT;
+ALTER TABLE dojos ADD COLUMN IF NOT EXISTS contact_name TEXT;
+ALTER TABLE dojos ADD COLUMN IF NOT EXISTS open_registration BOOLEAN NOT NULL DEFAULT true;
+
+-- Dojos globales: tournament_id opcional
+ALTER TABLE dojos ALTER COLUMN tournament_id DROP NOT NULL;
+
+-- Tabla de visibilidad por torneo
+CREATE TABLE IF NOT EXISTS tournament_dojos (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tournament_id UUID NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+  dojo_id       UUID NOT NULL REFERENCES dojos(id) ON DELETE CASCADE,
+  granted_by    UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (tournament_id, dojo_id)
+);
+CREATE INDEX IF NOT EXISTS idx_tournament_dojos_tournament ON tournament_dojos(tournament_id);
+CREATE INDEX IF NOT EXISTS idx_tournament_dojos_dojo ON tournament_dojos(dojo_id);
 
 -- Función helper: ¿es super admin?
 CREATE OR REPLACE FUNCTION public.is_super_admin()
