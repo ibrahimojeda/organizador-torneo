@@ -196,6 +196,66 @@
         </div>
         <div class="form-row">
           <div class="form-group">
+            <label class="form-label">Contacto (sensei / representante)</label>
+            <input type="text" class="form-control" id="dojo-form-contact" placeholder="Nombre del responsable" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" id="dojo-form-email" placeholder="contacto@dojo.com" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Teléfono</label>
+            <input type="text" class="form-control" id="dojo-form-phone" placeholder="+54 ..." />
+          </div>
+          <div class="form-group">
+            <label class="form-label">WhatsApp</label>
+            <input type="text" class="form-control" id="dojo-form-whatsapp" placeholder="+54 11..." />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Dirección</label>
+            <input type="text" class="form-control" id="dojo-form-address" placeholder="Calle y número" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Ciudad</label>
+            <input type="text" class="form-control" id="dojo-form-city" placeholder="Ciudad" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Sitio web</label>
+            <input type="url" class="form-control" id="dojo-form-website" placeholder="https://..." />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Instagram</label>
+            <input type="text" class="form-control" id="dojo-form-instagram" placeholder="@dojo" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Facebook</label>
+            <input type="text" class="form-control" id="dojo-form-facebook" placeholder="facebook.com/dojo" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">TikTok</label>
+            <input type="text" class="form-control" id="dojo-form-tiktok" placeholder="@dojo" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">YouTube</label>
+            <input type="text" class="form-control" id="dojo-form-youtube" placeholder="youtube.com/@dojo" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Notas</label>
+            <input type="text" class="form-control" id="dojo-form-notes" placeholder="Información adicional..." />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
             <label class="form-label">Logo (subida manual)</label>
             <input type="file" class="form-control" id="dojo-form-logo" accept="image/png,image/jpeg,image/svg+xml,image/webp" />
             <p class="text-xs text-muted">No se genera ningún logo automáticamente. PNG, JPG, SVG o WEBP · Máx. 2 MB.</p>
@@ -1826,6 +1886,18 @@
     document.getElementById('dojo-form-name').value = '';
     document.getElementById('dojo-form-country').value = '';
     document.getElementById('dojo-form-country').dispatchEvent(new Event('change'));
+    document.getElementById('dojo-form-contact').value = '';
+    document.getElementById('dojo-form-email').value = '';
+    document.getElementById('dojo-form-phone').value = '';
+    document.getElementById('dojo-form-whatsapp').value = '';
+    document.getElementById('dojo-form-address').value = '';
+    document.getElementById('dojo-form-city').value = '';
+    document.getElementById('dojo-form-website').value = '';
+    document.getElementById('dojo-form-instagram').value = '';
+    document.getElementById('dojo-form-facebook').value = '';
+    document.getElementById('dojo-form-tiktok').value = '';
+    document.getElementById('dojo-form-youtube').value = '';
+    document.getElementById('dojo-form-notes').value = '';
     document.getElementById('dojo-form-logo').value = '';
     document.getElementById('dojo-form-preview').innerHTML = '';
     document.getElementById('dojos-form-card').style.display = 'none';
@@ -1840,6 +1912,18 @@
     document.getElementById('dojo-form-name').value = dojo.name || '';
     document.getElementById('dojo-form-country').value = dojo.country_code || '';
     document.getElementById('dojo-form-country').dispatchEvent(new Event('change'));
+    document.getElementById('dojo-form-contact').value = dojo.contact_name || '';
+    document.getElementById('dojo-form-email').value = dojo.email || '';
+    document.getElementById('dojo-form-phone').value = dojo.phone || '';
+    document.getElementById('dojo-form-whatsapp').value = dojo.whatsapp || '';
+    document.getElementById('dojo-form-address').value = dojo.address || '';
+    document.getElementById('dojo-form-city').value = dojo.city || '';
+    document.getElementById('dojo-form-website').value = dojo.website || '';
+    document.getElementById('dojo-form-instagram').value = dojo.instagram || '';
+    document.getElementById('dojo-form-facebook').value = dojo.facebook || '';
+    document.getElementById('dojo-form-tiktok').value = dojo.tiktok || '';
+    document.getElementById('dojo-form-youtube').value = dojo.youtube || '';
+    document.getElementById('dojo-form-notes').value = dojo.notes || '';
     document.getElementById('dojo-form-logo').value = '';
     document.getElementById('dojo-form-preview').innerHTML = dojo.logo_url ? `<img src="${dojo.logo_url}" alt="" style="max-width:120px;max-height:80px;object-fit:contain;" />` : '<span class="text-muted">Sin logo cargado</span>';
     document.getElementById('dojos-form-card').style.display = 'block';
@@ -1863,14 +1947,29 @@
     const file = document.getElementById('dojo-form-logo').files[0];
     if (!name || !country) { Display.toast('Nombre y país son obligatorios.', 'warning'); return; }
     if (file && file.size > 2 * 1024 * 1024) { Display.toast('La imagen supera los 2MB.', 'error'); return; }
+    const payload = {
+      country_code: country,
+      contact_name: document.getElementById('dojo-form-contact').value.trim() || null,
+      email: document.getElementById('dojo-form-email').value.trim() || null,
+      phone: document.getElementById('dojo-form-phone').value.trim() || null,
+      whatsapp: document.getElementById('dojo-form-whatsapp').value.trim() || null,
+      address: document.getElementById('dojo-form-address').value.trim() || null,
+      city: document.getElementById('dojo-form-city').value.trim() || null,
+      website: document.getElementById('dojo-form-website').value.trim() || null,
+      instagram: document.getElementById('dojo-form-instagram').value.trim() || null,
+      facebook: document.getElementById('dojo-form-facebook').value.trim() || null,
+      tiktok: document.getElementById('dojo-form-tiktok').value.trim() || null,
+      youtube: document.getElementById('dojo-form-youtube').value.trim() || null,
+      notes: document.getElementById('dojo-form-notes').value.trim() || null,
+    };
     try {
       if (_editingDojoId) {
-        const dojo = await Dojos.update(_editingDojoId, { name, country_code: country });
+        const dojo = await Dojos.update(_editingDojoId, { name, ...payload });
         if (file) await Dojos.uploadLogo(dojo.id, file);
       } else {
         let logoUrl = null;
         if (file) logoUrl = await Dojos.uploadLogoToStorage(file);
-        await Dojos.create(name, { country_code: country, logo_url: logoUrl }, state.activeTournament.id);
+        await Dojos.create(name, { ...payload, logo_url: logoUrl }, state.activeTournament.id);
       }
       Dojos.invalidateCache();
       _resetDojoForm();
