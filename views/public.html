@@ -1168,14 +1168,7 @@ function _renderAthleteBadgesCompact(competitor) {
           || mirroredMatch
           || virtualFromProjection
           || ongoingMatch
-          || lastShownMatch
-          || latestFinished
-          || pendingMatches[0]
-          || scopedMatches.find(m => {
-            const kata = Matches.getKataSummary(m);
-            const kumi = Matches.getKumiteSummary(m);
-            return kata.submitted > 0 || (kumi.events || []).length > 0;
-          }))
+          || lastShownMatch)
         : (selectedMatch
           || ongoingMatch
           || lastShownMatch
