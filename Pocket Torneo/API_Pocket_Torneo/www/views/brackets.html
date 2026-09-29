@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Brackets · API Pocket Torneo</title>
+  <link rel="stylesheet" href="../css/pocket.css">
+  <style>
+    .cat-block { margin-bottom: 20px; }
+    .cat-title {
+      font-size:1rem;font-weight:800;padding:10px 14px;
+      background:var(--surface);border-radius:var(--radius-sm);margin-bottom:4px;
+      display:flex;justify-content:space-between;align-items:center;
+    }
+    .cat-title span { font-size:.75rem;font-weight:600;color:var(--text-muted); }
+    .round-label {
+      font-size:.75rem;font-weight:700;color:var(--text-muted);
+      padding:8px 4px 4px;text-transform:uppercase;letter-spacing:.06em;
+    }
+    .match-card {
+      display:flex;align-items:center;gap:6px;
+      padding:8px 10px;background:var(--surface);border-radius:var(--radius-sm);
+      margin-bottom:4px;border-left:3px solid var(--surface2);
+    }
+    .match-card .side { flex:1;font-size:.8rem;font-weight:600; }
+    .match-card .side.winner { color:var(--success); }
+    .match-card .side.bye { opacity:.4;font-style:italic; }
+    .match-card .vs { font-size:.65rem;font-weight:800;color:var(--text-muted);padding:0 4px; }
+    .score-tag {
+      font-size:.65rem;font-weight:700;padding:2px 6px;
+      border-radius:4px;background:var(--surface2);color:var(--text-muted);
+    }
+    .status-badge {
+      font-size:.6rem;font-weight:700;padding:2px 6px;border-radius:4px;text-transform:uppercase;
+    }
+    .status-badge.finished { background:#14532d;color:#86efac; }
+    .status-badge.live { background:#1c1917;color:#fde047; }
+    .status-badge.pending { background:var(--surface2);color:var(--text-muted); }
+    .bracket-empty { text-align:center;padding:32px 16px;color:var(--text-muted);font-size:.9rem; }
+    .bracket-actions { display:flex;gap:8px;margin:16px 0; }
+    .no-comps { text-align:center;padding:24px;color:var(--text-muted);font-size:.85rem; }
+    .bracket-final { border-left-color:#f59e0b;background:linear-gradient(135deg,var(--surface),#1e293b); }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="page-header">
+      <button class="btn-back" onclick="history.back()">←</button>
+      <span class="page-title">🏗️ Brackets</span>
+    </div>
+
+    <div class="bracket-actions">
+      <button class="btn btn-primary btn-generate" id="btn-generate">🎲 Generar Brackets</button>
+      <button class="btn btn-danger btn-clear" id="btn-clear">🗑️</button>
+    </div>
+
+    <div id="bracket-content"></div>
+  </div>
+
+  <script src="../js/database.js"></script>
+  <script>
+(function() {
+      function render() {
+        var brackets = DB.getBrackets();
+        var el = document.getElementById('bracket-content');
+        var comps = DB.getCompetitors();
+        if (!brackets && comps.length === 0) {
+          el.innerHTML = '<div class="bracket-empty">👤 No hay competidores registrados.<br>Ve a "Registrar" primero.</div>';
+          return;
+        }
+        if (!brackets) {
+          el.innerHTML = '<div class="bracket-empty">🎲 Presiona "Generar Brackets" para crear los cruces.</div>';
+          return;
+        }
+        var html = '';
+        for (var cat in brackets) {
+          var catData = brackets[cat];
+          if (!catData || catData.length === 0) continue;
+          var cl = cat === 'kata-duel' ? 'Kata por Duelo' : cat === 'kumite' ? 'Kumite' : 'Kata Individual';
+          html += '<div class="cat-block"><div class="cat-title">🥋 ' + cl + ' <span>' + catData.length + ' combates</span></div>';
+          var byRound = {};
+          catData.forEach(function(m) {
+            var r = m.round || 1;
+            if (!byRound[r]) byRound[r] = [];
+            byRound[r].push(m);
+          });
+          var rkeys = Object.keys(byRound).sort(function(a,b) { return parseInt(a)-parseInt(b); });
+          rkeys.forEach(function(r) {
+function generate() {
+        var comps = DB.getCompetitors();
+        if (comps.length < 2) { showToast('⚠️ Necesitas al menos 2 competidores', 'error'); return; }
+        var byCat = {};
+        comps.forEach(function(c) {
+          var cat = c.category || 'kata';
+          if (!byCat[cat]) byCat[cat] = [];
+          byCat[cat].push(c);
+        });
+        var allBrackets = {};
+        var allMatches = [];
+        var mid = 0;
+        for (var cat in byCat) {
+          var cmp = byCat[cat];
+          if (cmp.length < 2) continue;
+          var sh = cmp.slice();
+          for (var i = sh.length - 1; i > 0; i--) {
+            var j = Math.floor(Math.random() * (i + 1));
+            var t = sh[i]; sh[i] = sh[j]; sh[j] = t;
+          }
+          var slots = 2;
+          while (slots < sh.length) slots *= 2;
+          var idx = 0;
+          var rd1 = [];
+          for (var k = 0; k < slots / 2; k++) {
+            mid++;
+            var a = sh[idx] || null; if (a) idx++;
+            var b = sh[idx] || null; if (b) idx++;
+            var bye = !a || !b;
+            rd1.push({
+              id: mid, category: cat, round: 1,
+              competitor_a: a ? a.name : null, competitor_b: b ? b.name : null,
+              dojo_a: a ? a.dojo||'' : '', dojo_b: b ? b.dojo||'' : '',
+              competitor_a_id: a ? a.id : null, competitor_b_id: b ? b.id : null,
+              status: bye ? 'finished' : 'pending',
+              winner: bye ? (a ? 'a' : 'b') : null, score_a: null, score_b: null,
+            });
+            allMatches.push(rd1[rd1.length-1]);
+          }
+          var numR = Math.log2(slots);
+          var bd = rd1.slice();
+          for (var r = 2; r <= numR; r++) {
+            var cnt = Math.pow(2, numR - r);
+            for (var s = 0; s < cnt; s++) {
+              mid++;
+              bd.push({ id: mid, category: cat, round: r,
+                competitor_a: null, competitor_b: null, dojo_a: '', dojo_b: '',
+                competitor_a_id: null, competitor_b_id: null,
+                status: 'pending', winner: null, score_a: null, score_b: null });
+              allMatches.push(bd[bd.length-1]);
+            }
+          }
+          allBrackets[cat] = bd;
+        }
+        DB.setBrackets(allBrackets);
+        DB.setMatches(allMatches);
+        render();
+        showToast('✅ Brackets generados para ' + Object.keys(allBrackets).length + ' categorías', 'success');
+      }
+
+      function clearB() {
+        if (!confirm('¿Eliminar todos los brackets y combates?')) return;
+        DB.clearBrackets();
+        render();
+        showToast('🗑️ Brackets eliminados');
+      }
+
+      document.getElementById('btn-generate').addEventListener('click', generate);
+      document.getElementById('btn-clear').addEventListener('click', clearB);
+
+      function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+      function showToast(msg, type) {
+        var e = document.querySelector('.toast'); if (e) e.remove();
+        var el = document.createElement('div');
+        el.className = 'toast' + (type === 'success' ? ' success' : type === 'error' ? ' error' : '');
+        el.textContent = msg;
+        document.body.appendChild(el);
+        setTimeout(function() { el.remove(); }, 2000);
+      }
+      render();
+    })();
+  </script>
+</body>
+</html>
+            html += '<div class="round-label">🔵 Ronda ' + r + '</div>';
+            byRound[r].forEach(function(m) {
+              var isFinal = parseInt(r) === parseInt(rkeys[rkeys.length-1]) && rkeys.length > 1;
+              var sc = m.status === 'finished' ? 'finished' : m.status === 'in_progress' ? 'live' : 'pending';
+              var wn = m.winner ? (m.winner === 'a' ? m.competitor_a : m.competitor_b) : null;
+              var ca = m.competitor_a || '⬜ BYE';
+              var cb = m.competitor_b || '⬜ BYE';
+              var ba = !m.competitor_a, bb = !m.competitor_b;
+              var sa = m.score_a != null ? Number(m.score_a).toFixed(2) : null;
+              var sb = m.score_b != null ? Number(m.score_b).toFixed(2) : null;
+              html += '<div class="match-card' + (isFinal ? ' bracket-final' : '') + '">';
+              html += '<div class="side' + (wn === m.competitor_a ? ' winner' : '') + (ba ? ' bye' : '') + '">' + esc(ca) + (sa ? ' <span class="score-tag">' + sa + '</span>' : '') + '</div>';
+              html += '<div class="vs">VS</div>';
+              html += '<div class="side' + (wn === m.competitor_b ? ' winner' : '') + (bb ? ' bye' : '') + '">' + esc(cb) + (sb ? ' <span class="score-tag">' + sb + '</span>' : '') + '</div>';
+              html += '<div class="status-badge ' + sc + '">' + (m.status === 'finished' ? '✅' : m.status === 'in_progress' ? '▶️' : '⏳') + '</div>';
+              html += '</div>';
+            });
+          });
+          html += '</div>';
+        }
+        el.innerHTML = html;
+      }

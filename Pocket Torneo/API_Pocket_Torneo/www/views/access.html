@@ -1,0 +1,63 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎯 Acceder · API Pocket Torneo</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    :root { --bg:#0f172a; --surface:#1e293b; --text:#f1f5f9; --text-muted:#94a3b8; --primary:#6366f1; }
+    html,body { height:100%; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; }
+    body { display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;min-height:100vh; }
+    .card { background:var(--surface);border-radius:24px;padding:32px;max-width:400px;width:100%;text-align:center; }
+    h1 { font-size:1.5rem;font-weight:800;margin-bottom:20px; }
+    .ip-address { font-size:1.2rem;font-weight:700;font-family:monospace;background:var(--bg);padding:10px 16px;border-radius:12px;margin:12px 0; }
+    .links { display:flex;flex-direction:column;gap:8px;margin-top:16px; }
+    .links a { display:block;padding:12px;border-radius:12px;background:var(--primary);color:white;font-weight:700;text-decoration:none;font-size:.95rem; }
+    .links a:active { opacity:.8; }
+    .links .judge { background:#334155;font-size:.8rem;padding:8px; }
+    .links .judge-row { display:flex;gap:4px; }
+    .links .judge-row a { flex:1;padding:8px;font-size:.8rem;background:#475569; }
+    .hint { font-size:.75rem;color:var(--text-muted);margin-top:16px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🎯 API Pocket Torneo</h1>
+    <p style="color:var(--text-muted);margin-bottom:12px;">Conéctate desde otro dispositivo en la misma red</p>
+    <div class="ip-address" id="ip-display">192.168.1.x:8888</div>
+    <div class="links">
+      <a href="views/projection.html?remote" target="_blank">📺 Pantalla Pública</a>
+      <div style="margin-top:4px;font-size:.7rem;font-weight:600;color:var(--text-muted);text-align:left;">🧑‍⚖️ Jueces:</div>
+      <div class="judge-row">
+        <a href="views/judge.html?seat=J1" target="_blank" class="judge">J1</a>
+        <a href="views/judge.html?seat=J2" target="_blank" class="judge">J2</a>
+        <a href="views/judge.html?seat=J3" target="_blank" class="judge">J3</a>
+        <a href="views/judge.html?seat=J4" target="_blank" class="judge">J4</a>
+        <a href="views/judge.html?seat=J5" target="_blank" class="judge">J5</a>
+      </div>
+      <a href="../index.html" target="_blank">🏠 Dashboard</a>
+    </div>
+    <div class="hint">Conéctate a la misma red WiFi del organizador</div>
+  </div>
+  <script>
+    (function() {
+      var ipEl = document.getElementById('ip-display');
+      try {
+        var pc = new RTCPeerConnection({ iceServers: [] });
+        pc.createDataChannel('');
+        pc.createOffer().then(function(o) { pc.setLocalDescription(o); }).catch(function(){});
+        pc.onicecandidate = function(e) {
+          if (e.candidate) {
+            var ip = e.candidate.candidate.split(' ')[4];
+            if (ip && ip.indexOf('.') > 0) { ipEl.textContent = ip + ':8888'; pc.close(); }
+          }
+        };
+        setTimeout(function() {
+          if (ipEl.textContent === '192.168.1.x:8888') ipEl.textContent = window.location.host || 'Red local';
+        }, 3000);
+      } catch(e) { ipEl.textContent = window.location.host || 'Red local'; }
+    })();
+  </script>
+</body>
+</html>

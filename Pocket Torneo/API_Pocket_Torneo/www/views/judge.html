@@ -1,0 +1,302 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Juez · API Pocket Torneo</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    :root { --bg:#0f172a; --surface:#1e293b; --surface2:#334155; --text:#f1f5f9; --text-muted:#94a3b8; --primary:#6366f1; --success:#22c55e; --danger:#ef4444; --radius:16px; }
+    html,body { height:100%; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; }
+    body { display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;min-height:100vh; }
+    .card { background:var(--surface);border-radius:var(--radius);padding:24px;max-width:420px;width:100%;text-align:center; }
+
+    .header { margin-bottom:16px; }
+    .header .seat { font-size:3rem;font-weight:900;color:var(--primary); }
+    .header .competitor { font-size:1.5rem;font-weight:700;margin-top:4px; }
+    .header .sub { font-size:.8rem;color:var(--text-muted);margin-top:2px; }
+    .header .discipline { font-size:.75rem;padding:4px 10px;border-radius:12px;background:var(--surface2);display:inline-block;margin-top:4px; }
+
+    .status-bar { padding:8px 12px;border-radius:10px;margin:12px 0;font-size:.85rem;font-weight:600; }
+    .status-bar.waiting { background:#1c1917;color:#fde047; }
+    .status-bar.ready { background:#14532d;color:#86efac; }
+    .status-bar.sent { background:rgba(99,102,241,.2);color:#a5b4fc; }
+
+    .kata-pad { display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0; }
+    .kata-btn { padding:16px;border:none;border-radius:12px;font-size:1.3rem;font-weight:800;cursor:pointer;background:var(--surface2);color:var(--text); }
+    .kata-btn:active { transform:scale(0.94);background:var(--primary); }
+    .kata-btn.selected { background:var(--primary);color:white; }
+    .kata-btn.zero { background:rgba(239,68,68,.15);color:#fca5a5; }
+
+    .nb-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0; }
+    .nb-btn { padding:14px;border:none;border-radius:10px;font-size:1.4rem;font-weight:800;cursor:pointer;background:var(--surface2);color:var(--text); }
+    .nb-btn:active { transform:scale(0.94);background:var(--primary); }
+    .nb-btn.dot { background:rgba(99,102,241,.15);color:#a5b4fc; font-size:1.8rem; }
+    .nb-btn.small { font-size:.95rem; }
+
+    .btn-send { width:100%;padding:14px;border:none;border-radius:12px;font-size:1.1rem;font-weight:800;cursor:pointer;margin-top:12px; }
+    .btn-send:active { transform:scale(0.97); }
+    .btn-send.ready { background:var(--success);color:white; }
+    .btn-send.disabled { background:var(--surface2);color:var(--text-muted); }
+
+    .current-score { font-size:2rem;font-weight:900;color:var(--primary);margin:8px 0;min-height:3rem; }
+
+    .kumite-grid { display:grid;gap:10px;margin:12px 0; }
+    .kumite-btn { padding:20px;border:none;border-radius:14px;font-size:1.1rem;font-weight:700;cursor:pointer; }
+    .kumite-btn:active { transform:scale(0.96); }
+    .kumite-btn.yuko { background:rgba(34,197,94,.2);color:#86efac; }
+    .kumite-btn.waza { background:rgba(59,130,246,.2);color:#93c5fd; }
+    .kumite-btn.ippon { background:rgba(168,85,247,.2);color:#d8b4fe; }
+    .kumite-btn.penalty { background:rgba(239,68,68,.15);color:#fca5a5; }
+
+    .waiting-screen { padding:40px 0; }
+    .waiting-screen .icon { font-size:4rem;margin-bottom:16px; }
+    .waiting-screen h2 { font-size:1.4rem;font-weight:800;color:var(--text-muted); }
+    .waiting-screen p { font-size:.9rem;color:var(--text-muted);margin-top:8px;opacity:.6; }
+    .waiting-screen .seat-info { font-size:2rem;font-weight:900;color:var(--primary);margin:12px 0; }
+  </style>
+</head>
+<body>
+  <div class="card" id="app-card">
+    <div id="content"></div>
+  </div>
+
+  <script>
+    (function() {
+      var seat = 'J1';
+      var currentMatch = null;
+      var selectedScore = null;
+      var scoreInput = '';
+
+      // Get seat from URL
+      var params = new URLSearchParams(window.location.search);
+      if (params.has('seat')) seat = params.get('seat').toUpperCase();
+      if (!seat.match(/^J[1-7]$/)) seat = 'J1';
+
+      // Determine server URL
+      var serverUrl = localStorage.getItem('pocket_server_url') || window.location.origin;
+
+      function api(path) { return serverUrl.replace(/\/+$/, '') + path; }
+
+      function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+      function fetchState() {
+        fetch(api('/api/state'))
+          .then(function(r) { return r.json(); })
+          .then(function(state) { updateMatch(state); })
+          .catch(function() { showWaiting('📡', 'Conectando...', 'Esperando al servidor...'); });
+      }
+
+      function updateMatch(state) {
+        var match = state.match;
+        if (!match || match.status !== 'in_progress') {
+          showWaiting('⏳', 'Esperando combate...', 'La mesa técnica iniciará un combate');
+          currentMatch = null;
+          return;
+        }
+        currentMatch = match;
+
+        var el = document.getElementById('content');
+        if (match.category === 'kumite') renderKumite(el, match);
+        else if (match.category === 'kata-duel') renderKataDuel(el, match);
+        else renderKata(el, match);
+      }
+
+      function showWaiting(icon, title, sub) {
+        document.getElementById('content').innerHTML =
+          '<div class="waiting-screen"><div class="icon">' + icon + '</div><div class="seat-info">' + seat + '</div><h2>' + title + '</h2><p>' + sub + '</p></div>';
+      }
+
+      function renderKata(el, match) {
+        var name = esc(match.competitor_a || '—');
+        selectedScore = null;
+        scoreInput = '';
+        el.innerHTML =
+          '<div class="header"><div class="seat">' + seat + '</div><div class="competitor">' + name + '</div><div class="sub">' + esc(match.dojo_a||'') + '</div><div class="discipline">🥋 Kata Individual</div></div>' +
+          '<div class="current-score" id="judge-score">—</div>' +
+          '<div class="nb-grid" id="nb-grid">' +
+            '7 8 9 4 5 6 1 2 3 . 0 ⌫'.split(' ').map(function(n) {
+              var cls = n === '.' ? 'dot' : n === '⌫' ? 'small' : '';
+              return '<button class="nb-btn ' + cls + '" data-val="' + n + '">' + n + '</button>';
+            }).join('') +
+          '</div>' +
+          '<div id="kata-presets"></div>' +
+          '<button class="btn-send disabled" id="btn-send">📤 Enviar Nota</button>';
+
+        // Preset quick scores
+        var presets = ['7.0','7.3','7.5','7.7','8.0'];
+        document.getElementById('kata-presets').innerHTML =
+          '<div style="display:flex;gap:6px;margin:8px 0;">' +
+          presets.map(function(p) { return '<button class="kata-btn" data-val="' + p + '">' + p + '</button>'; }).join('') +
+          '</div>';
+
+        // Event listeners - number pad
+        document.getElementById('nb-grid').querySelectorAll('.nb-btn').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var v = this.dataset.val;
+            if (v === '⌫') { scoreInput = scoreInput.slice(0, -1); }
+            else if (v === '.') { if (!scoreInput.includes('.')) scoreInput += '.'; }
+            else { if (scoreInput.length < 4) scoreInput += v; }
+            selectedScore = scoreInput;
+            updateScoreDisplay();
+          });
+        });
+
+        // Presets
+        document.querySelectorAll('.kata-btn[data-val]').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            selectedScore = this.dataset.val;
+            scoreInput = selectedScore;
+            updateScoreDisplay();
+          });
+        });
+
+        document.getElementById('btn-send').addEventListener('click', function() {
+          var val = parseFloat(selectedScore);
+          if (isNaN(val) || val < 0 || val > 10) return;
+          sendScore(val);
+        });
+      }
+
+      function renderKataDuel(el, match) {
+        // Show AO and AKA with toggle
+        var nA = esc(match.competitor_a||'AO'), nB = esc(match.competitor_b||'AKA');
+        selectedScore = null; scoreInput = '';
+        el.innerHTML = '<div class="header"><div class="seat">' + seat + '</div><div class="discipline">🥋 Kata por Duelo</div></div>' +
+          '<div class="current-score" id="judge-score">—</div>' +
+          '<div style="display:flex;gap:8px;margin:12px 0;">' +
+            '<button class="btn" id="side-ao" style="flex:1;padding:12px;border:none;border-radius:10px;background:rgba(59,130,246,.2);color:#93c5fd;font-weight:700;font-size:.9rem;cursor:pointer;">🔵 ' + nA + '</button>' +
+            '<button class="btn" id="side-aka" style="flex:1;padding:12px;border:none;border-radius:10px;background:rgba(239,68,68,.2);color:#fca5a5;font-weight:700;font-size:.9rem;cursor:pointer;">🔴 ' + nB + '</button>' +
+          '</div>' +
+          '<div class="nb-grid" id="nb-grid">' +
+            '7 8 9 4 5 6 1 2 3 . 0 ⌫'.split(' ').map(function(n) {
+              var cls = n === '.' ? 'dot' : n === '⌫' ? 'small' : '';
+              return '<button class="nb-btn ' + cls + '" data-val="' + n + '">' + n + '</button>';
+            }).join('') +
+          '</div>' +
+          '<button class="btn-send disabled" id="btn-send">📤 Enviar Nota</button>';
+
+        var selectedSide = 'a';
+        function updateSideUI() {
+          var ba = document.getElementById('side-ao');
+          var bb = document.getElementById('side-aka');
+          if (ba) ba.style.border = selectedSide === 'a' ? '2px solid #93c5fd' : '2px solid transparent';
+          if (bb) bb.style.border = selectedSide === 'b' ? '2px solid #fca5a5' : '2px solid transparent';
+        }
+        document.getElementById('side-ao').addEventListener('click', function() { selectedSide='a'; updateSideUI(); });
+        document.getElementById('side-aka').addEventListener('click', function() { selectedSide='b'; updateSideUI(); });
+        updateSideUI();
+
+        document.getElementById('nb-grid').querySelectorAll('.nb-btn').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var v = this.dataset.val;
+            if (v === '⌫') { scoreInput = scoreInput.slice(0, -1); }
+            else if (v === '.') { if (!scoreInput.includes('.')) scoreInput += '.'; }
+            else { if (scoreInput.length < 4) scoreInput += v; }
+            selectedScore = scoreInput;
+            updateScoreDisplay();
+          });
+        });
+
+        document.getElementById('btn-send').addEventListener('click', function() {
+          var val = parseFloat(selectedScore);
+          if (isNaN(val) || val < 0 || val > 10) return;
+          sendScore(val, selectedSide);
+        });
+      }
+
+      function renderKumite(el, match) {
+        var nA = esc(match.competitor_a||'AO'), nB = esc(match.competitor_b||'AKA');
+        el.innerHTML =
+          '<div class="header"><div class="seat">' + seat + '</div><div class="discipline">⚔️ Kumite</div></div>' +
+          '<div class="kumite-grid">' +
+            '<button class="kumite-btn yuko" onclick="window.judgeKumite(\'a\',\'yuko\')">🟢 Yuko → ' + nA + '</button>' +
+            '<button class="kumite-btn waza" onclick="window.judgeKumite(\'b\',\'yuko\')">🟢 Yuko → ' + nB + '</button>' +
+            '<button class="kumite-btn waza" onclick="window.judgeKumite(\'a\',\'wazaari\')">🔵 Waza-ari → ' + nA + '</button>' +
+            '<button class="kumite-btn ippon" onclick="window.judgeKumite(\'b\',\'wazaari\')">🔵 Waza-ari → ' + nB + '</button>' +
+            '<button class="kumite-btn ippon" onclick="window.judgeKumite(\'a\',\'ippon\')">🟣 Ippon → ' + nA + '</button>' +
+            '<button class="kumite-btn penalty" onclick="window.judgeKumite(\'b\',\'ippon\')">🟣 Ippon → ' + nB + '</button>' +
+          '</div>' +
+          '<div id="kumite-status">Presiona una señal para enviarla</div>';
+      }
+
+      window.judgeKumite = function(side, action) {
+        sendScore(action, side, true);
+      };
+
+      function updateScoreDisplay() {
+        var el = document.getElementById('judge-score');
+        if (!el) return;
+        el.textContent = selectedScore || '—';
+        var btn = document.getElementById('btn-send');
+        if (btn) {
+          var val = parseFloat(selectedScore);
+          if (!isNaN(val) && val >= 0 && val <= 10) {
+            btn.className = 'btn-send ready'; btn.textContent = '📤 Enviar ' + val.toFixed(1);
+          } else {
+            btn.className = 'btn-send disabled'; btn.textContent = '📤 Enviar Nota';
+          }
+        }
+      }
+
+      function sendScore(score, side, isKumite) {
+        var payload = { seat: seat, score: score, judge_name: seat, timestamp: new Date().toISOString() };
+        if (side) payload.side = side;
+        if (isKumite) payload.action = score; // 'yuko', 'wazaari', 'ippon'
+
+        fetch(api('/api/judge-score'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(result) {
+          if (result.status === 'ok') {
+            if (isKumite) {
+              document.getElementById('kumite-status').innerHTML =
+                '<div class="status-bar sent">✅ Señal enviada: ' + score.toUpperCase() + ' → ' + (side === 'a' ? 'AO' : 'AKA') + '</div>';
+            } else {
+              document.getElementById('content').innerHTML =
+                '<div class="header"><div class="seat">' + seat + '</div></div>' +
+                '<div class="status-bar sent" style="margin:20px 0;">✅ Nota ' + Number(score).toFixed(1) + ' enviada</div>' +
+                '<button class="btn-send ready" onclick="location.reload()">🔄 Nueva nota</button>';
+            }
+          } else {
+            showToast('⚠️ Error al enviar: ' + JSON.stringify(result));
+          }
+        })
+        .catch(function(err) {
+          showToast('⚠️ Error de conexión: ' + err.message);
+        });
+      }
+
+      function showToast(msg) {
+        var e = document.querySelector('.toast'); if (e) e.remove();
+        var el = document.createElement('div');
+        el.className = 'toast error';
+        el.textContent = msg;
+        document.body.appendChild(el);
+        setTimeout(function() { el.remove(); }, 3000);
+      }
+
+      // Check if we have local DB (same device as organizer)
+      var hasLocalDB = false;
+      try { if (typeof DB !== 'undefined') { hasLocalDB = DB.getMatches().length > 0; } } catch(e) {}
+
+      if (hasLocalDB) {
+        // Same device as organizer
+        showWaiting('📱', 'Usa otro dispositivo', 'Abre judge.html desde otro celular o tablet');
+      } else {
+        showWaiting('📡', 'Conectando...', 'Esperando combate activo...');
+        fetchState();
+        setInterval(fetchState, 2000);
+      }
+
+      // Toast style
+      var toastStyle = document.createElement('style');
+      toastStyle.textContent = '.toast { position:fixed;bottom:24px;left:16px;right:16px;max-width:420px;margin:0 auto;padding:12px 16px;border-radius:10px;background:#334155;color:white;font-weight:600;text-align:center;z-index:999;animation:ti .3s ease; } .toast.error { background:#991b1b; } @keyframes ti{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}';
+      document.head.appendChild(toastStyle);
+    })();
+  </script>
+</body>
+</html>

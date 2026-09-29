@@ -1,0 +1,81 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Medallero · API Pocket Torneo</title>
+  <link rel="stylesheet" href="../css/pocket.css">
+  <style>
+    .medal-block { margin-bottom: 20px; }
+    .medal-cat { font-size:1rem;font-weight:800;padding:10px 14px;background:var(--surface);border-radius:var(--radius-sm);margin-bottom:8px; }
+    .medal-row { display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surface);border-radius:var(--radius-sm);margin-bottom:4px; }
+    .medal-row .medal { font-size:1.5rem;width:36px;text-align:center; }
+    .medal-row .name { flex:1;font-size:.9rem;font-weight:600; }
+    .medal-row .dojo { font-size:.75rem;color:var(--text-muted); }
+    .medal-row .wins { font-size:.75rem;font-weight:700;color:var(--text-muted); }
+    .empty-state { text-align:center;padding:40px 16px;color:var(--text-muted); }
+    .gold { border-left:3px solid #f59e0b; }
+    .silver { border-left:3px solid #94a3b8; }
+    .bronze { border-left:3px solid #92400e; }
+    .export-btn { margin-top:16px; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="page-header">
+      <button class="btn-back" onclick="history.back()">←</button>
+      <span class="page-title">🥇 Medallero</span>
+    </div>
+    <div id="medallero-content"></div>
+    <div style="margin-top:16px;">
+      <button class="btn btn-outline w-full" id="btn-export-csv" style="padding:10px;font-size:.85rem;">📥 Exportar CSV</button>
+    </div>
+  </div>
+  <script src="../js/database.js"></script>
+  <script src="../js/medallero.js"></script>
+  <script>
+    (function() {
+      function render() {
+        var el = document.getElementById('medallero-content');
+        var med = DB.getMedallero();
+        var cats = Object.keys(med);
+        if (cats.length === 0) {
+          el.innerHTML = '<div class="empty-state">🥇 No hay combates finalizados aún.<br>Completa combates desde la Mesa Técnica.</div>';
+          return;
+        }
+        var html = '';
+        cats.forEach(function(cat) {
+          var cl = cat === 'kata-duel' ? 'Kata por Duelo' : cat === 'kumite' ? 'Kumite' : 'Kata Individual';
+          var m = med[cat];
+          html += '<div class="medal-block"><div class="medal-cat">🥋 ' + cl + ' <span style="font-size:.7rem;font-weight:600;color:var(--text-muted);">' + m.totalFights + ' combates</span></div>';
+          if (m.gold) html += '<div class="medal-row gold"><div class="medal">🥇</div><div class="name">' + esc(m.gold) + '</div></div>';
+          if (m.silver) html += '<div class="medal-row silver"><div class="medal">🥈</div><div class="name">' + esc(m.silver) + '</div></div>';
+          if (m.bronze) html += '<div class="medal-row bronze"><div class="medal">🥉</div><div class="name">' + esc(m.bronze) + '</div></div>';
+          html += '</div>';
+        });
+        el.innerHTML = html;
+      }
+
+      document.getElementById('btn-export-csv').addEventListener('click', function() {
+        var csv = DB.exportCSV();
+        var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        var link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = (DB.getConfig('tournamentName','torneo') + '_resultados.csv').replace(/[^a-z0-9._-]/gi, '_');
+        link.click();
+        showToast('📥 CSV exportado');
+      });
+
+      function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+      function showToast(msg) {
+        var e = document.querySelector('.toast'); if (e) e.remove();
+        var el = document.createElement('div'); el.className = 'toast'; el.textContent = msg;
+        document.body.appendChild(el); setTimeout(function() { el.remove(); }, 2000);
+      }
+
+      render();
+    })();
+  </script>
+</body>
+</html>

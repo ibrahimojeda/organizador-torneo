@@ -1,0 +1,78 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Resultados · API Pocket Torneo</title>
+  <link rel="stylesheet" href="../css/pocket.css">
+  <style>
+    .result-card { background:var(--surface);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px; }
+    .result-card .title { font-size:.85rem;font-weight:700; }
+    .result-card .score-line { font-size:1.2rem;font-weight:900;margin:4px 0; }
+    .result-card .score-line .winner-flag { color:var(--success); }
+    .result-card .meta { font-size:.7rem;color:var(--text-muted); }
+    .result-card .cat-badge { font-size:.65rem;padding:2px 8px;border-radius:10px;background:var(--surface2);color:var(--text-muted);display:inline-block; }
+    .result-empty { text-align:center;padding:40px 16px;color:var(--text-muted);font-size:.9rem; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="page-header">
+      <button class="btn-back" onclick="history.back()">←</button>
+      <span class="page-title">📊 Resultados</span>
+    </div>
+    <div id="result-count" style="font-size:.8rem;color:var(--text-muted);text-align:center;margin-bottom:10px;"></div>
+    <div id="result-list"></div>
+  </div>
+  <script src="../js/database.js"></script>
+  <script>
+    (function() {
+      function render() {
+        var el = document.getElementById('result-list');
+        var countEl = document.getElementById('result-count');
+        var matches = DB.getMatches();
+        var finished = matches.filter(function(m) { return m.status === 'finished' && m.winner; });
+
+        if (finished.length === 0) {
+          el.innerHTML = '<div class="result-empty">📊 No hay combates finalizados aún.<br>Ve a la Mesa Técnica para arbitrar.</div>';
+          countEl.textContent = '';
+          return;
+        }
+
+        countEl.textContent = '📊 ' + finished.length + ' combates finalizados';
+
+        // Group by category
+        var byCat = {};
+        finished.forEach(function(m) {
+          var cat = m.category || 'kata';
+          if (!byCat[cat]) byCat[cat] = [];
+          byCat[cat].push(m);
+        });
+
+        var html = '';
+        for (var cat in byCat) {
+          var cl = cat === 'kata-duel' ? 'Kata Duelo' : cat === 'kumite' ? 'Kumite' : 'Kata';
+          html += '<div style="margin-bottom:12px;"><div style="font-size:.8rem;font-weight:700;color:var(--text-muted);padding:4px 0;">🥋 ' + cl + '</div>';
+          byCat[cat].sort(function(a,b) { return b.id - a.id; }).forEach(function(m) {
+            var w = m.winner === 'a' ? (m.competitor_a||'') : (m.competitor_b||'');
+            var l = m.winner === 'a' ? (m.competitor_b||'') : (m.competitor_a||'');
+            var sa = m.score_a != null ? Number(m.score_a).toFixed(2) : '—';
+            var sb = m.score_b != null ? Number(m.score_b).toFixed(2) : '—';
+            html += '<div class="result-card">';
+            html += '<div class="title">' + esc(m.competitor_a||'—') + ' vs ' + esc(m.competitor_b||'—') + '</div>';
+            html += '<div class="score-line"><span class="winner-flag">🏆 ' + esc(w) + '</span> <span style="color:var(--text-muted);font-weight:600;">' + sa + ' - ' + sb + '</span></div>';
+            html += '<div class="meta">Ronda ' + (m.round||1) + ' · ' + new Date(m.created_at || Date.now()).toLocaleString() + '</div>';
+            html += '</div>';
+          });
+          html += '</div>';
+        }
+        el.innerHTML = html;
+      }
+
+      function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+      render();
+    })();
+  </script>
+</body>
+</html>

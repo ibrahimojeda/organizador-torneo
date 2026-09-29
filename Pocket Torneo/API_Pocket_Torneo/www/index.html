@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>API Pocket Torneo</title>
+  <link rel="stylesheet" href="css/pocket.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="pocket-header">
+      <div class="pocket-logo">
+        <span class="pocket-icon">🏆</span>
+        <h1>API_POCKET_TORNEO</h1>
+      </div>
+      <div class="pocket-status" id="status-indicator">
+        <span class="status-dot offline"></span>
+        <span class="status-text">LOCAL</span>
+      </div>
+    </header>
+
+    <!-- Connection Bar -->
+    <div class="connection-bar" id="connection-bar">
+      <button class="btn-connect" id="btn-connect-db">
+        🌐 Conectar a Base de Datos
+      </button>
+    </div>
+
+    <!-- Dashboard Grid -->
+    <main class="dashboard-grid">
+      <!-- Registrar -->
+      <a href="views/register.html" class="dash-card">
+        <div class="dash-icon">👤</div>
+        <div class="dash-label">Registrar<br>Dojos y Compet.</div>
+      </a>
+      <!-- Brackets -->
+      <a href="views/brackets.html" class="dash-card">
+        <div class="dash-icon">🏗️</div>
+        <div class="dash-label">Generar<br>Brackets</div>
+      </a>
+      <!-- Medallero -->
+      <a href="views/medallero.html" class="dash-card">
+        <div class="dash-icon">🥇</div>
+        <div class="dash-label">Medallero</div>
+      </a>
+      <!-- Iniciar Torneo -->
+      <a href="views/referee.html" class="dash-card dash-highlight">
+        <div class="dash-icon">🎬</div>
+        <div class="dash-label">INICIAR<br>TORNEO</div>
+      </a>
+      <!-- Resultados -->
+      <a href="views/resultados.html" class="dash-card">
+        <div class="dash-icon">📊</div>
+        <div class="dash-label">Resultados</div>
+      </a>
+      <!-- Config -->
+      <a href="views/config.html" class="dash-card">
+        <div class="dash-icon">⚙️</div>
+        <div class="dash-label">Config</div>
+      </a>
+    </main>
+
+    <!-- Pantalla Publica -->
+    <section class="projection-section">
+      <h2>📺 Pantalla Pública</h2>
+      <div class="projection-info">
+        <a href="views/access.html" class="qr-placeholder" id="qr-display" target="_blank">
+          <span class="qr-icon">📱</span>
+          <span class="qr-text">Abrir en<br>TV/Tablet</span>
+        </a>
+        <div class="projection-details">
+          <p class="projection-ip" id="projection-ip">IP: Detectando...</p>
+          <p class="projection-status" id="projection-status">Estado: ⚪ Inactivo</p>
+          <div style="display:flex;gap:6px;margin-top:6px;">
+            <a href="views/projection.html" target="_blank" style="flex:1;padding:6px 8px;border:none;border-radius:8px;background:var(--primary);color:white;font-size:.7rem;font-weight:700;text-decoration:none;text-align:center;">📺 Proyectar</a>
+            <a href="views/referee.html" style="flex:1;padding:6px 8px;border:none;border-radius:8px;background:var(--surface2);color:var(--text);font-size:.7rem;font-weight:700;text-decoration:none;text-align:center;">🎬 Mesa</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Jueces Remotos -->
+    <section class="projection-section" style="margin-top:12px;">
+      <h2>🧑‍⚖️ Jueces Remotos</h2>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
+        <a href="views/judge.html?seat=J1" target="_blank" style="flex:1;min-width:50px;padding:10px;border-radius:10px;background:var(--surface2);color:var(--text);font-size:.75rem;font-weight:700;text-decoration:none;text-align:center;">J1</a>
+        <a href="views/judge.html?seat=J2" target="_blank" style="flex:1;min-width:50px;padding:10px;border-radius:10px;background:var(--surface2);color:var(--text);font-size:.75rem;font-weight:700;text-decoration:none;text-align:center;">J2</a>
+        <a href="views/judge.html?seat=J3" target="_blank" style="flex:1;min-width:50px;padding:10px;border-radius:10px;background:var(--surface2);color:var(--text);font-size:.75rem;font-weight:700;text-decoration:none;text-align:center;">J3</a>
+        <a href="views/judge.html?seat=J4" target="_blank" style="flex:1;min-width:50px;padding:10px;border-radius:10px;background:var(--surface2);color:var(--text);font-size:.75rem;font-weight:700;text-decoration:none;text-align:center;">J4</a>
+        <a href="views/judge.html?seat=J5" target="_blank" style="flex:1;min-width:50px;padding:10px;border-radius:10px;background:var(--surface2);color:var(--text);font-size:.75rem;font-weight:700;text-decoration:none;text-align:center;">J5</a>
+      </div>
+      <p style="font-size:.7rem;color:var(--text-muted);">Abre estos enlaces desde los celulares de los jueces, o comparte el QR desde <a href="views/access.html" target="_blank" style="color:var(--primary-light);">access.html</a></p>
+    </section>
+  </div>
+
+  <script src="js/app.js"></script>
+  <script src="js/database.js"></script>
+  <script src="js/supabase-sync.js"></script>
+</body>
+</html>

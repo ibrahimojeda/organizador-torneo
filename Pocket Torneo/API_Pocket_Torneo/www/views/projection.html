@@ -1,0 +1,156 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📺 Proyección · API Pocket Torneo</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    :root { --bg:#0b1121; --surface:#1a2332; --text:#f1f5f9; --text-muted:#64748b; --success:#22c55e; --primary:#6366f1; --radius:24px; }
+    html, body { height:100%; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; overflow:hidden; }
+    body { display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px; }
+    #app { width:100%;max-width:1280px;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center; }
+    .proj-header { text-align:center;margin-bottom:20px;width:100%; }
+    .proj-header h1 { font-size:clamp(1.2rem,2.5vw,2rem);font-weight:800;letter-spacing:-.02em;color:var(--text-muted); }
+    .proj-header .sub { font-size:clamp(.7rem,1.2vw,1rem);color:var(--text-muted);margin-top:4px; }
+    .proj-waiting { text-align:center;padding:60px 0; }
+    .proj-waiting .icon { font-size:clamp(3rem,6vw,6rem);margin-bottom:16px; }
+    .proj-waiting h2 { font-size:clamp(1.5rem,3vw,2.5rem);font-weight:800;color:var(--text-muted); }
+    .proj-waiting p { font-size:clamp(.9rem,1.5vw,1.3rem);color:var(--text-muted);margin-top:8px;opacity:.6; }
+    .proj-athlete { text-align:center;margin-bottom:12px; }
+    .proj-athlete .name { font-size:clamp(2.5rem,5vw,4.5rem);font-weight:900;line-height:1.1; }
+    .proj-athlete .club { font-size:clamp(.9rem,1.5vw,1.3rem);color:var(--text-muted);margin-top:4px; }
+    .proj-score { font-size:clamp(5rem,10vw,9rem);font-weight:900;color:var(--primary);line-height:1;margin:8px 0 16px; }
+    .proj-score.ready { color:var(--success); }
+    .proj-duel { display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;width:100%;max-width:900px; }
+    .proj-duel .side { background:var(--surface);border-radius:var(--radius);padding:24px 20px;text-align:center; }
+    .proj-duel .side .name { font-size:clamp(1.3rem,2.5vw,2.2rem);font-weight:800; }
+    .proj-duel .side .club { font-size:clamp(.7rem,1vw,.9rem);color:var(--text-muted);margin-top:2px; }
+    .proj-duel .side .total { font-size:clamp(2.5rem,5vw,4rem);font-weight:900;margin-top:8px; }
+    .proj-duel .side.ao .total { color:#93c5fd; }
+    .proj-duel .side.aka .total { color:#fca5a5; }
+    .proj-duel .vs { font-size:clamp(1.2rem,2vw,2rem);font-weight:900;color:var(--text-muted); }
+    .proj-kumite { display:grid;grid-template-columns:1fr auto 1fr;gap:12px;width:100%;max-width:900px; }
+    .proj-kumite .side { background:var(--surface);border-radius:var(--radius);padding:20px;text-align:center; }
+    .proj-kumite .side .name { font-size:clamp(1.3rem,2.5vw,2.2rem);font-weight:800; }
+    .proj-kumite .side .score { font-size:clamp(3.5rem,7vw,6rem);font-weight:900;margin:8px 0; }
+    .proj-kumite .side.ao .score { color:#93c5fd; }
+    .proj-kumite .side.aka .score { color:#fca5a5; }
+    .proj-kumite .vs { font-size:clamp(1.2rem,2vw,2rem);font-weight:900;color:var(--text-muted); }
+    .proj-winner { margin-top:16px;padding:12px 32px;border-radius:var(--radius);background:linear-gradient(135deg,#14532d,#166534);text-align:center; }
+    .proj-winner h2 { font-size:clamp(1.2rem,2.5vw,2.2rem);font-weight:800;color:#86efac; }
+    .proj-winner .score-line { font-size:clamp(.9rem,1.5vw,1.3rem);color:#86efac;opacity:.8;margin-top:4px; }
+    .proj-last { position:fixed;bottom:16px;left:16px;font-size:.75rem;color:var(--text-muted);opacity:.6; }
+    .proj-status { position:fixed;bottom:16px;right:24px;font-size:.7rem;color:var(--text-muted);opacity:.5;text-align:right; }
+    .proj-status .dot { display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--success);margin-right:4px; }
+    .proj-mode { position:fixed;top:16px;right:24px;font-size:.6rem;padding:4px 8px;border-radius:6px;background:var(--surface);color:var(--text-muted); }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="proj-header">
+      <h1 id="proj-title">🏆 Cargando...</h1>
+      <div class="sub" id="proj-subtitle">Tatami · Esperando combate</div>
+    </div>
+    <div id="proj-content" class="proj-waiting">
+      <div class="icon">⏳</div>
+      <h2>Esperando combate...</h2>
+      <p>Conectando con la mesa técnica...</p>
+    </div>
+    <div class="proj-last" id="proj-last"></div>
+    <div class="proj-status" id="proj-status"><span class="dot"></span>En vivo</div>
+    <div class="proj-mode" id="proj-mode">Local</div>
+  </div>
+
+  <script>
+    (function() {
+      var isExternal = false, serverUrl = null;
+      var params = new URLSearchParams(window.location.search);
+      if (params.has('server')) { serverUrl = params.get('server'); isExternal = true; }
+      else if (params.has('remote')) { isExternal = true; }
+      else { try { var c = localStorage.getItem('pocket_server_url'); if (c) { serverUrl = c; isExternal = true; } } catch(e) {} }
+
+      var hasLocalDB = false;
+      try { if (typeof DB !== 'undefined') { hasLocalDB = DB.getMatches().length > 0; } } catch(e) {}
+
+      if (hasLocalDB && !isExternal) loadLocal();
+      else loadRemote(serverUrl || window.location.origin);
+
+      function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+      function render(state) {
+        document.getElementById('proj-title').textContent = '🏆 ' + (state.tournamentName || 'Torneo');
+        document.getElementById('proj-subtitle').textContent = state.pendingAwards ? ('Tatami ' + (state.tatami || 1) + ' · Fin de categoría') : ('Tatami ' + (state.tatami || 1) + ' · ' + (state.match ? 'Combate en curso' : 'Esperando combate'));
+        var last = document.getElementById('proj-last');
+        if (state.lastResult) last.textContent = 'Último: ' + esc(state.lastResult.competitor_a||'') + ' vs ' + esc(state.lastResult.competitor_b||'') + ' → ' + (state.lastResult.winner==='a'?esc(state.lastResult.competitor_a):esc(state.lastResult.competitor_b));
+        else last.textContent = '';
+        document.getElementById('proj-status').innerHTML = '<span class="dot"></span>' + (state.match&&state.match.status==='in_progress'?'🔴 En vivo':'🟢 En espera');
+
+        var el = document.getElementById('proj-content');
+        if (state.pendingAwards && state.pendingAwards.podium && state.pendingAwards.podium.length) {
+          renderCategoryFinish(state.pendingAwards, el);
+          return;
+        }
+        if (!state.match||state.match.status!=='in_progress') {
+          if (state.match&&state.match.status==='finished') { renderFinished(state.match,el); return; }
+          el.className='proj-waiting'; el.innerHTML='<div class="icon">⏳</div><h2>Esperando combate...</h2><p>La mesa técnica iniciará un combate en breve</p>'; return;
+        }
+        el.className='';
+        var m=state.match;
+        if (m.category==='kumite') renderKumite(m,el);
+        else if (m.category==='kata-duel') renderKataDuel(m,el);
+        else renderKata(m,el);
+      }
+
+      function renderCategoryFinish(awards, el) {
+        el.className = '';
+        var medals = { 1: '🥇', 2: '🥈', 3: '🥉' };
+        var labels = { 1: '1° Lugar', 2: '2° Lugar', 3: '3° Lugar' };
+        var cols = { 1: 'linear-gradient(135deg,#f59e0b,#b45309)', 2: 'linear-gradient(135deg,#94a3b8,#475569)', 3: 'linear-gradient(135deg,#d97706,#92400e)' };
+        var cards = (awards.podium || []).map(function(p) {
+          var pos = Number(p.position) || 1;
+          var medal = medals[pos] || (pos + '°');
+          var label = labels[pos] || ('Puesto ' + pos);
+          var bg = cols[pos] || 'linear-gradient(135deg,#334155,#1e293b)';
+          return '<div style="background:' + bg + ';border-radius:16px;padding:20px 16px;text-align:center;min-height:150px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 12px 30px rgba(0,0,0,.3);">' +
+            '<div style="font-size:.72rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;opacity:.95;">' + label + '</div>' +
+            '<div style="font-size:1.7rem;font-weight:900;line-height:1.08;margin-top:10px;color:#fff;">' + esc(p.name || '—') + '</div>' +
+            (p.dojo ? '<div style="font-size:.9rem;opacity:.92;margin-top:6px;color:#fff;">' + esc(p.dojo) + '</div>' : '') +
+            '<div style="font-size:1.5rem;margin-top:10px;">' + medal + '</div>' +
+          '</div>';
+        }).join('');
+        el.innerHTML =
+          '<div style="text-align:center;width:100%;">' +
+            '<div style="font-size:clamp(2rem,4vw,3.4rem);font-weight:900;letter-spacing:.04em;color:#fff;background:linear-gradient(90deg,#dc2626,#ea580c);padding:14px 24px;border-radius:18px;display:inline-block;box-shadow:0 8px 28px rgba(220,38,38,.4);margin-bottom:24px;">🏁 FIN DE LA CATEGORÍA</div>' +
+            '<div style="font-size:clamp(1.1rem,2vw,1.6rem);font-weight:800;color:#e2e8f0;margin-bottom:22px;">' + esc(awards.label || 'Categoría') + '</div>' +
+            '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;max-width:900px;margin:0 auto;">' + cards + '</div>' +
+          '</div>';
+      }
+
+      function renderKata(m,el) { var n=esc(m.competitor_a||'—'),c=esc(m.dojo_a||''),hs=m.score_a!=null; el.innerHTML='<div style="text-align:center"><div style="margin-bottom:8px"><div style="font-size:clamp(2.5rem,5vw,4.5rem);font-weight:900">'+n+'</div><div style="font-size:clamp(.9rem,1.5vw,1.3rem);color:var(--text-muted)">'+c+'</div></div><div style="font-size:clamp(5rem,10vw,9rem);font-weight:900;color:'+(hs?'var(--success)':'var(--primary)')+'">'+(hs?Number(m.score_a).toFixed(2):'⏳')+'</div></div>'; }
+      function renderKataDuel(m,el) { var nA=esc(m.competitor_a||'AO'),nB=esc(m.competitor_b||'AKA'),dA=esc(m.dojo_a||''),dB=esc(m.dojo_b||''),sA=m.score_a!=null?Number(m.score_a).toFixed(2):'⏳',sB=m.score_b!=null?Number(m.score_b).toFixed(2):'⏳',ws=m.winner?(m.winner==='a'?nA:nB):null; el.innerHTML='<div class="proj-duel"><div class="side ao"><div class="name">'+nA+'</div><div class="club">'+dA+'</div><div class="total">'+sA+'</div></div><div class="vs">VS</div><div class="side aka"><div class="name">'+nB+'</div><div class="club">'+dB+'</div><div class="total">'+sB+'</div></div></div>'+(ws?'<div class="proj-winner"><h2>🏆 '+ws+'</h2><div class="score-line">'+sA+' - '+sB+'</div></div>':''); }
+      function renderKumite(m,el) { var nA=esc(m.competitor_a||'AO'),nB=esc(m.competitor_b||'AKA'),sA=m.score_a!=null?m.score_a:0,sB=m.score_b!=null?m.score_b:0,ws=m.winner?(m.winner==='a'?nA:nB):null; el.innerHTML='<div class="proj-kumite"><div class="side ao"><div class="name">'+nA+'</div><div class="score">'+sA+'</div></div><div class="vs">VS</div><div class="side aka"><div class="name">'+nB+'</div><div class="score">'+sB+'</div></div></div>'+(ws?'<div class="proj-winner"><h2>🏆 '+ws+'</h2><div class="score-line">'+sA+' - '+sB+'</div></div>':''); }
+      function renderFinished(m,el) { var nA=esc(m.competitor_a||'—'),nB=esc(m.competitor_b||'—'),wn=m.winner?(m.winner==='a'?nA:nB):'—'; el.className=''; el.innerHTML='<div class="proj-winner"><h2>🏆 GANADOR: '+wn+'</h2><div class="score-line">'+nA+' '+(m.score_a!=null?Number(m.score_a).toFixed(2):'—')+' vs '+nB+' '+(m.score_b!=null?Number(m.score_b).toFixed(2):'—')+'</div></div>'; }
+
+      function loadLocal() {
+        document.getElementById('proj-mode').textContent = 'Local';
+        var s=document.createElement('script'); s.src='../js/database.js'; s.onload=function() {
+          var s2=document.createElement('script'); s2.src='../js/projection-sync.js'; s2.onload=function(){ Projection.startPolling(render,1000); }; document.body.appendChild(s2);
+        }; document.body.appendChild(s);
+      }
+
+      function loadRemote(baseUrl) {
+        document.getElementById('proj-mode').textContent = '📡 Remoto';
+        var api = baseUrl.replace(/\/+$/,'') + '/api/state';
+        function fetchState() {
+          fetch(api).then(function(r){return r.json();}).then(function(state){render(state);}).catch(function(){
+            var el=document.getElementById('proj-content');
+            el.innerHTML='<div class="proj-waiting"><div class="icon">📡</div><h2>Conectando...</h2><p>Servidor: '+api+'</p></div>';
+          });
+        }
+        fetchState(); setInterval(fetchState, 1500);
+      }
+    })();
+  </script>
+</body>
+</html>

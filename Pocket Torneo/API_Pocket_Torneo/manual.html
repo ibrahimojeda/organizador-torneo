@@ -1,0 +1,208 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Manual · API Pocket Torneo</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root { --primary:#6366f1; --primary-light:#818cf8; --bg:#0f172a; --surface:#1e293b; --text:#f1f5f9; --text-muted:#94a3b8; }
+  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:var(--bg); color:var(--text); line-height:1.6; }
+  .page { max-width:900px; margin:0 auto; padding:40px 32px; }
+  .cover { text-align:center; padding:80px 0 60px; border-bottom:2px solid var(--surface); margin-bottom:40px; }
+  .cover .icon { font-size:72px; }
+  .cover h1 { font-size:2.8rem; font-weight:800; letter-spacing:-.03em; background:linear-gradient(135deg,var(--primary),var(--primary-light)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .cover .version { color:var(--text-muted); margin-top:8px; }
+  h2 { font-size:1.6rem; font-weight:800; margin-top:48px; margin-bottom:16px; padding-bottom:8px; border-bottom:2px solid var(--primary); color:var(--primary-light); }
+  h3 { font-size:1.2rem; font-weight:700; margin-top:28px; margin-bottom:10px; }
+  p, li { margin-bottom:8px; }
+  ul, ol { margin:8px 0 16px 24px; }
+  code { background:var(--surface); padding:2px 8px; border-radius:4px; font-size:.85rem; color:var(--primary-light); }
+  pre { background:var(--surface); padding:16px; border-radius:12px; margin:12px 0; font-size:.85rem; border:1px solid #334155; }
+  .tip { background:rgba(99,102,241,.1); border-left:4px solid var(--primary); padding:12px 16px; border-radius:0 10px 10px 0; margin:16px 0; }
+  .warning { background:rgba(234,179,8,.1); border-left:4px solid #eab308; padding:12px 16px; border-radius:0 10px 10px 0; margin:16px 0; }
+  .screen { background:var(--surface); border-radius:16px; padding:16px; margin:16px 0; border:1px solid #334155; font-family:monospace; font-size:.8rem; line-height:1.4; white-space:pre; overflow-x:auto; }
+  .caption { font-size:.8rem; color:var(--text-muted); text-align:center; margin:4px 0 16px; }
+  .footer { text-align:center; padding:40px 0 20px; border-top:1px solid var(--surface); margin-top:60px; color:var(--text-muted); font-size:.8rem; }
+  @media print { body { background:white; color:black; } .screen { background:#f8fafc; border-color:#e2e8f0; } .cover h1 { -webkit-text-fill-color:#6366f1; } }
+</style>
+</head>
+<body>
+<div class="page">
+<div class="cover">
+  <div class="icon">🏆</div>
+  <h1>API Pocket Torneo</h1>
+  <div class="version">v1.0 · App ID: com.torneo.pocket</div>
+  <p style="color:var(--text-muted);margin-top:12px;font-size:1.1rem;">Tu torneo de karate en el bolsillo</p>
+</div>
+
+<h2>Índice</h2>
+<ol>
+  <li>Instalación del APK</li>
+  <li>Dashboard (pantalla principal)</li>
+  <li>Configuración inicial</li>
+  <li>Registro de Dojos y Competidores</li>
+  <li>Generación de Brackets</li>
+  <li>Mesa Técnica (INICIAR TORNEO)</li>
+  <li>Arbitrar Kata Individual</li>
+  <li>Arbitrar Kata por Duelo</li>
+  <li>Arbitrar Kumite</li>
+  <li>Pantalla Pública (proyección)</li>
+  <li>Jueces Remotos</li>
+  <li>Sincronización con Supabase</li>
+  <li>Medallero y Resultados</li>
+  <li>Exportar CSV</li>
+  <li>Preguntas frecuentes</li>
+</ol>
+<h2>1. Instalación del APK</h2>
+<ol>
+<li>Copia <code>app-debug.apk</code> desde <code>android\app\build\outputs\apk\debug\</code> a tu celular.</li>
+<li>Abre el archivo APK. Si aparece advertencia, activa "Instalar desde fuentes desconocidas".</li>
+<li>Busca el ícono 🏆 <strong>API_Pocket_Torneo</strong> en tu pantalla.</li>
+</ol>
+<p>El APK pesa ~4.2 MB. Se recomienda Android 10 o superior.</p>
+
+<h2>2. Dashboard (pantalla principal)</h2>
+<p>Al abrir la app verás 6 botones principales:</p>
+<ul>
+<li><strong>👤 Registrar</strong> — Añade dojos y competidores</li>
+<li><strong>🏗️ Brackets</strong> — Genera cruces automáticos</li>
+<li><strong>🥇 Medallero</strong> — Oro, plata y bronce por categoría</li>
+<li><strong>🎬 INICIAR TORNEO</strong> — Abre la mesa técnica</li>
+<li><strong>📊 Resultados</strong> — Historial de combates</li>
+<li><strong>⚙️ Config</strong> — Nombre, tatami, jueces, Supabase</li>
+</ul>
+<p>En la parte inferior: <strong>📺 Pantalla Pública</strong> con la IP del servidor y enlaces directos.</p>
+<p>En la esquina superior: indicador <strong>● LOCAL</strong> o <strong>● N ACTIVOS</strong>.</p>
+
+<h2>3. Configuración inicial</h2>
+<ol>
+<li>Presiona <strong>⚙️ Config</strong>.</li>
+<li>Ingresa el <strong>Nombre del Torneo</strong> (ej: "Torneo de Prueba").</li>
+<li>Selecciona el <strong>Tatami</strong> (1-4).</li>
+<li>Selecciona el <strong>Número de Jueces</strong>: 5 o 7.</li>
+<li>Presiona <strong>💾 Guardar Configuración</strong>.</li>
+</ol>
+<div class="tip"><strong>💡</strong> El número de jueces afecta la entrada de notas y los asientos remotos J1-J5 o J1-J7.</div>
+
+<h2>4. Registro de Dojos y Competidores</h2>
+<ol>
+<li>Presiona <strong>👤 Registrar</strong>.</li>
+<li>Pestaña <strong>🏫 Dojos</strong>: añade los dojos (ej: "Dojo Central").</li>
+<li>Pestaña <strong>👤 Competidores</strong>: añade cada competidor con nombre, dojo y categoría.</li>
+</ol>
+<p>Categorías disponibles: <strong>Kata Individual</strong>, <strong>Kata por Duelo</strong>, <strong>Kumite</strong>.</p>
+<div class="warning"><strong>⚠️</strong> Necesitas al menos 2 competidores por categoría para generar brackets.</div>
+
+<h2>5. Generación de Brackets</h2>
+<ol>
+<li>Presiona <strong>🏗️ Brackets</strong>.</li>
+<li>Presiona <strong>🎲 Generar Brackets</strong>.</li>
+<li>Los competidores se agrupan por categoría y se barajan aleatoriamente.</li>
+<li>Se generan rondas completas. Si hay menos de potencia de 2, se añaden BYE.</li>
+</ol>
+<p>Puedes eliminar brackets y regenerar si no te gustan los cruces.</p>
+<h2>6. Mesa Técnica (INICIAR TORNEO)</h2>
+<p>Presiona <strong>🎬 INICIAR TORNEO</strong> desde el Dashboard.</p>
+<p>Verás la <strong>Cola de Combates</strong> con todos los combates pendientes agrupados por categoría.</p>
+<p>Presiona sobre un combate para abrirlo. La app cambia automáticamente la interfaz según la categoría.</p>
+<p>Botón <strong>← Dashboard</strong> para volver al menú principal.</p>
+
+<h2>7. Arbitrar Kata Individual</h2>
+<p>Se muestran inputs para J1-J5 (o J1-J7 si configuraste 7 jueces).</p>
+<ol>
+<li>Ingresa la nota de cada juez (0.0 a 10.0).</li>
+<li>El total se calcula automáticamente: descarta la nota más alta y más baja, suma las restantes.</li>
+<li>Cuando estén todas las notas, el total se pone en verde 🟢.</li>
+<li>Presiona <strong>✅ Confirmar Resultado</strong>.</li>
+</ol>
+
+<h2>8. Arbitrar Kata por Duelo</h2>
+<p>Se muestran dos grupos de inputs: AO (azul) y AKA (rojo).</p>
+<ol>
+<li>Ingresa las notas de cada juez para AO.</li>
+<li>Ingresa las notas de cada juez para AKA.</li>
+<li>La app calcula ambos totales y determina el ganador.</li>
+<li>Presiona <strong>✅ Confirmar Resultado</strong>.</li>
+</ol>
+
+<h2>9. Arbitrar Kumite</h2>
+<p>Interfaz con cronómetro, botones de puntuación y penalizaciones.</p>
+<ul>
+<li><strong>▶</strong> Inicia/detiene el cronómetro. <strong>↺</strong> lo reinicia.</li>
+<li><strong>🟢 Yuko</strong> = +1 punto · <strong>🔵 Waza</strong> = +2 · <strong>🟣 Ippon</strong> = +3</li>
+<li><strong>⚠️ AO / AKA</strong> = penalizaciones: Hanti → Chukoku → Keikoku → Hansoku (desc.)</li>
+<li>El primer punto asigna <strong>Senshu</strong> (ventaja en empate).</li>
+<li>Presiona <strong>✅ Confirmar Resultado</strong>.</li>
+</ul>
+
+<h2>10. Pantalla Pública (proyección)</h2>
+<p>Muestra el marcador en un TV o Tablet independiente del celular de la mesa.</p>
+<p><strong>Por HDMI:</strong> Conecta USB-C → HDMI. Abre <strong>📺 Proyectar</strong> desde el Dashboard.</p>
+<p><strong>Por WiFi:</strong> Misma red WiFi. En el TV abre <code>http://IP:8888</code>. La IP aparece en el Dashboard.</p>
+<p><strong>Por Hotspot:</strong> Activa el hotspot del celular, conecta el TV, usa la IP del hotspot.</p>
+<p>La pantalla pública muestra: nombre del torneo, competidor, puntaje y último resultado.</p>
+
+<h2>11. Jueces Remotos</h2>
+<p>Los jueces usan su propio celular <strong>sin instalar nada</strong>.</p>
+<ol>
+<li>El organizador abre la Mesa Técnica.</li>
+<li>Los jueces abren en su navegador: <code>http://IP:8888/views/judge.html?seat=J1</code></li>
+<li>La interfaz se adapta automáticamente: Kata (teclado numérico) o Kumite (botones).</li>
+<li>El juez envía su nota → la mesa ve: <strong>J1 ✅ J2 ⏳ J3 ✅</strong></li>
+</ol>
+<p>Enlaces directos desde el Dashboard o desde <code>access.html</code>.</p>
+<h2>12. Sincronización con Supabase</h2>
+<ol>
+<li>Ve a <strong>⚙️ Config</strong> → sección <strong>🌐 Conexión a Supabase</strong>.</li>
+<li>Ingresa URL y Anon Key de tu proyecto Supabase.</li>
+<li>Presiona <strong>🔌 Probar Conexión</strong>. Si es exitosa, guarda.</li>
+<li>Desde el Dashboard, presiona <strong>🌐 Conectar a Base de Datos</strong>.</li>
+<li>La app sube: torneo, dojos, competidores, combates y resultados.</li>
+</ol>
+<p>Tablas creadas en Supabase: <code>pocket_tournaments</code>, <code>pocket_dojos</code>, <code>pocket_competitors</code>, <code>pocket_matches</code>, <code>pocket_results</code>.</p>
+<div class="tip"><strong>💡</strong> La sincronización no necesita librerías. Usa fetch() directo contra la REST API de Supabase.</div>
+
+<h2>13. Medallero y Resultados</h2>
+<p><strong>🥇 Medallero:</strong> Muestra oro, plata y bronce por categoría basado en los combates finalizados. Se actualiza automáticamente.</p>
+<p><strong>📊 Resultados:</strong> Historial completo de combates con puntajes y ganador, ordenado por categoría.</p>
+
+<h2>14. Exportar CSV</h2>
+<ol>
+<li>Ve a <strong>🥇 Medallero</strong>.</li>
+<li>Presiona <strong>📥 Exportar CSV</strong>.</li>
+<li>Se descarga un archivo <code>torneo_resultados.csv</code>.</li>
+<li>Abre con Excel, Google Sheets o cualquier editor de texto.</li>
+</ol>
+<p>Incluye: Torneo, Tatami, Categoría, Competidor A, Competidor B, Puntaje A, Puntaje B, Ganador, Estado, Ronda.</p>
+
+<h2>15. Preguntas frecuentes</h2>
+
+<h3>¿Necesito internet?</h3>
+<p>No. Todo funciona offline. Solo necesitas internet para sincronizar con Supabase.</p>
+
+<h3>¿Los jueces necesitan instalar algo?</h3>
+<p>No. Solo un navegador web. No necesitan APK ni registrarse.</p>
+
+<h3>¿Puedo usar la proyección sin WiFi?</h3>
+<p>Sí. Con cable USB-C → HDMI, o activando el hotspot del celular.</p>
+
+<h3>¿Qué pasa si cierro la app?</h3>
+<p>Los datos se guardan automáticamente. Al volver, los combates continúan donde quedaron.</p>
+
+<h3>¿Puedo cambiar el número de jueces después de empezar?</h3>
+<p>Sí. Ve a Config, cambia el valor, y los inputs se adaptan automáticamente.</p>
+
+<h3>¿Cómo actualizo la app?</h3>
+<p>Compila un nuevo APK e instálalo. Los datos locales se conservan.</p>
+
+<h3>¿El QR se genera automáticamente?</h3>
+<p>La app muestra la IP. Puedes usar cualquier generador QR con <code>http://IP:8888</code>.</p>
+
+<div class="footer">
+<p><strong>API Pocket Torneo</strong> v1.0 · App ID: com.torneo.pocket · Servidor: puerto 8888</p>
+<p>Septiembre 2026</p>
+</div>
+
+</div>
+</body>
+</html>

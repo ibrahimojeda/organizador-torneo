@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Registrar · API Pocket Torneo</title>
+  <link rel="stylesheet" href="../css/pocket.css">
+  <style>
+    .list-item {
+      display:flex;align-items:center;justify-content:space-between;
+      padding:10px 12px;background:var(--surface);
+      border-radius:var(--radius-sm);margin-bottom:6px;
+    }
+    .list-item .name { font-weight:600;font-size:.9rem; }
+    .list-item .sub { font-size:.75rem;color:var(--text-muted);margin-top:2px; }
+    .list-item .actions { display:flex;gap:6px; }
+    .btn-sm { padding:6px 12px;border:none;border-radius:6px;font-size:.8rem;font-weight:700;cursor:pointer; }
+    .btn-sm:active { transform:scale(0.95); }
+    .btn-edit { background:var(--primary);color:white; }
+    .btn-del { background:var(--danger);color:white; }
+    .tab-bar { display:flex;gap:4px;margin-bottom:16px;background:var(--surface);border-radius:var(--radius-sm);padding:4px; }
+    .tab { flex:1;padding:8px;text-align:center;border:none;background:transparent;color:var(--text-muted);font-weight:600;font-size:.85rem;border-radius:8px;cursor:pointer; }
+    .tab.active { background:var(--primary);color:white; }
+<div class="tab-bar" id="tab-bar">
+      <button class="tab active" data-tab="dojos">🏫 Dojos</button>
+      <button class="tab" data-tab="competitors">👤 Competidores</button>
+    </div>
+
+    <!-- DOJOS -->
+    <div id="panel-dojos">
+      <div class="form-inline">
+        <input type="text" id="dojo-input" style="flex:1;padding:12px 14px;border-radius:10px;border:1px solid var(--surface2);background:var(--bg);color:var(--text);font-size:1rem;outline:none;" placeholder="Nombre del Dojo">
+        <button class="btn btn-primary" id="btn-add-dojo" style="white-space:nowrap;">+ Añadir</button>
+      </div>
+      <div class="row-count" id="dojo-count">0 dojos registrados</div>
+      <div id="dojo-list"></div>
+    </div>
+
+    <!-- COMPETIDORES -->
+    <div id="panel-competitors" style="display:none;">
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:12px;">
+        <input type="text" id="comp-name" placeholder="Nombre del competidor" style="padding:12px 14px;border-radius:10px;border:1px solid var(--surface2);background:var(--bg);color:var(--text);font-size:1rem;outline:none;">
+        <select id="comp-dojo" style="padding:12px 14px;border-radius:10px;border:1px solid var(--surface2);background:var(--bg);color:var(--text);font-size:1rem;outline:none;">
+          <option value="">Sin Dojo</option>
+        </select>
+        <select id="comp-category" style="padding:12px 14px;border-radius:10px;border:1px solid var(--surface2);background:var(--bg);color:var(--text);font-size:1rem;outline:none;">
+          <option value="kata">Kata Individual</option>
+          <option value="kata-duel">Kata por Duelo</option>
+          <option value="kumite">Kumite</option>
+        </select>
+        <button class="btn btn-primary" id="btn-add-comp">+ Añadir Competidor</button>
+      </div>
+      <div class="row-count" id="comp-count">0 competidores registrados</div>
+      <div id="comp-list"></div>
+    </div>
+  </div>
+
+  <script src="../js/database.js"></script>
+  <script>
+    (function() {
+      var editingDojoId = null;
+      var editingCompId = null;
+      var currentTab = 'dojos';
+
+      document.querySelectorAll('.tab').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+          btn.classList.add('active');
+          currentTab = btn.dataset.tab;
+          document.getElementById('panel-dojos').style.display = currentTab === 'dojos' ? 'block' : 'none';
+          document.getElementById('panel-competitors').style.display = currentTab === 'competitors' ? 'block' : 'none';
+          renderAll();
+        });
+      });
+
+      function renderDojos() {
+        var list = document.getElementById('dojo-list');
+        var dojos = DB.getDojos();
+        document.getElementById('dojo-count').textContent = dojos.length + ' dojos registrados';
+        if (dojos.length === 0) {
+          list.innerHTML = '<div class="empty-state">No hay dojos registrados aún.<br>Añade el primero arriba.</div>';
+          return;
+        }
+        list.innerHTML = dojos.map(function(d) {
+          return '<div class="list-item">' +
+            '<div><div class="name">🏫 ' + esc(d.name) + '</div></div>' +
+            '<div class="actions">' +
+              '<button class="btn-sm btn-edit" onclick="window.editDojo(' + d.id + ')">✏️</button>' +
+              '<button class="btn-sm btn-del" onclick="window.deleteDojo(' + d.id + ')">🗑️</button>' +
+            '</div></div>';
+        }).join('');
+        populateDojoDropdown();
+      }
+
+      window.editDojo = function(id) {
+        var dojos = DB.getDojos();
+        for (var i = 0; i < dojos.length; i++) {
+          if (dojos[i].id === id) {
+            document.getElementById('dojo-input').value = dojos[i].name;
+            editingDojoId = id;
+            document.getElementById('btn-add-dojo').textContent = '✏️ Actualizar';
+            break;
+          }
+        }
+      };
+    .form-inline { display:flex;gap:8px;margin-bottom:12px; }
+    .form-inline input { flex:1; }
+    .row-count { font-size:.8rem;color:var(--text-muted);text-align:center;margin:8px 0; }
+    .empty-state { text-align:center;padding:24px;color:var(--text-muted);font-size:.85rem; }
+    .badge { display:inline-block;padding:2px 8px;border-radius:20px;font-size:.7rem;font-weight:700;background:var(--surface2);color:var(--text-muted); }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="page-header">
+      <button class="btn-back" onclick="history.back()">←</button>
+      <span class="page-title">👤 Registrar Dojos y Competidores</span>
+    </div>
+window.deleteDojo = function(id) {
+        if (confirm('¿Eliminar este dojo?')) { DB.deleteDojo(id); renderDojos(); showToast('🗑️ Dojo eliminado'); }
+      };
+
+      function addDojo() {
+        var input = document.getElementById('dojo-input');
+        var name = input.value.trim();
+        if (!name) { showToast('⚠️ Escribe un nombre'); return; }
+        if (editingDojoId) {
+          DB.updateDojo(editingDojoId, name);
+          editingDojoId = null;
+          document.getElementById('btn-add-dojo').textContent = '+ Añadir';
+          showToast('✏️ Dojo actualizado', 'success');
+        } else {
+          DB.addDojo(name);
+          showToast('✅ Dojo añadido', 'success');
+        }
+        input.value = '';
+        renderDojos();
+      }
+
+      document.getElementById('btn-add-dojo').addEventListener('click', addDojo);
+      document.getElementById('dojo-input').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); addDojo(); }
+      });
+
+      function populateDojoDropdown() {
+        var sel = document.getElementById('comp-dojo');
+        var val = sel.value;
+        var dojos = DB.getDojos();
+        sel.innerHTML = '<option value="">Sin Dojo</option>' +
+          dojos.map(function(d) { return '<option value="' + esc(d.name) + '">' + esc(d.name) + '</option>'; }).join('');
+        sel.value = val;
+      }
+
+      function renderCompetitors() {
+        var list = document.getElementById('comp-list');
+        var comps = DB.getCompetitors();
+        document.getElementById('comp-count').textContent = comps.length + ' competidores registrados';
+        if (comps.length === 0) {
+          list.innerHTML = '<div class="empty-state">No hay competidores registrados aún.<br>Añade el primero arriba.</div>';
+          return;
+        }
+        list.innerHTML = comps.map(function(c) {
+          var cl = c.category === 'kata-duel' ? 'Kata Duelo' : c.category === 'kumite' ? 'Kumite' : 'Kata';
+          return '<div class="list-item">' +
+            '<div><div class="name">' + esc(c.name) + '</div>' +
+            '<div class="sub">' + (c.dojo ? esc(c.dojo) : 'Sin dojo') + ' <span class="badge">' + cl + '</span></div></div>' +
+            '<div class="actions">' +
+              '<button class="btn-sm btn-edit" onclick="window.editComp(' + c.id + ')">✏️</button>' +
+              '<button class="btn-sm btn-del" onclick="window.deleteComp(' + c.id + ')">🗑️</button>' +
+            '</div></div>';
+        }).join('');
+      }
+
+      window.editComp = function(id) {
+        var comps = DB.getCompetitors();
+        for (var i = 0; i < comps.length; i++) {
+          if (comps[i].id === id) {
+            document.getElementById('comp-name').value = comps[i].name;
+            document.getElementById('comp-dojo').value = comps[i].dojo || '';
+            document.getElementById('comp-category').value = comps[i].category || 'kata';
+            editingCompId = id;
+            document.getElementById('btn-add-comp').textContent = '✏️ Actualizar';
+            break;
+          }
+        }
+      };
+
+      window.deleteComp = function(id) {
+        if (confirm('¿Eliminar este competidor?')) { DB.deleteCompetitor(id); renderCompetitors(); showToast('🗑️ Competidor eliminado'); }
+      };
+
+      function addComp() {
+        var name = document.getElementById('comp-name').value.trim();
+        var dojo = document.getElementById('comp-dojo').value;
+        var cat = document.getElementById('comp-category').value;
+        if (!name) { showToast('⚠️ Escribe un nombre'); return; }
+        if (editingCompId) {
+          DB.updateCompetitor(editingCompId, name, dojo, cat);
+          editingCompId = null;
+          document.getElementById('btn-add-comp').textContent = '+ Añadir Competidor';
+          showToast('✏️ Competidor actualizado', 'success');
+        } else {
+          DB.addCompetitor(name, dojo, cat);
+          showToast('✅ Competidor añadido', 'success');
+        }
+        document.getElementById('comp-name').value = '';
+        renderCompetitors();
+      }
+
+      document.getElementById('btn-add-comp').addEventListener('click', addComp);
+      document.getElementById('comp-name').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); addComp(); }
+      });
+
+      function esc(str) { return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+      function renderAll() { renderDojos(); renderCompetitors(); }
+
+      function showToast(msg, type) {
+        var e = document.querySelector('.toast'); if (e) e.remove();
+        var el = document.createElement('div');
+        el.className = 'toast' + (type === 'success' ? ' success' : type === 'error' ? ' error' : '');
+        el.textContent = msg;
+        document.body.appendChild(el);
+        setTimeout(function() { el.remove(); }, 2000);
+      }
+
+      renderAll();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,130 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Config · API Pocket Torneo</title>
+  <link rel="stylesheet" href="../css/pocket.css">
+</head>
+<body>
+  <div id="app">
+    <div class="page-header">
+      <button class="btn-back" onclick="history.back()">←</button>
+      <span class="page-title">⚙️ Configuración</span>
+    </div>
+
+    <form id="config-form">
+      <div class="input-group">
+        <label for="tournament-name">Nombre del Torneo</label>
+        <input type="text" id="tournament-name" placeholder="Ej: Torneo de Prueba">
+      </div>
+      <div class="input-group">
+        <label for="tatami">Tatami</label>
+        <select id="tatami">
+          <option value="1">Tatami 1</option>
+          <option value="2">Tatami 2</option>
+          <option value="3">Tatami 3</option>
+          <option value="4">Tatami 4</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label for="judge-count">Número de Jueces</label>
+        <select id="judge-count">
+          <option value="5">5 Jueces</option>
+          <option value="7">7 Jueces</option>
+        </select>
+      </div>
+
+      <hr style="border:none;border-top:1px solid var(--surface2);margin:16px 0;">
+      <div style="font-size:.85rem;font-weight:700;color:var(--text-muted);margin-bottom:8px;">🌐 Conexión a Supabase (opcional)</div>
+
+      <div class="input-group">
+        <label for="supabase-url">URL de Supabase</label>
+        <input type="url" id="supabase-url" placeholder="https://xxxxxxx.supabase.co">
+      </div>
+      <div class="input-group">
+        <label for="supabase-key">Anon Key</label>
+        <input type="text" id="supabase-key" placeholder="eyJhbGciOi...">
+      </div>
+
+      <div id="supabase-status" style="font-size:.75rem;color:var(--text-muted);text-align:center;margin-bottom:8px;"></div>
+      <button type="button" class="btn btn-outline w-full" id="btn-test-supabase" style="padding:8px;font-size:.8rem;margin-bottom:6px;">🔌 Probar Conexión</button>
+      <button type="submit" class="btn btn-primary w-full mt-2">💾 Guardar Configuración</button>
+    </form>
+
+    <div style="margin-top:24px;">
+      <button class="btn btn-danger w-full" id="btn-reset-data">🗑️ Reiniciar Todos los Datos</button>
+      <p class="text-muted text-center mt-2" style="font-size:0.75rem;">Esto borrará competidores, brackets y resultados.</p>
+    </div>
+  </div>
+  <script src="../js/database.js"></script>
+  <script src="../js/supabase-sync.js"></script>
+  <script>
+    (function() {
+      function loadConfig() {
+        document.getElementById('tournament-name').value = DB.getConfig('tournamentName', 'Mi Torneo');
+        document.getElementById('tatami').value = DB.getConfig('tatami', 1);
+        document.getElementById('judge-count').value = DB.getConfig('judgeCount', 5);
+        document.getElementById('supabase-url').value = DB.getConfig('supabaseUrl', '');
+        document.getElementById('supabase-key').value = DB.getConfig('supabaseKey', '');
+        updateSupabaseStatus();
+      }
+
+      function saveConfig() {
+        DB.setConfig('tournamentName', document.getElementById('tournament-name').value || 'Mi Torneo');
+        DB.setConfig('tatami', parseInt(document.getElementById('tatami').value, 10));
+        DB.setConfig('judgeCount', parseInt(document.getElementById('judge-count').value, 10));
+        var url = document.getElementById('supabase-url').value.trim();
+        var key = document.getElementById('supabase-key').value.trim();
+        DB.setConfig('supabaseUrl', url);
+        DB.setConfig('supabaseKey', key);
+        if (url && key) SupabaseSync.configure(url, key);
+        updateSupabaseStatus();
+      }
+
+      function updateSupabaseStatus() {
+        var el = document.getElementById('supabase-status');
+        var u = document.getElementById('supabase-url').value.trim();
+        var k = document.getElementById('supabase-key').value.trim();
+        if (u && k) { el.textContent = '🔵 Credenciales guardadas. Prueba la conexión.'; el.style.color = 'var(--text-muted)'; }
+        else { el.textContent = '⚪ Sin credenciales. Sincronización no disponible.'; el.style.color = 'var(--text-muted)'; }
+      }
+
+      document.getElementById('config-form').addEventListener('submit', function(e) {
+        e.preventDefault(); saveConfig(); showToast('✅ Configuración guardada', 'success');
+      });
+
+      document.getElementById('btn-test-supabase').addEventListener('click', function() {
+        var url = document.getElementById('supabase-url').value.trim();
+        var key = document.getElementById('supabase-key').value.trim();
+        if (!url || !key) { showToast('⚠️ Ingresa URL y Anon Key', 'error'); return; }
+        SupabaseSync.configure(url, key);
+        SupabaseSync.testConnection()
+          .then(function() {
+            document.getElementById('supabase-status').textContent = '🟢 Conexión exitosa';
+            document.getElementById('supabase-status').style.color = '#86efac';
+            showToast('✅ Conexión exitosa', 'success');
+          })
+          .catch(function(err) {
+            document.getElementById('supabase-status').textContent = '🔴 Error: ' + err.message;
+            document.getElementById('supabase-status').style.color = '#fca5a5';
+            showToast('❌ Error de conexión', 'error');
+          });
+      });
+
+      document.getElementById('btn-reset-data').addEventListener('click', function() {
+        if (confirm('¿Estás seguro? Se borrarán TODOS los datos.')) { DB.reset(); loadConfig(); showToast('🗑️ Datos reiniciados', 'info'); }
+      });
+
+      function showToast(msg, type) {
+        var e = document.querySelector('.toast'); if (e) e.remove();
+        var el = document.createElement('div');
+        el.className = 'toast' + (type === 'success' ? ' success' : type === 'error' ? ' error' : '');
+        el.textContent = msg; document.body.appendChild(el);
+        setTimeout(function() { el.remove(); }, 2000);
+      }
+      loadConfig();
+    })();
+  </script>
+</body>
+</html>

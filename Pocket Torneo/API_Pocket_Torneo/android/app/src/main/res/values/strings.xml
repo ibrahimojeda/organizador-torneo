@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">API_Pocket_Torneo</string>
+    <string name="title_activity_main">API_Pocket_Torneo</string>
+    <string name="package_name">com.torneo.pocket</string>
+    <string name="custom_url_scheme">com.torneo.pocket</string>
+</resources>
