@@ -1168,8 +1168,8 @@ function _renderAthleteBadgesCompact(competitor) {
           || mirroredMatch
           || virtualFromProjection
           || ongoingMatch
-          || latestFinished
           || lastShownMatch
+          || latestFinished
           || pendingMatches[0]
           || scopedMatches.find(m => {
             const kata = Matches.getKataSummary(m);
@@ -1178,8 +1178,8 @@ function _renderAthleteBadgesCompact(competitor) {
           }))
         : (selectedMatch
           || ongoingMatch
-          || latestFinished
           || lastShownMatch
+          || latestFinished
           || pendingMatches[0]
           || scopedMatches.find(m => {
             const kata = Matches.getKataSummary(m);
