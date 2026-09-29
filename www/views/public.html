@@ -948,6 +948,9 @@
         </div>
         <div class="projection-clock">${headerClock}</div>
       </div>
+      <div style="text-align:center;padding:1.05rem 1rem;background:linear-gradient(90deg,#dc2626,#ea580c);box-shadow:0 8px 28px rgba(220,38,38,.35);">
+        <div style="font-size:2.5rem;font-weight:900;letter-spacing:.05em;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.4);">🏁 FIN DE LA CATEGORÍA</div>
+      </div>
       <div class="match-display" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:24px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.35);">
         <div class="match-header" style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:1rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);">
           <span>Ceremonia de premiacion</span>
@@ -1088,7 +1091,9 @@ function _renderAthleteBadgesCompact(competitor) {
         const findCompetitor = (name, club) => registered.find(c =>
           (name && String(c.full_name || '').trim().toLowerCase() === String(name).trim().toLowerCase()) ||
           (club && String(c.club || '').trim().toLowerCase() === String(club).trim().toLowerCase())
-        ) || matches.flatMap(m => [m.competitor_a?.competitors || m.competitor_a, m.competitor_b?.competitors || m.competitor_b]).find(c => c && ((name && String(c.full_name || '').trim().toLowerCase() === String(name).trim().toLowerCase()) || (club && String(c.club || '').trim().toLowerCase() === String(club).trim().toLowerCase())));
+        ) || matches.flatMap(m => [m.competitor_a?.competitors || m.competitor_a, m.competitor_b?.competitors || m.competitor_b]).find(c =>
+          c && ((name && String(c.full_name || '').trim().toLowerCase() === String(name).trim().toLowerCase()) || (club && String(c.club || '').trim().toLowerCase() === String(club).trim().toLowerCase()))
+        );
         const a = findCompetitor(projectionLive.competitorAName || projectionLive.kumite?.competitorAName || projectionLive.kata?.name, projectionLive.clubA);
         const b = findCompetitor(projectionLive.competitorBName || projectionLive.kumite?.competitorBName, projectionLive.clubB);
         const countryOf = c => c?.country || (c?.dojo_id ? Dojos.getFromCache(c.dojo_id)?.country_code : '') || '';
@@ -1461,7 +1466,7 @@ function _renderAthleteBadgesCompact(competitor) {
           const kataSubmitted = Number.isFinite(Number(summary.submitted))
             ? Number(summary.submitted)
             : (Array.isArray(summary.judges) ? summary.judges.filter(j => Number.isFinite(Number(j?.score))).length : 0);
-          const judgeSeats = Array.isArray(summary.judges) ? summary.judges.map(j => j.seat) : _getJudgeSeatsFallback();
+          const judgeSeats = Array.isArray(summary.judges) ? summary.judges.map(j => j.seat) : ['J1','J2','J3','J4','J5'];
           const judgeCount = judgeSeats.length;
           const kataReady = typeof summary.ready === 'boolean' ? summary.ready : kataSubmitted >= judgeCount;
           content.innerHTML = `

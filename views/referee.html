@@ -647,6 +647,24 @@
   </div>
 </div>
 
+<!-- Modal: Fin de Categoría (premiación) -->
+<div class="modal-overlay" id="modal-category-finish">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header" style="background:linear-gradient(90deg,#dc2626,#ea580c);color:#fff;">
+      <h3 class="modal-title" style="color:#fff;">🏁 Fin de la Categoría</h3>
+      <button class="btn btn-ghost btn-icon" style="color:#fff;" onclick="Display.closeModal('modal-category-finish')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="category-finish-name" style="font-weight:700;font-size:1.05rem;margin-bottom:.75rem;text-align:center;"></div>
+      <div id="category-finish-podium" style="display:flex;flex-direction:column;gap:.5rem;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="Display.closeModal('modal-category-finish')">OK</button>
+      <button class="btn btn-primary" id="btn-show-category-awards">🖥 Mostrar en pantalla extendida</button>
+    </div>
+  </div>
+</div>
+
 <!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
 <script src="../js/config.js?v=20260424a"></script>
@@ -687,6 +705,7 @@
     projectionLiveActive: false,
     projectionModeOverride: null,
     genericModeActive: false,
+    pendingCategoryAwards: null,
     referee: {
       name:  savedReferee.name || '',
       code:  String(session.codeId || session.userId || 'REF-LOCAL'),
@@ -1507,6 +1526,50 @@
     } catch (_) {
       return { ok: false, reason: 'save-error' };
     }
+  }
+
+  async function _showCategoryFinishIfReady(categoryId) {
+    try {
+      const podio = await Bracket.checkAndSavePodio(categoryId);
+      if (!podio || !Array.isArray(podio.positions) || !podio.positions.length) return;
+      let category = null;
+      try { category = await Categories.getById(categoryId); } catch (_) {}
+      state.pendingCategoryAwards = { categoryId, category, podio };
+      _renderCategoryFinishModal(category, podio);
+      Display.openModal('modal-category-finish');
+    } catch (_) {
+      // Silencioso: si no se puede calcular, no mostramos el modal.
+    }
+  }
+
+  function _renderCategoryFinishModal(category, podio) {
+    const nameEl = document.getElementById('category-finish-name');
+    const listEl = document.getElementById('category-finish-podium');
+    if (nameEl) nameEl.textContent = category?.name || 'Categoría';
+    if (!listEl) return;
+    const positions = (podio?.positions || []).slice().sort((a, b) => Number(a.position) - Number(b.position));
+    const medalByPos = { 1: '🥇', 2: '🥈', 3: '🥉' };
+    const labelByPos = { 1: '1° Lugar', 2: '2° Lugar', 3: '3° Lugar' };
+    const colorByPos = {
+      1: { bg: 'linear-gradient(135deg,#fef3c7,#fde68a)', border: '#f59e0b' },
+      2: { bg: 'linear-gradient(135deg,#f1f5f9,#e2e8f0)', border: '#94a3b8' },
+      3: { bg: 'linear-gradient(135deg,#ffedd5,#fed7aa)', border: '#ea580c' },
+    };
+    listEl.innerHTML = positions.map(p => {
+      const pos = Number(p.position);
+      const c = colorByPos[pos] || { bg: '#f8fafc', border: '#cbd5e1' };
+      const medal = medalByPos[pos] || `${pos}°`;
+      const label = labelByPos[pos] || `Puesto ${pos}`;
+      return `
+        <div style="display:flex;align-items:center;gap:.75rem;padding:.7rem .85rem;border-radius:10px;background:${c.bg};border:1px solid ${c.border};">
+          <span style="font-size:1.7rem;line-height:1;">${medal}</span>
+          <div style="min-width:0;flex:1;">
+            <div style="font-size:.7rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#64748b;">${label}</div>
+            <div style="font-weight:700;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.full_name || p.athleteName || '—'}</div>
+            ${p.club ? `<div style="font-size:.8rem;color:#475569;">${p.club}</div>` : ''}
+          </div>
+        </div>`;
+    }).join('');
   }
 
   function _clearProjectionTarget() {
@@ -3466,6 +3529,21 @@
     Display.toast('Pantalla extendida del marcador abierta.', 'success');
   });
 
+  document.getElementById('btn-show-category-awards').addEventListener('click', async () => {
+    const pending = state.pendingCategoryAwards;
+    if (!pending || !pending.categoryId) {
+      Display.toast('No hay una categoría finalizada pendiente.', 'warning');
+      return;
+    }
+    const projection = await _publishCategoryAwardsProjection(pending.categoryId);
+    if (projection.ok) {
+      _openProjectionWindow();
+      Display.toast('Resultados finales mostrados en pantalla extendida.', 'success');
+    } else {
+      Display.toast('No se pudo publicar el resultado final en pantalla extendida.', 'error');
+    }
+  });
+
   document.getElementById('btn-disable-projection').addEventListener('click', () => {
     _closeProjectionWindow();
     _setGenericStatus('Modo inactivo.', 'muted');
@@ -3670,6 +3748,10 @@
       _kumiteUndoStack = [];
       _clearCurrentMatch();
       await _loadQueue();
+
+      // Detectar fin de categoría → mostrar premiación en mesa técnica
+      const finishedCategoryId = savedResult?.category_id || savedResult?.category?.id || m?.category_id || m?.category?.id || null;
+      if (finishedCategoryId) await _showCategoryFinishIfReady(finishedCategoryId);
     } catch (e) {
       _setSyncIndicator('error', `Error al guardar resultado final ${_syncTimeStamp()}`);
       Display.toast(e.message, 'error');
