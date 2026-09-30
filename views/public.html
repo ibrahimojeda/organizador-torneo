@@ -526,7 +526,6 @@
     projectionWarnMatchId: null,
     projectionKataCache: null,
     projectionKataMatchId: null,
-    lastShownMatchId: null,
   };
 
   function _getProjectionTargetKey() {
@@ -1158,16 +1157,11 @@ function _renderAthleteBadgesCompact(competitor) {
       const latestFinished = recentResultMatches[0] || null;
       const pendingMatches = scopedMatches.filter(m => m.status === MATCH_STATUS.ONGOING || m.status === MATCH_STATUS.PENDING);
       const ongoingMatch = pendingMatches.find(m => m.status === MATCH_STATUS.ONGOING) || null;
-      // Combate que se estaba mostrando: se mantiene al terminar hasta que llegue uno nuevo
-      const lastShownMatch = state.lastShownMatchId
-        ? scopedMatches.find(m => String(m.id) === String(state.lastShownMatchId))
-        : null;
       const liveMatch = state.displayMode
         ? (selectedMatch
           || mirroredMatch
           || virtualFromProjection
-          || ongoingMatch
-          || lastShownMatch)
+          || ongoingMatch)
         : (selectedMatch
           || ongoingMatch
           || latestFinished
@@ -1180,15 +1174,16 @@ function _renderAthleteBadgesCompact(competitor) {
 
       if (!liveMatch) {
         wrap.style.display = 'block';
-        const waitText = state.displayMode
-          ? `Esperando que Mesa Tecnica inicie el combate en Tatami ${state.displayTatami || 'actual'}.`
-          : `Esperando actividad en Tatami ${state.displayTatami || 'actual'}.`;
-        content.innerHTML = `<div style="min-height:${state.displayMode ? '85vh' : '180px'};display:flex;flex-direction:column;align-items:center;justify-content:center;color:${state.displayMode ? '#fff' : '#64748b'};font-size:${state.displayMode ? '2rem' : '1rem'};font-weight:800;"><div>${waitText}</div></div>`;
+        if (state.displayMode) {
+          const idleName = String(state.tournament?.name || 'Torneo').replace(/[<>&"]/g, '');
+          const idleTitle = `${idleName} - Tatami ${state.displayTatami || '—'}`;
+          content.innerHTML = `<div style="min-height:85vh;display:flex;align-items:center;justify-content:center;text-align:center;color:#fff;"><div style="font-size:clamp(2rem,4vw,3.2rem);font-weight:900;letter-spacing:-.02em;">${idleTitle}</div></div>`;
+          return;
+        }
+        const waitText = `Esperando actividad en Tatami ${state.displayTatami || 'actual'}.`;
+        content.innerHTML = `<div style="min-height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#64748b;font-size:1rem;font-weight:800;"><div>${waitText}</div></div>`;
         return;
       }
-
-      // Mantener en pantalla el combate actual hasta que llegue uno nuevo
-      state.lastShownMatchId = liveMatch.id || null;
 
       wrap.style.display = 'block';
       const isKata = liveMatch.category?.discipline === 'kata' || liveMatch.bracket_type === 'kata_round';
