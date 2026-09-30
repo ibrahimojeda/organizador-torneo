@@ -526,6 +526,7 @@
     projectionWarnMatchId: null,
     projectionKataCache: null,
     projectionKataMatchId: null,
+    displayTournamentName: null,
   };
 
   function _getProjectionTargetKey() {
@@ -579,6 +580,7 @@
   state.displayMode = params.get('display') === 'mesa';
   state.displayTatami = params.get('tatami') || null;
   state.displayMatchId = params.get('match') || null;
+  state.displayTournamentName = params.get('name') || null;
 
   if (state.displayMode) {
     _applyProjectionMode();
@@ -1175,7 +1177,7 @@ function _renderAthleteBadgesCompact(competitor) {
       if (!liveMatch) {
         wrap.style.display = 'block';
         if (state.displayMode) {
-          const idleName = String(state.tournament?.name || 'Torneo').replace(/[<>&"]/g, '');
+          const idleName = String(state.displayTournamentName || state.tournament?.name || 'Torneo').replace(/[<>&"]/g, '');
           const idleTitle = `${idleName} - Tatami ${state.displayTatami || '—'}`;
           content.innerHTML = `<div style="min-height:85vh;display:flex;align-items:center;justify-content:center;text-align:center;color:#fff;"><div style="font-size:clamp(2rem,4vw,3.2rem);font-weight:900;letter-spacing:-.02em;">${idleTitle}</div></div>`;
           return;

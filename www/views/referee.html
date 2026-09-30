@@ -1137,6 +1137,7 @@
   function _buildProjectionUrl() {
     const params = new URLSearchParams({
       tournament: state.tournamentId || '',
+      name: session.tournamentName || '',
       tatami: state.tatami || '',
       display: 'mesa',
       v: '20260426f',
