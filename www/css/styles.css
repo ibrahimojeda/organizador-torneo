@@ -884,7 +884,7 @@ table.table {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  background: var(--surface-2);
+  background: var(--bg-secondary);
   border: 1px solid var(--accent);
   border-radius: var(--radius);
   padding: .6rem 1rem;
@@ -900,14 +900,14 @@ table.table {
 }
 
 .schedule-tatami-col {
-  background: var(--surface);
+  background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
 }
 
 .schedule-tatami-header {
-  background: var(--surface-2);
+  background: var(--bg-secondary);
   padding: .6rem 1rem;
   font-weight: 700;
   font-size: 1rem;

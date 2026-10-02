@@ -25,16 +25,16 @@ const Display = (() => {
     const country = _getCompetitorCountryInfo(competitor);
     const parts = [];
     if (dojo?.logo_url) {
-      parts.push(`<img src="${dojo.logo_url}" alt="" style="width:16px;height:16px;object-fit:contain;border-radius:2px;display:inline-block;vertical-align:middle;" />`);
+      parts.push(`<img src="${Dojos.escapeHtml(dojo.logo_url)}" alt="" style="width:16px;height:16px;object-fit:contain;border-radius:2px;display:inline-block;vertical-align:middle;" />`);
     }
     const c = competitor?.competitors || competitor || {};
     const dojoName = dojo?.name || c.club || '';
     if (dojoName) {
-      parts.push(`<span class="text-muted" style="font-size:0.82em;">${dojoName}</span>`);
+      parts.push(`<span class="text-muted" style="font-size:0.82em;">${Dojos.escapeHtml(dojoName)}</span>`);
     }
     if (country.flag) {
       const flagUrl = getCountryFlagUrl(country.code, 40);
-      if (flagUrl) parts.push(`<img src="${flagUrl}" alt="" title="${country.name}" style="width:24px;height:16px;object-fit:cover;border-radius:2px;vertical-align:middle;" />`);
+      if (flagUrl) parts.push(`<img src="${Dojos.escapeHtml(flagUrl)}" alt="" title="${Dojos.escapeHtml(country.name)}" style="width:24px;height:16px;object-fit:cover;border-radius:2px;vertical-align:middle;" />`);
     }
     if (!parts.length) return '';
     return `<span style="display:inline-flex;align-items:center;gap:3px;">${parts.join(' ')}</span>`;

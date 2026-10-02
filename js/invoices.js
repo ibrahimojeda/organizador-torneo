@@ -52,13 +52,17 @@ const Invoices = (() => {
       registration_id: it.registration_id || null,
       competitor_name: it.competitor_name || null,
       category_name: it.category_name || null,
-      unit_price: Number((it.unit_price || 0)),
-      qty: Number(it.qty || 1),
-      total: Number(((it.unit_price || 0) * (it.qty || 1)).toFixed(2)),
+      unit_price: Number.isNaN(Number(it.unit_price || 0)) ? 0 : Number(it.unit_price || 0),
+      qty: Number.isNaN(Number(it.qty || 1)) ? 1 : Number(it.qty || 1),
+      total: Number(((Number.isNaN(Number(it.unit_price || 0)) ? 0 : Number(it.unit_price || 0)) * (Number.isNaN(Number(it.qty || 1)) ? 1 : Number(it.qty || 1))).toFixed(2)),
     }));
 
     const { data: itemsData, error: itemsErr } = await supabase.from('invoice_items').insert(itemsPayload).select();
-    if (itemsErr) throw itemsErr;
+    if (itemsErr) {
+      const { error: cleanupError } = await supabase.from('invoices').delete().eq('id', invoice.id);
+      if (cleanupError) console.error('[Invoices.createInvoice] Failed to roll back invoice:', cleanupError);
+      throw itemsErr;
+    }
 
     // Return invoice with items
     return { invoice: invoice, items: itemsData };
@@ -78,6 +82,7 @@ const Invoices = (() => {
 
     const invoice = await getInvoiceByCode(code);
     if (!invoice || !invoice.id) throw new Error('Factura no encontrada');
+    if (invoice.status === 'paid') return { invoice, payment: null, registrationErrors: [] };
 
     // Register payment
     const payPayload = { invoice_id: invoice.id, amount: amount || invoice.total || 0, method, reference };
@@ -89,16 +94,21 @@ const Invoices = (() => {
     if (updErr) throw updErr;
 
     // Optionally mark linked registrations as paid/approved
-    try {
-      const items = Array.isArray(invoice.invoice_items) ? invoice.invoice_items : [];
-      for (const it of items) {
-        if (it.registration_id) {
-          await supabase.from('registrations').update({ paid: true }).eq('id', it.registration_id);
-        }
+    const registrationErrors = [];
+    const registrationIds = [...new Set((invoice.invoice_items || []).map(it => it.registration_id).filter(Boolean))];
+    if (registrationIds.length) {
+      try {
+        const { error: registrationError } = await supabase
+          .from('registrations')
+          .update({ paid: true })
+          .in('id', registrationIds);
+        if (registrationError) registrationErrors.push(registrationError);
+      } catch (registrationError) {
+        registrationErrors.push(registrationError);
       }
-    } catch (_) {}
+    }
 
-    return { invoice: updated, payment: payData };
+    return { invoice: updated, payment: payData, registrationErrors };
   }
 
   return {

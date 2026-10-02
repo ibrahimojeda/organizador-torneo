@@ -273,12 +273,30 @@ ALTER TABLE registrations     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE matches           ENABLE ROW LEVEL SECURITY;
 
 -- ---- profiles ----
+CREATE OR REPLACE FUNCTION public.is_super_admin()
+RETURNS boolean LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid() AND role = 'super_admin'
+  );
+$$;
+
 DROP POLICY IF EXISTS "profiles: ver propio" ON profiles;
 CREATE POLICY "profiles: ver propio" ON profiles
   FOR SELECT USING (auth.uid() = id);
+DROP POLICY IF EXISTS "profiles: super admin ver todos" ON profiles;
+CREATE POLICY "profiles: super admin ver todos" ON profiles
+  FOR SELECT USING (public.is_super_admin());
 DROP POLICY IF EXISTS "profiles: actualizar propio" ON profiles;
 CREATE POLICY "profiles: actualizar propio" ON profiles
   FOR UPDATE USING (auth.uid() = id);
+DROP POLICY IF EXISTS "profiles: super admin actualizar todos" ON profiles;
+CREATE POLICY "profiles: super admin actualizar todos" ON profiles
+  FOR UPDATE USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
+DROP POLICY IF EXISTS "profiles: super admin eliminar todos" ON profiles;
+CREATE POLICY "profiles: super admin eliminar todos" ON profiles
+  FOR DELETE USING (public.is_super_admin());
 
 -- ---- tournaments ----
 DROP POLICY IF EXISTS "tournaments: ver públicos o propios" ON tournaments;

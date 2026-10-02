@@ -258,7 +258,7 @@
     const points = items.map((item, index) => {
       const x = pad + (index * ((width - pad * 2) / Math.max(items.length - 1, 1)));
       const y = height - pad - (((Number(valueFn(item)) || 0) / max) * (height - pad * 2));
-      return { x, y, label: item.name, value: Number(valueFn(item)) || 0 };
+      return { x, y, label: item.month, value: Number(valueFn(item)) || 0 };
     });
 
     return `

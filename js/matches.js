@@ -527,7 +527,7 @@ const Matches = (() => {
       .from(TABLE)
       .select(`
         *,
-        category:categories(id, name, discipline, bracket_system, tournament_id),
+        category:categories(id, name, discipline, bracket_system, kata_mode, tournament_id),
         competitor_a:registrations!matches_competitor_a_id_fkey(
           id, seed, competitors(id, full_name, club, photo_url)
         ),
@@ -577,7 +577,7 @@ const Matches = (() => {
         competitor_b:registrations!matches_competitor_b_id_fkey(
           competitors(full_name, club)
         ),
-        category:categories(id, name, discipline, tatami)
+        category:categories(id, name, discipline, tatami, kata_mode)
       `)
       .eq('tournament_id', tournamentId)
       .in('status', [MATCH_STATUS.PENDING, MATCH_STATUS.ONGOING])
@@ -834,6 +834,7 @@ const Matches = (() => {
   -------------------------------------------------------- */
   async function submitFlagVote(matchId, seat, vote) {
     if (!['a','b'].includes(String(vote))) throw new Error('Vote must be "a" or "b"');
+    if (!/^J[1-5]$/.test(String(seat || ''))) throw new Error('Seat must be one of J1–J5');
     const match = await getById(matchId);
     const catMode = match?.category?.kata_mode || (match?.category?.rules && match.category.rules.kata_mode);
     if (match.bracket_type !== 'kata_round' || String(catMode) !== 'flag') {
@@ -842,6 +843,7 @@ const Matches = (() => {
     return updateLiveState(matchId, (nextLive) => {
       nextLive.kata = nextLive.kata || {};
       nextLive.kata.flags = nextLive.kata.flags || {};
+      if (nextLive.kata.flags[seat]) throw new Error('This seat has already submitted a flag vote.');
       nextLive.kata.flags[seat] = { seat, vote: String(vote), submitted_at: new Date().toISOString() };
       return nextLive;
     }, { logEntry: { type: 'flag_vote', label: 'Voto por bandera', message: `Voto ${vote} en ${seat}`, actor: Auth.getUserId(), seat } });
@@ -871,6 +873,7 @@ const Matches = (() => {
     const live = getLiveState(match);
     const summary = _getFlagSummaryFromLive(live);
     if (!summary.leading) throw new Error('Empate - no se puede resolver automáticamente.');
+    if (!summary.ready) throw new Error('Faltan votos para resolver el combate.');
     // Determine winner id: 'a' -> competitor_a_id, 'b' -> competitor_b_id
     const winnerId = summary.leading === 'a' ? match.competitor_a_id : match.competitor_b_id;
     if (!winnerId) throw new Error('No hay competidor para la posición seleccionada.');
@@ -880,6 +883,7 @@ const Matches = (() => {
 
   async function saveKataJudgeScore(matchId, judgeInfo = {}, score) {
     const normalizedScore = _normalizeKataScore(score);
+    if (normalizedScore == null) throw new Error('La nota de kata es obligatoria.');
     return updateLiveState(matchId, (live) => {
       const seat = judgeInfo.seat || 'J1';
       live.kata.judges = {
@@ -947,6 +951,7 @@ const Matches = (() => {
 
   async function saveKataDuelJudgeScore(matchId, judgeInfo = {}, score, side) {
     const normalizedScore = _normalizeKataScore(score);
+    if (normalizedScore == null) throw new Error('La nota de kata es obligatoria.');
     const normSide = _normalizeDuelSide(side);
     return updateLiveState(matchId, (live) => {
       const seat = judgeInfo.seat || 'J1';
@@ -1475,18 +1480,22 @@ const Matches = (() => {
   function exportBitacoraCSV(entries = []) {
     const headers = ['Fecha', 'Hora', 'Tipo', 'Etiqueta', 'Mensaje', 'Juez', 'Puesto', 'Lado', 'Acción', 'Categoría', 'Combate', 'Tatami', 'Match ID'];
     const escapeCsvCell = (value) => String(value ?? '').replace(/"/g, '""');
+    const safeFormulaCell = value => {
+      const text = String(value ?? '');
+      return /^[=+\-@]/.test(text) ? `'${text}` : text;
+    };
     const rows = entries.map(e => [
       e.at ? new Date(e.at).toLocaleDateString('es-ES') : '',
       e.at ? new Date(e.at).toLocaleTimeString('es-ES') : '',
       e.type || '',
       e.label || '',
-      e.message || '',
-      e.actor || '',
+      safeFormulaCell(e.message),
+      safeFormulaCell(e.actor),
       e.seat || '',
       e.side || '',
       e.action || '',
       e.category_name || '',
-      e.match_label || '',
+      safeFormulaCell(e.match_label),
       e.tatami || '',
       e.match_id || '',
     ].map(escapeCsvCell));

@@ -17,7 +17,7 @@
     sel.innerHTML = '<option>Cargando...</option>';
     try {
       const list = await (Auth.isSuperAdmin() ? Tournament.listAll() : Tournament.listMine());
-      sel.innerHTML = list.map(t => `<option value="${t.id}">${t.name} — ${t.date_start || ''}</option>`).join('');
+      sel.innerHTML = list.map(t => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)} — ${escapeHtml(t.date_start || '')}</option>`).join('');
     } catch (e) { sel.innerHTML = '<option>Error cargando torneos</option>'; }
     
     const btnPrint = document.getElementById('btn-print-medals');

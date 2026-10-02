@@ -15,8 +15,11 @@ async function uploadImage(tournamentId, type, file) {
   if (!supabaseClient || typeof supabaseClient.from !== 'function') {
     throw new Error('Supabase no está inicializado.');
   }
+  if (!file || !/^image\/(png|jpeg|svg\+xml|webp)$/.test(file.type)) throw new Error('La imagen debe ser PNG, JPG, SVG o WEBP.');
+  if (file.size > 2 * 1024 * 1024) throw new Error('La imagen supera los 2MB.');
 
-  const fileName = `${type}_${Date.now()}_${file.name}`;
+  const extension = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/svg+xml': 'svg', 'image/webp': 'webp' }[file.type];
+  const fileName = `${type}_${Date.now()}.${extension}`;
   const { data, error } = await supabaseClient.storage
     .from('tournament-assets')
     .upload(fileName, file);
@@ -48,28 +51,4 @@ async function uploadImage(tournamentId, type, file) {
  * @param {File} file
  * @returns {Promise<string>} URL pública del logo
  */
-async function uploadDojoLogo(dojoId, file) {
-  const supabaseClient = window.supabase;
-  if (!supabaseClient || typeof supabaseClient.from !== 'function') {
-    throw new Error('Supabase no está inicializado.');
-  }
-
-  const fileName = `dojo_logos/${dojoId}_${Date.now()}_${file.name}`;
-  const { data, error } = await supabaseClient.storage
-    .from('tournament-assets')
-    .upload(fileName, file);
-
-  if (error) throw error;
-
-  const { data: { publicUrl } } = supabaseClient.storage
-    .from('tournament-assets')
-    .getPublicUrl(fileName);
-
-  const { error: updateError } = await supabaseClient
-    .from('dojos')
-    .update({ logo_url: publicUrl })
-    .eq('id', dojoId);
-
-  if (updateError) throw updateError;
-  return publicUrl;
-}
+const uploadDojoLogo = (dojoId, file) => Dojos.uploadLogo(dojoId, file);

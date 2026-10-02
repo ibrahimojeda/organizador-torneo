@@ -304,8 +304,8 @@
       for (const tournament of selectedTournaments) {
         const clubs = {};
         const categories = await safeList(() => Categories.listByTournament(tournament.id));
-        for (const category of categories) {
-          const podio = await safeValue(() => Bracket.getPodio(category.id), null);
+        const podios = await Promise.all(categories.map(category => safeValue(() => Bracket.getPodio(category.id), null)));
+        for (const podio of podios) {
           const positions = podio?.positions || [];
           positions.forEach(pos => {
             const club = pos.club || 'Sin club';

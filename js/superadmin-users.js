@@ -167,7 +167,7 @@
       );
     }
     if (roleFilter?.value) filtered = filtered.filter(u => u.role === roleFilter.value);
-    if (activeFilter?.value) filtered = filtered.filter(u => (!!u.active) === (activeFilter.value === '1'));
+    if (activeFilter?.value) filtered = filtered.filter(u => (u.active !== false) === (activeFilter.value === '1'));
 
     renderUsersTable(filtered);
   }

@@ -115,14 +115,17 @@ const Auth = (() => {
   function buildJudgeAccessCode(tournamentId, tatami, discipline, seat) {
     const tournamentToken = _getJudgeTournamentToken(tournamentId);
     const normalizedSeat = String(seat || 'J1').toUpperCase();
-    // Código unificado sin disciplina: JZ-{token}-T{tatami}-{seat}
-    return `JZ-${tournamentToken}-T${String(tatami || 1)}-${normalizedSeat}`;
+    const randomBytes = new Uint8Array(6);
+    if (!globalThis.crypto?.getRandomValues) throw new Error('No hay generador criptográfico disponible para crear el código.');
+    globalThis.crypto.getRandomValues(randomBytes);
+    const secret = Array.from(randomBytes, byte => byte.toString(16).padStart(2, '0')).join('').toUpperCase();
+    return `JZ-${tournamentToken}-T${String(tatami || 1)}-${normalizedSeat}-${secret}`;
   }
 
   function _parseJudgeAccessCode(code) {
     const normalized = String(code || '').toUpperCase().trim();
     // Nuevo formato unificado: JZ-{token}-T{tatami}-{seat} (seat = J1..J7)
-    const unified = normalized.match(/^JZ-([A-Z0-9]{4,12})-T?(\d+)-(J[1-7])$/);
+    const unified = normalized.match(/^JZ-([A-Z0-9]{4,12})-T?(\d+)-(J[1-7])(?:-([A-F0-9]{12}))?$/);
     if (unified) {
       return {
         tournamentToken: unified[1],
@@ -232,7 +235,7 @@ const Auth = (() => {
         const tatami = match[2];
         const data = JSON.parse(localStorage.getItem(key) || '{}');
         const tournament = tournaments.find(t => t.id === tournamentId);
-        if (!_isJudgeCodeAllowedForStatus(tournament?.status)) continue;
+        if (tournament?.status && !_isJudgeCodeAllowedForStatus(tournament.status)) continue;
         if (parsed.tournamentToken && parsed.tournamentToken !== _getJudgeTournamentToken(tournamentId)) continue;
         for (const discipline of ['unified', 'kata', 'kumite']) {
           const entries = Array.isArray(data?.[discipline]) ? data[discipline] : [];
@@ -284,7 +287,7 @@ const Auth = (() => {
     const normalizedCode = (code || '').toUpperCase().trim();
     const parsedJudgeCode = _parseJudgeAccessCode(normalizedCode);
 
-    const localJudge = _findLocalJudgeAccess(normalizedCode);
+    const localJudge = isDevMode() ? _findLocalJudgeAccess(normalizedCode) : null;
     if (localJudge) {
       const session = {
         userId: null,
@@ -302,38 +305,13 @@ const Auth = (() => {
       return session;
     }
 
-    if (parsedJudgeCode?.tournamentToken) {
-      const tournament = await _findTournamentByJudgeToken(parsedJudgeCode.tournamentToken).catch(() => null);
-      if (!tournament) {
-        throw new Error('Código de juez inválido o torneo no encontrado.');
-      }
-      if (!_isJudgeCodeAllowedForStatus(tournament.status)) {
-        await deleteJudgeCodesForTournament(tournament.id).catch(() => {});
-        throw new Error('El torneo ya no admite accesos de jueces. Genera nuevos códigos desde Mesa Técnica.');
-      }
-      const session = {
-        userId: null,
-        email: null,
-        role: USER_ROLES.JUDGE,
-        codeId: null,
-        tournamentId: tournament.id,
-        tournamentName: tournament.name || 'Torneo',
-        token: null,
-        judgeTatami: parsedJudgeCode.tatami,
-        judgeDiscipline: parsedJudgeCode.discipline || 'kumite',
-        judgeAccessCode: normalizedCode,
-      };
-      _saveSession(session);
-      return session;
-    }
-
     // Primero: buscar en códigos de desarrollo (localStorage)
     const devCodes = JSON.parse(localStorage.getItem('ot_dev_codes') || '[]');
     const devFound = devCodes.find(c => c.code === normalizedCode && c.active !== false);
     if (devFound) {
       const tournaments = JSON.parse(localStorage.getItem('ot_dev_tournaments') || '[]');
       const tournament  = tournaments.find(t => t.id === devFound.tournament_id);
-      if (parsedJudgeCode && !_isJudgeCodeAllowedForStatus(tournament?.status)) {
+      if (parsedJudgeCode && tournament?.status && !_isJudgeCodeAllowedForStatus(tournament.status)) {
         await deleteJudgeCodesForTournament(devFound.tournament_id).catch(() => {});
         throw new Error('El torneo ya no admite accesos de jueces. Genera nuevos códigos desde Mesa Técnica.');
       }
@@ -368,7 +346,7 @@ const Auth = (() => {
       data = Array.isArray(response.data) ? response.data[0] : null;
       error = response.error;
       // Fallback: if RPC is not deployed yet, try direct query (works for authenticated users)
-      if (error || !data) {
+      if ((error || !data) && !parsedJudgeCode) {
         const fallback = await supabase
           .from('tournament_codes')
           .select('id, tournament_id, role, tournaments(id, name, status)')
@@ -396,7 +374,7 @@ const Auth = (() => {
 
     if (error || !data) throw new Error('Código inválido o expirado.');
 
-    if (parsedJudgeCode && !_isJudgeCodeAllowedForStatus(data.tournament_status)) {
+    if (parsedJudgeCode && data.tournament_status && !_isJudgeCodeAllowedForStatus(data.tournament_status)) {
       await deleteJudgeCodesForTournament(data.tournament_id).catch(() => {});
       throw new Error('El torneo ya no admite accesos de jueces. Los códigos fueron desactivados.');
     }
@@ -439,11 +417,11 @@ const Auth = (() => {
 
     if (normalizedRole === USER_ROLES.JUDGE) {
       const tournament = await _getTournamentState(tournamentId).catch(() => null);
-      if (!_isJudgeCodeAllowedForStatus(tournament?.status)) {
+      if (tournament?.status && !_isJudgeCodeAllowedForStatus(tournament.status)) {
         await deleteJudgeCodesForTournament(tournamentId).catch(() => {});
         throw new Error('Los códigos de jueces solo están disponibles mientras el torneo está operativo.');
       }
-      return _saveLocalCodeEntry(tournamentId, normalizedRole, code, options);
+      if (isDevMode() || !_initSupabase()) return _saveLocalCodeEntry(tournamentId, normalizedRole, code, options);
     }
 
     if (isDevMode() || !_initSupabase()) {
@@ -509,7 +487,7 @@ const Auth = (() => {
   /* ---- Obtener códigos de un torneo ---- */
   async function getCodesForTournament(tournamentId) {
     const tournament = await _getTournamentState(tournamentId).catch(() => null);
-    if (tournament && !_isJudgeCodeAllowedForStatus(tournament.status)) {
+    if (tournament?.status && !_isJudgeCodeAllowedForStatus(tournament.status)) {
       await deleteJudgeCodesForTournament(tournamentId).catch(() => {});
     }
 

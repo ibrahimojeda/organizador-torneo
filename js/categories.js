@@ -67,7 +67,10 @@ const Categories = (() => {
     if (typeof onProgress === 'function') {
       onProgress({ step: 'result', done: false, message: `Categorías determinadas: ${generated.length} (nuevas: ${toInsert.length})`, generated: generated.length, total: generated.length });
     }
-    if (!toInsert.length) return _devListByTournament(tournamentId);
+    if (!toInsert.length) {
+      if (Auth.isDevMode()) return _devListByTournament(tournamentId);
+      return listByTournament(tournamentId);
+    }
 
     // Orden de programa: Kata primero, luego Kumite, luego otros.
     // Dentro de cada disciplina mantener el orden generado.

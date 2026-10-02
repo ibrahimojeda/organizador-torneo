@@ -7,12 +7,14 @@
 -- en la generación de llaves.
 -- =====================================================
 
--- 1. Agregar columna status si no existe
-ALTER TABLE registrations ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending'
-  CHECK (status IN ('pending', 'accepted', 'denied'));
-
--- 2. Actualizar registros existentes a 'accepted' para no romper torneos en curso
-UPDATE registrations SET status = 'accepted' WHERE status IS NULL OR status = 'pending';
+-- Migration 002 creates the status column and initializes active registrations.
+-- Preserve pending decisions except for existing tournaments already in progress.
+UPDATE registrations AS r
+SET status = 'accepted'
+FROM tournaments AS t
+WHERE r.tournament_id = t.id
+  AND (r.status IS NULL OR r.status = 'pending')
+  AND t.status IN ('ongoing', 'finished');
 
 -- Recargar schema cache
 NOTIFY pgrst, 'reload schema';

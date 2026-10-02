@@ -1,4 +1,5 @@
 -- Migration: create invoices, invoice_items, payments
+-- Run after the base schema and dojo migrations because this references both.
 
 CREATE TABLE IF NOT EXISTS invoices (
   id SERIAL PRIMARY KEY,

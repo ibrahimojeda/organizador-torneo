@@ -201,7 +201,7 @@
     return;
   }
 
-  if (SUPABASE_URL && SUPABASE_ANON_KEY && typeof supabase.from !== 'function') {
+  if (typeof supabase !== 'undefined' && SUPABASE_URL && SUPABASE_ANON_KEY && typeof supabase.from !== 'function') {
     window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
 
@@ -221,11 +221,38 @@
     connected: false,
   };
 
-  const MAX_SEATS = 7; // Soporte para 5 o 7 jueces
+  const MAX_SEATS = 5;
   const ALL_SEATS = Array.from({ length: MAX_SEATS }, (_, i) => 'J' + (i + 1));
 
   /* ---- DOM refs ---- */
   const $ = (id) => document.getElementById(id);
+
+  window.judgeSendKumiteToSide = async function(side, kind, action) {
+    if (!state.currentMatch?.id) {
+      $('judge-kumite-status').textContent = '⚠️ No hay combate activo.';
+      $('judge-kumite-status').style.color = '#fbbf24';
+      return;
+    }
+
+    try {
+      await Matches.submitJudgeSignal(state.currentMatch.id, {
+        kind,
+        side,
+        action,
+        seat: state.seat,
+        judge_name: state.judgeName,
+        code: state.accessCode,
+      });
+      const sideLabel = side === 'a' ? 'AO' : 'AKA';
+      const actionLabel = action.toUpperCase();
+      $('judge-kumite-status').textContent = `✅ ${actionLabel} para ${sideLabel}.`;
+      $('judge-kumite-status').style.color = '#4ade80';
+      $('judge-kumite-last').textContent = `${state.judgeName} (${state.seat}) → ${sideLabel} · ${actionLabel} · ${new Date().toLocaleTimeString('es-ES')}`;
+    } catch (e) {
+      $('judge-kumite-status').textContent = `❌ Error: ${e.message}`;
+      $('judge-kumite-status').style.color = '#f87171';
+    }
+  };
 
   /* ---- Init join view ---- */
   function initJoinView() {
@@ -321,10 +348,10 @@
       state.connected = true;
 
       // Show correct screen using the new centralized switch
-      state.discipline = matchToRegister
+      const targetDiscipline = matchToRegister
         ? ((matchToRegister.category?.discipline === 'kata' || matchToRegister.bracket_type === 'kata_round') ? 'kata' : 'kumite')
         : 'kumite';
-      switchToDiscipline(state.discipline);
+      switchToDiscipline(targetDiscipline);
 
       // Update header
       $('judge-live-title').textContent = `${state.discipline.toUpperCase()} — Tatami ${state.tatami || '?'}`;
@@ -462,8 +489,6 @@ async function refreshCurrentMatch() {
   }
 
   function switchToDiscipline(discipline) {
-    if (discipline === state.discipline) return; // already there
-    const oldDisc = state.discipline;
     state.discipline = discipline;
     // Hide all
     $('judge-kata-screen').style.display = 'none';
@@ -763,34 +788,6 @@ async function refreshCurrentMatch() {
       $('judge-kumite-club-a').innerHTML = Dojos.renderCompetitorIdentity(m.competitor_a, 18);
       $('judge-kumite-club-b').innerHTML = Dojos.renderCompetitorIdentity(m.competitor_b, 18);
     }
-
-    // Global kumite signal sender
-    window.judgeSendKumiteToSide = async function(side, kind, action) {
-      if (!state.currentMatch?.id) {
-        $('judge-kumite-status').textContent = '⚠️ No hay combate activo.';
-        $('judge-kumite-status').style.color = '#fbbf24';
-        return;
-      }
-
-      try {
-        await Matches.submitJudgeSignal(state.currentMatch.id, {
-          kind,
-          side,
-          action,
-          seat: state.seat,
-          judge_name: state.judgeName,
-          code: state.accessCode,
-        });
-        const sideLabel = side === 'a' ? 'AO' : 'AKA';
-        const actionLabel = action.toUpperCase();
-        $('judge-kumite-status').textContent = `✅ ${actionLabel} para ${sideLabel}.`;
-        $('judge-kumite-status').style.color = '#4ade80';
-        $('judge-kumite-last').textContent = `${state.judgeName} (${state.seat}) → ${sideLabel} · ${actionLabel} · ${new Date().toLocaleTimeString('es-ES')}`;
-      } catch (e) {
-        $('judge-kumite-status').textContent = `❌ Error: ${e.message}`;
-        $('judge-kumite-status').style.color = '#f87171';
-      }
-    };
 
     function renderKumiteBoard() {
       const m = state.currentMatch;

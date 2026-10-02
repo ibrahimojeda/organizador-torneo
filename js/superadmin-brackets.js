@@ -16,7 +16,7 @@
     sel.innerHTML = '<option>Cargando...</option>';
     try {
       const list = await (Auth.isSuperAdmin() ? Tournament.listAll() : Tournament.listMine());
-      sel.innerHTML = list.map(t => `<option value="${t.id}">${t.name} — ${t.date_start || ''}</option>`).join('');
+      sel.innerHTML = list.map(t => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)} — ${escapeHtml(t.date_start || '')}</option>`).join('');
     } catch (e) { sel.innerHTML = '<option>Error cargando torneos</option>'; }
 
     document.getElementById('btn-generate-all').onclick = async () => {
@@ -39,5 +39,6 @@
       } catch (e) { Display.toast('Error exportando', 'error'); }
     };
   }
+  function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c])); }
   init();
 })();

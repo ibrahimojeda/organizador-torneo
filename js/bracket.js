@@ -220,12 +220,13 @@ const Bracket = (() => {
       for (const m of roundMatches) {
         const compA = m.competitor_a?.competitors?.full_name || '---';
         const compB = m.competitor_b?.competitors?.full_name || '---';
-        const winner = m.winner?.competitors?.full_name || '';
+        const isWinnerA = m.winner_id && m.winner_id === m.competitor_a_id;
+        const isWinnerB = m.winner_id && m.winner_id === m.competitor_b_id;
         
         html += `
           <div class="bracket-match" style="border: 1px solid black; width: 150px; margin-bottom: 15px; font-size: 10px;">
-            <div class="bracket-competitor ${winner === compA ? 'bracket-winner' : ''}" style="padding: 2px; border-bottom: 1px solid #ccc;">${escape(compA)}</div>
-            <div class="bracket-competitor ${winner === compB ? 'bracket-winner' : ''}" style="padding: 2px;">${escape(compB)}</div>
+            <div class="bracket-competitor ${isWinnerA ? 'bracket-winner' : ''}" style="padding: 2px; border-bottom: 1px solid #ccc;">${escape(compA)}</div>
+            <div class="bracket-competitor ${isWinnerB ? 'bracket-winner' : ''}" style="padding: 2px;">${escape(compB)}</div>
           </div>`;
       }
       html += `</div>`;
@@ -514,7 +515,7 @@ const Bracket = (() => {
       score_a:          null,
       score_b:          null,
       status:           data.status || MATCH_STATUS.PENDING,
-      bracket_type:     isKata ? 'kata_round' : (data.bracket_type || 'single_elimination'),
+      bracket_type:     isKata && data.category?.bracket_system !== 'round_robin' ? 'kata_round' : (data.bracket_type || 'single_elimination'),
       notes:            data.notes || null,
       tatami:           data.tatami ?? data.category?.tatami ?? null,
       scheduled_time:   null,
@@ -648,13 +649,9 @@ const Bracket = (() => {
 
   /** Genera las posiciones de seeds según tamaño del bracket. */
   function _getSeedPositions(size) {
-    // Para size=8: [0, 7, 3, 4, 1, 6, 2, 5] (seeds enfrentados a los de menor rango)
-    if (size === 2)  return [0, 1];
-    if (size === 4)  return [0, 3, 1, 2];
-    if (size === 8)  return [0, 7, 3, 4, 1, 6, 2, 5];
-    if (size === 16) return [0,15,7,8,3,12,4,11,1,14,6,9,2,13,5,10];
-    // Genérico para tamaños mayores
-    return Array.from({ length: size }, (_, i) => i);
+    if (size <= 1) return [0];
+    const previous = _getSeedPositions(size / 2);
+    return previous.flatMap(position => [position, size - 1 - position]);
   }
 
   function _findEmptySlot(bracket) {
@@ -904,6 +901,7 @@ const Bracket = (() => {
     checkAndSavePodio,
     getPodio,
     generateAll,
+    renderPrintableBracket,
     // Expuesto para tests
     _buildRoundRobin,
     _buildSingleElimination,

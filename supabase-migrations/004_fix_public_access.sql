@@ -10,7 +10,7 @@
 ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT TRUE;
 
 -- 2. Asegurar que los torneos existentes sean públicos
-UPDATE tournaments SET is_public = TRUE WHERE is_public IS NULL OR is_public = FALSE;
+UPDATE tournaments SET is_public = TRUE WHERE is_public IS NULL;
 
 -- 3. Política SELECT para torneos públicos (acceso anónimo)
 DROP POLICY IF EXISTS "tournaments: ver públicos o propios" ON tournaments;
@@ -19,8 +19,6 @@ CREATE POLICY "tournaments: ver públicos o propios" ON tournaments
 
 -- 4. Política SELECT para torneos (acceso anónimo simple)
 DROP POLICY IF EXISTS "tournaments_select" ON tournaments;
-CREATE POLICY "tournaments_select" ON tournaments
-  FOR SELECT USING (true);
 
 -- 5. Políticas para categorías: acceso público
 DROP POLICY IF EXISTS "categories: ver públicas" ON categories;

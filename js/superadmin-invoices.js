@@ -1,7 +1,7 @@
 (function () {
   const panel = document.getElementById('panel-invoices');
   if (!panel) return;
-  if (SUPABASE_URL && SUPABASE_ANON_KEY && typeof supabase.from !== 'function') {
+  if (typeof supabase !== 'undefined' && SUPABASE_URL && SUPABASE_ANON_KEY && typeof supabase.from !== 'function') {
     window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
 
@@ -53,7 +53,7 @@
       if (!regs.length) { listEl.innerHTML = '<div class="text-sm text-muted">No hay inscripciones para este Dojo.</div>'; return; }
       listEl.innerHTML = regs.map(r => `
         <label style="display:block;padding:6px;border-bottom:1px solid #eee;">
-          <input type="checkbox" data-reg="${r.id}" /> ${escapeHtml(r.competitors?.full_name || 'Sin nombre')} · ${escapeHtml((r.category && r.category.name) || '')}
+          <input type="checkbox" data-reg="${r.id}" data-name="${escapeHtml(r.competitors?.full_name || 'Sin nombre')}" /> ${escapeHtml(r.competitors?.full_name || 'Sin nombre')} · ${escapeHtml((r.category && r.category.name) || '')}
           <input type="number" data-price="${r.id}" value="20" style="width:90px;float:right;" />
         </label>
       `).join('');
@@ -72,7 +72,7 @@
       const regId = ch.dataset.reg;
       const priceEl = listEl.querySelector(`input[data-price="${regId}"]`);
       const price = Number(priceEl?.value || 0);
-      const label = ch.parentElement ? ch.parentElement.textContent.trim() : regId;
+      const label = ch.dataset.name || regId;
       items.push({ registration_id: regId, competitor_name: label, category_name: '', unit_price: price, qty: 1 });
     }
     return items;

@@ -4,8 +4,12 @@
  * Ejecutar: node fix-associations.js
  */
 
-const SUPABASE_URL = 'https://ubhmahzqakgqhcvvnpzv.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InViaG1haHpxYWtncWhjdnZucHp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3MDIwNDAsImV4cCI6MjA5MTI3ODA0MH0.cX0HB_3zQLRS8w1MCxedc53EN1OZSf1itSCJoJco_TA';
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error('Set both SUPABASE_URL and SUPABASE_ANON_KEY before running this script.');
+}
 
 async function checkAndFixAssociations() {
   try {

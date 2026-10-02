@@ -28,16 +28,12 @@ git remote -v
 ```
 Debe apuntar a `ibrahimojeda/organizador-torneo`.
 
-5. Trae lo último de `master` sin perder tu trabajo
+5. Guarda tus cambios antes de actualizar `master`
 ```powershell
 git fetch origin
-git pull --rebase origin master
-```
-
-6. Commit masivo de todos tus cambios
-```powershell
 git add -A
 git commit -m "Actualizacion masiva del proyecto"
+git pull --rebase origin master
 ```
 
 7. Push masivo a `master`
@@ -69,9 +65,9 @@ git push origin master
 Comando “todo junto” (cuando ya no hay rebase activo):
 ```powershell
 git fetch origin
-git pull --rebase origin master
 git add -A
 git commit -m "Actualizacion masiva"
+git pull --rebase origin master
 git push origin master
 ```
 
