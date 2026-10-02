@@ -136,6 +136,8 @@ CREATE TABLE IF NOT EXISTS categories (
   bracket_system  TEXT         NOT NULL DEFAULT 'auto'
                                CHECK (bracket_system IN ('auto','single_elimination','repechage','round_robin','double_elimination','kata_individual','kata_duels')),
   tatami          TEXT,               -- Tatami/área asignada a esta categoría
+  kata_mode       TEXT,               -- Modo de kata (ej: 'flag' = votación por banderas)
+  rules           JSONB,              -- Reglas adicionales de la categoría (JSON opcional)
   is_manual       BOOLEAN      NOT NULL DEFAULT false,  -- Categoría creada manualmente por el admin (no se elimina al limpiar vacías)
   created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
