@@ -32,7 +32,7 @@ const Competitors = (() => {
     return list.find(c => c.id === id);
   }
   function _devIsRegistered(competitorId, tournamentId) {
-    return _devRegList().some(r => r.competitor_id === competitorId && r.tournament_id === tournamentId);
+    return _devRegList().some(r => r.competitor_id === competitorId && r.tournament_id === tournamentId && r.status !== 'denied');
   }
   function _devCreateReg(competitorId, tournamentId, categoryId) {
     const r = { id: generateId(), competitor_id: competitorId, tournament_id: tournamentId, category_id: categoryId, status: 'pending', seed: null, registered_at: new Date().toISOString() };
@@ -409,10 +409,12 @@ const Competitors = (() => {
      BUSCAR COMPETIDORES (para autocompletado)
   -------------------------------------------------------- */
   async function search(query, tournamentId) {
+    const safeQuery = String(query ?? '').replace(/["\\,()]/g, ' ').trim();
+    if (!safeQuery) return [];
     let q = supabase
       .from(TABLE_COMP)
       .select('id, full_name, document_id, club, country, belt_id, dojo_id, tournament_id')
-      .or(`full_name.ilike.%${query}%,document_id.ilike.%${query}%,club.ilike.%${query}%`)
+      .or(`full_name.ilike.%${safeQuery}%,document_id.ilike.%${safeQuery}%,club.ilike.%${safeQuery}%`)
       .limit(10);
     if (tournamentId) q = q.eq('tournament_id', tournamentId);
     const { data, error } = await q;
@@ -525,11 +527,14 @@ const Competitors = (() => {
 
   async function _isRegistered(competitorId, tournamentId) {
     if (Auth.isDevMode()) return _devIsRegistered(competitorId, tournamentId);
-    const { count } = await supabase
+    let q = supabase
       .from(TABLE_REG)
       .select('id', { count: 'exact', head: true })
       .eq('competitor_id', competitorId)
       .eq('tournament_id', tournamentId);
+    // No contar inscripciones "denegadas": no aparecen en la lista ni participan en llaves.
+    try { q = q.neq('status', 'denied'); } catch (_) {}
+    const { count } = await q;
     return (count ?? 0) > 0;
   }
 
@@ -542,7 +547,20 @@ const Competitors = (() => {
       .eq('competitor_id', competitorId)
       .eq('category_id', categoryId)
       .maybeSingle();
-    if (existing) return existing;
+    if (existing) {
+      // Si estaba denegado, se reactiva como pendiente para asegurar la inscripción.
+      if (existing.status === 'denied') {
+        const { data: reactivated, error: reactErr } = await supabase
+          .from(TABLE_REG)
+          .update({ status: 'pending' })
+          .eq('id', existing.id)
+          .select()
+          .single();
+        if (!reactErr && reactivated) return reactivated;
+        return { ...existing, status: 'pending' };
+      }
+      return existing;
+    }
     const { data, error } = await supabase
       .from(TABLE_REG)
       .insert({ competitor_id: competitorId, tournament_id: tournamentId, category_id: categoryId, status: 'pending' })
@@ -611,9 +629,10 @@ const Competitors = (() => {
       _devSaveR(regs);
       return;
     }
+    const { error: registrationError } = await supabase.from(TABLE_REG).delete().eq('competitor_id', id);
+    if (registrationError) throw registrationError;
     const { error } = await supabase.from(TABLE_COMP).delete().eq('id', id);
     if (error) throw error;
-    await supabase.from(TABLE_REG).delete().eq('competitor_id', id);
   }
 
   /* --------------------------------------------------------
