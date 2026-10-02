@@ -219,6 +219,7 @@ const Dojos = (() => {
     if (Auth.isDevMode()) {
       const list = _devList().map(d => d.id === id ? { ...d, ...payload } : d);
       _devSave(list);
+      invalidateCache();
       return list.find(d => d.id === id);
     }
     const { data, error } = await supabase
@@ -228,6 +229,7 @@ const Dojos = (() => {
       .select()
       .single();
     if (error) throw error;
+    invalidateCache();
     return data;
   }
 
@@ -250,7 +252,7 @@ const Dojos = (() => {
         reader.readAsDataURL(file);
       });
     }
-    const ext = file.name.split('.').pop().toLowerCase();
+    const ext = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/svg+xml': 'svg', 'image/webp': 'webp' }[file.type];
     const fileName = `dojo_logos/${generateId()}_${Date.now()}.${ext}`;
     const { error: uploadError } = await supabase.storage
       .from('tournament-assets')
@@ -268,6 +270,7 @@ const Dojos = (() => {
     if (Auth.isDevMode()) {
       const list = _devList().map(d => d.id === dojoId ? { ...d, logo_url: publicUrl } : d);
       _devSave(list);
+      invalidateCache();
       return publicUrl;
     }
     const { error: updateError } = await supabase
@@ -275,6 +278,7 @@ const Dojos = (() => {
       .update({ logo_url: publicUrl })
       .eq('id', dojoId);
     if (updateError) throw new Error(`El logo se subió, pero no se pudo guardar en el dojo: ${updateError.message || updateError}`);
+    invalidateCache();
     return publicUrl;
   }
 
@@ -283,17 +287,23 @@ const Dojos = (() => {
   -------------------------------------------------------- */
   function renderDojoBadge(dojoInfo, size = 24) {
     if (!dojoInfo) return '';
-    const logoHtml = dojoInfo.logo_url
-      ? `<img src="${dojoInfo.logo_url}" alt="${dojoInfo.name}" style="width:${size}px;height:${size}px;object-fit:contain;border-radius:4px;display:inline-block;vertical-align:middle;" />`
+    const name = escapeHtml(dojoInfo.name || '');
+    const logoUrl = escapeHtml(dojoInfo.logo_url || '');
+    const logoHtml = logoUrl
+      ? `<img src="${logoUrl}" alt="${name}" style="width:${size}px;height:${size}px;object-fit:contain;border-radius:4px;display:inline-block;vertical-align:middle;" />`
       : `<span style="display:inline-flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;background:rgba(255,255,255,.1);border-radius:4px;font-size:${Math.round(size * 0.5)}px;">🥋</span>`;
-    return `<span style="display:inline-flex;align-items:center;gap:4px;">${logoHtml}<span>${dojoInfo.name || ''}</span></span>`;
+    return `<span style="display:inline-flex;align-items:center;gap:4px;">${logoHtml}<span>${name}</span></span>`;
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
   }
 
   function renderCountryBadge(countryName, size = 16) {
     if (!countryName) return '';
     const info = getCountryInfo(countryName);
     const url = getCountryFlagUrl(info.code, size * 2.5);
-    return url ? `<img src="${url}" alt="" title="${info.name}" style="width:${Math.round(size * 1.5)}px;height:${Math.round(size)}px;object-fit:cover;border-radius:2px;vertical-align:middle;" />` : '';
+    return url ? `<img src="${escapeHtml(url)}" alt="" title="${escapeHtml(info.name)}" style="width:${Math.round(size * 1.5)}px;height:${Math.round(size)}px;object-fit:cover;border-radius:2px;vertical-align:middle;" />` : '';
   }
 
   function renderCompetitorIdentity(competitor, size = 18) {
@@ -350,13 +360,21 @@ const Dojos = (() => {
       }
       return { dojo_id: dojoId, tournament_id: tournamentId };
     }
+    // Verificar primero si ya está otorgado para evitar el 409 (conflicto UNIQUE)
+    const { data: existing } = await supabase
+      .from('tournament_dojos')
+      .select('id')
+      .eq('tournament_id', tournamentId)
+      .eq('dojo_id', dojoId)
+      .maybeSingle();
+    if (existing) return { dojo_id: dojoId, tournament_id: tournamentId };
     const { data, error } = await supabase
       .from('tournament_dojos')
       .insert({ tournament_id: tournamentId, dojo_id: dojoId, granted_by: Auth.getUserId() })
       .select()
       .single();
     if (error) {
-      // 23505 = ya otorgado
+      // 23505 = ya otorgado (carrera concurrente)
       if (error.code === '23505') return { dojo_id: dojoId, tournament_id: tournamentId };
       throw error;
     }
@@ -452,6 +470,7 @@ const Dojos = (() => {
     listAllForSuperAdmin,
     renderDojoBadge,
     renderCountryBadge,
+    escapeHtml,
     renderCompetitorIdentity,
   };
 })();
