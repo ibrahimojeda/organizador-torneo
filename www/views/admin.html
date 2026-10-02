@@ -3774,7 +3774,7 @@
       headers.forEach((h, idx) => { row[h] = cols[idx] || ''; });
       return {
         full_name:   row['nombre']           || '',
-        document_id: row['documento']        || '',
+        document_id: (row['documento'] && row['documento'] !== '0') ? row['documento'] : '',
         gender:      ((v => v.startsWith('M') ? 'M' : v.startsWith('F') ? 'F' : v)((row['genero'] || row['género'] || '').toUpperCase())),
         dob:         row['fecha_nacimiento'] || row['fecha'] || '',
         weight:      row['peso']             || '',
