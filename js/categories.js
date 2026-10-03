@@ -433,7 +433,7 @@ const Categories = (() => {
     const tournament = await Tournament.getById(source.tournament_id);
     const mode = tournament.category_mode || 'age_belt';
 
-    const ageOrder = ['mini', 'benjamines', 'alevines', 'infantil', 'cadete', 'junior', 'sub21', 'senior', 'veteranos'];
+    const ageOrder = ['mini', 'benjamines', 'alevines', 'infantil', 'cadete_menor', 'cadete_mayor', 'junior', 'sub21', 'senior', 'veteranos'];
     const idxFrom = ageOrder.indexOf(source.age_group_id);
 
     return all.filter(c =>
@@ -548,7 +548,7 @@ const Categories = (() => {
     if (!source || !isMixedAllowed(source.age_group_id)) return [];
 
     const all = await listByTournament(source.tournament_id);
-    const ageOrder = ['mini', 'benjamines', 'alevines', 'infantil', 'cadete', 'junior', 'sub21', 'senior', 'veteranos'];
+    const ageOrder = ['mini', 'benjamines', 'alevines', 'infantil', 'cadete_menor', 'cadete_mayor', 'junior', 'sub21', 'senior', 'veteranos'];
     const idxFrom = ageOrder.indexOf(source.age_group_id);
     const oppositeGender = source.gender === 'M' ? 'F' : (source.gender === 'F' ? 'M' : null);
     if (!oppositeGender) return [];

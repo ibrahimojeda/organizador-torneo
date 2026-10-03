@@ -2801,7 +2801,7 @@
   function _optSortQueue(a, b) {
     const discOrder = { kata: 0, kumite: 1 };
     const genderOrder = { M: 0, F: 1, MF: 2 };
-    const ageOrder = ['mini', 'benjamines', 'alevines', 'infantil', 'cadete', 'junior', 'sub21', 'senior', 'veteranos'];
+    const ageOrder = ['mini', 'benjamines', 'alevines', 'infantil', 'cadete_menor', 'cadete_mayor', 'junior', 'sub21', 'senior', 'veteranos'];
     const dA = discOrder[a.cat.discipline] ?? 2;
     const dB = discOrder[b.cat.discipline] ?? 2;
     if (dA !== dB) return dA - dB;

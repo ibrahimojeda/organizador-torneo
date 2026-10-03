@@ -8,15 +8,16 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 /* ----- Grupos de Edad (WKF + torneos locales) ----- */
 const AGE_GROUPS = [
-  { id: 'mini',       label: 'Mini',       minAge: 4,  maxAge: 5  },
-  { id: 'benjamines', label: 'Benjamines', minAge: 6,  maxAge: 7  },
-  { id: 'alevines',   label: 'Alevines',   minAge: 8,  maxAge: 9  },
-  { id: 'infantil',   label: 'Infantil',   minAge: 10, maxAge: 11 },
-  { id: 'cadete',     label: 'Cadete',     minAge: 12, maxAge: 15 },
-  { id: 'junior',     label: 'Junior',     minAge: 16, maxAge: 17 },
-  { id: 'sub21',      label: 'Sub-21',     minAge: 18, maxAge: 20 },
-  { id: 'senior',     label: 'Senior',     minAge: 18, maxAge: 34 },
-  { id: 'veteranos',  label: 'Veteranos',  minAge: 35, maxAge: 99 },
+  { id: 'mini',         label: 'Mini',           minAge: 4,  maxAge: 5  },
+  { id: 'benjamines',   label: 'Benjamines',     minAge: 6,  maxAge: 7  },
+  { id: 'alevines',     label: 'Alevines',       minAge: 8,  maxAge: 9  },
+  { id: 'infantil',     label: 'Infantil',       minAge: 10, maxAge: 11 },
+  { id: 'cadete_menor', label: 'Cadete 12-13',   minAge: 12, maxAge: 13 },
+  { id: 'cadete_mayor', label: 'Cadete 14-15',   minAge: 14, maxAge: 15 },
+  { id: 'junior',       label: 'Junior',         minAge: 16, maxAge: 17 },
+  { id: 'sub21',        label: 'Sub-21',         minAge: 18, maxAge: 20 },
+  { id: 'senior',       label: 'Senior',         minAge: 21, maxAge: 34 },
+  { id: 'veteranos',    label: 'Veteranos',      minAge: 35, maxAge: 99 },
 ];
 
 /* ----- Categorías de Peso WKF — Kumite ----- */
