@@ -167,7 +167,7 @@ const Competitors = (() => {
         status,
         competitors (
           id, full_name, document_id, gender, dob, weight,
-          belt_id, club, country, photo_url, discipline, dojo_id
+          belt_id, club, country, country_manual, photo_url, discipline, dojo_id
         )
       `)
       .eq('tournament_id', tournamentId)
@@ -184,7 +184,7 @@ const Competitors = (() => {
             seed,
             competitors (
               id, full_name, document_id, gender, dob, weight,
-              belt_id, club, country, photo_url, discipline, dojo_id
+              belt_id, club, country, country_manual, photo_url, discipline, dojo_id
             )
           `)
           .eq('tournament_id', tournamentId)
@@ -470,7 +470,7 @@ const Competitors = (() => {
     if (!club || typeof Dojos === 'undefined' || !Dojos.create) return { ...data, dojo_id: data.dojo_id || null };
     const country = getCountryInfo(data.country);
     const dojo = await Dojos.create(club, country.code ? { country_code: country.code } : {}, tournamentId);
-    return { ...data, country: data.country || dojo?.country_code || '', dojo_id: dojo?.id || data.dojo_id || null };
+    return { ...data, country: data.country || null, dojo_id: dojo?.id || data.dojo_id || null };
   }
 
   async function _createCompetitor(data, tournamentId) {
@@ -625,7 +625,7 @@ const Competitors = (() => {
     if (data.weight)       payload.weight       = parseFloat(data.weight);
     if (data.belt_id)      payload.belt_id      = data.belt_id;
     if (data.club)         payload.club         = data.club.trim();
-    if (data.country)      payload.country      = data.country.trim();
+    if (data.country !== undefined) payload.country = data.country?.trim() || null;
     if (data.dojo_id)      payload.dojo_id      = data.dojo_id;
     if (data.photo_url)    payload.photo_url    = data.photo_url;
     // 'kata' | 'kumite' | 'both' — default: 'kumite'

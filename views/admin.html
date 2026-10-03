@@ -369,6 +369,7 @@
         </div>
         <div class="flex gap-2">
           <button class="btn btn-outline btn-gold" id="btn-autogenerate">⚡ Auto-generar</button>
+          <button class="btn btn-outline" id="btn-update-ages">Actualizar formato de edades</button>
           <button class="btn btn-outline" id="btn-assign-auto">🔗 Asignar automático</button>
           <button class="btn btn-outline" id="btn-assign-manual">✏️ Asignar manual</button>
           <button class="btn btn-primary" id="btn-new-category">+ Categoría Manual</button>
@@ -1370,16 +1371,16 @@
 <!-- Scripts -->
 <!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
-<script src="../js/config.js?v=20260424a"></script>
+<script src="../js/config.js?v=20261003a"></script>
 <script src="../js/auth.js?v=20260421b"></script>
 <script src="../js/tournament.js?v=20260919c"></script>
-<script src="../js/categories.js?v=20260919b"></script>
-<script src="../js/competitors.js?v=20261001a"></script>
+<script src="../js/categories.js?v=20261003a"></script>
+<script src="../js/competitors.js?v=20261003a"></script>
 <script src="../js/bracket.js"></script>
 <script src="../js/matches.js"></script>
 <script src="../js/reports.js"></script>
 <script src="../js/display.js?v=20260919a"></script>
-<script src="../js/dojos.js?v=20260919a"></script>
+<script src="../js/dojos.js?v=20261003a"></script>
 <script>
 (function () {
   /* ---- Verificar sesión ---- */
@@ -1845,7 +1846,7 @@
         <td><strong>${d.name}</strong></td>
         <td>${_renderDojoCountry(d.country_code || d.country_name)}</td>
         <td class="text-sm text-muted">${d.contact_name || '—'}${d.email ? ' · ' + d.email : ''}</td>
-        <td><button class="btn btn-outline btn-sm" onclick="window.openEditDojoView('${d.id}')">Ver datos</button></td></tr>`).join('')}</tbody></table></div></div>` : '<div class="empty-state"><div class="empty-icon">🥋</div><h3>Sin dojos visibles</h3><p>Los dojos autorizados por el super admin para este torneo o los de tus inscripciones aparecerán aquí.</p></div>';
+        <td><button class="btn btn-outline btn-sm" onclick="window._editDojo('${d.id}')">Editar</button> <button class="btn btn-outline btn-sm" onclick="window._removeDojo('${d.id}')">Eliminar</button></td></tr>`).join('')}</tbody></table></div></div>` : '<div class="empty-state"><div class="empty-icon">🥋</div><h3>Sin dojos visibles</h3><p>Los dojos autorizados por el super admin para este torneo o los de tus inscripciones aparecerán aquí.</p></div>';
     } catch (e) { el.innerHTML = `<div class="alert alert-danger">${e.message}</div>`; }
   }
 
@@ -1937,6 +1938,15 @@
     document.getElementById('dojo-form-logo').value = '';
     document.getElementById('dojo-form-preview').innerHTML = dojo.logo_url ? `<img src="${dojo.logo_url}" alt="" style="max-width:120px;max-height:80px;object-fit:contain;" />` : '<span class="text-muted">Sin logo cargado</span>';
     document.getElementById('dojos-form-card').style.display = 'block';
+  };
+
+  window._removeDojo = async function(id) {
+    if (!confirm('¿Eliminar este dojo global? Sus estudiantes, inscripciones y resultados se conservarán. También dejará de estar disponible en otros torneos.')) return;
+    try {
+      await Dojos.remove(id);
+      await _loadDojos();
+      Display.toast('Dojo eliminado; estudiantes conservados.', 'success');
+    } catch (e) { Display.toast(e.message, 'error'); }
   };
 
   document.getElementById('btn-new-dojo')?.addEventListener('click', () => {
@@ -2216,13 +2226,16 @@
       const cats = _enrichCatsWithCounts(
         await Categories.listByTournament(state.activeTournament.id)
       );
-      Display.renderCategoryList(el, cats, cat => {
+      const visibleCats = cats.filter(cat =>
+        (cat.registrations_count ?? cat.registrations?.[0]?.count ?? 0) > 0 || cat.is_manual
+      );
+      Display.renderCategoryList(el, visibleCats, cat => {
         state.activeCategory = cat;
         switchPanel('brackets');
       }, { hideEmpty: true });
       // Añadir botón de edición a cada tarjeta de categoría
       el.querySelectorAll('.card').forEach((card, idx) => {
-        const cat = cats[idx];
+        const cat = visibleCats[idx];
         if (!cat) return;
         const editBtn = document.createElement('button');
         editBtn.className = 'btn btn-ghost btn-sm btn-icon';
@@ -2232,6 +2245,32 @@
         editBtn.onclick = e => { e.stopPropagation(); _openEditCategoryModal(cat); };
         card.style.position = 'relative';
         card.appendChild(editBtn);
+
+        // Botón para eliminar la categoría (útil para quitar categorías
+        // obsoletas, p. ej. las del grupo "cadete" previo al desdoble 12-13/14-15).
+        const delBtn = document.createElement('button');
+        delBtn.className = 'btn btn-ghost btn-sm btn-icon';
+        delBtn.title = 'Eliminar categoría';
+        delBtn.style.cssText = 'position:absolute;top:6px;right:34px;font-size:.85rem;';
+        delBtn.textContent = '🗑';
+        delBtn.onclick = async e => {
+          e.stopPropagation();
+          const label = cat.name || Categories.buildLabel(cat);
+          const regCount = cat.registrations?.[0]?.count ?? cat.registrations_count ?? 0;
+          const msg = regCount
+            ? `¿Eliminar la categoría "${label}"? Se eliminarán ${regCount} inscripción(es) asociada(s).`
+            : `¿Eliminar la categoría "${label}"?`;
+          if (!confirm(msg)) return;
+          try {
+            await Categories.remove(cat.id);
+            if (state.activeCategory?.id === cat.id) state.activeCategory = null;
+            Display.toast('Categoría eliminada.', 'success');
+            await _loadCategories();
+          } catch (err) {
+            Display.toast(err.message, 'error');
+          }
+        };
+        card.appendChild(delBtn);
         // Mostrar badge de reglamento si no es local
         if (cat.ruleset && cat.ruleset !== 'local') {
           const badge = document.createElement('span');
@@ -3523,6 +3562,37 @@
   }
 
   /* ---- Auto-generar categorías ---- */
+  document.getElementById('btn-update-ages').addEventListener('click', async () => {
+    if (!state.activeTournament) return;
+    const button = document.getElementById('btn-update-ages');
+    button.disabled = true;
+    try {
+      const plan = await Categories.previewAgeUpdate(state.activeTournament.id);
+      if (!plan.length) { Display.toast('Las inscripciones ya corresponden a los rangos actuales.', 'info'); return; }
+      if (!confirm(`Se encontraron ${plan.length} categorías con cambios de edad. Revisarás cada una antes de aplicarla. Cancelar ahora no modifica ningún dato. ¿Continuar?`)) return;
+      let changed = 0;
+      for (const { cat, moves } of plan) {
+        const detail = moves.map(m => `${m.name} → ${AGE_GROUPS.find(a => a.id === m.age_group_id)?.label}`).join('\n');
+        if (!confirm(`${cat.name || Categories.buildLabel(cat)}\n${cat.is_manual ? 'ATENCIÓN: categoría manual o fusión.\n' : ''}${detail}\n\nAceptar: mover estas inscripciones conservando sus IDs y ajustes. Cancelar: conservar esta categoría sin cambios. La categoría original no se eliminará.`)) continue;
+        try {
+          changed += await Categories.applyAgeUpdate(cat.id, moves, false);
+        } catch (e) {
+          if (!String(e.message).includes('Hay llaves afectadas')) throw e;
+          if (!confirm('Esta actualización afecta llaves existentes en origen o destino. Aplicarla BORRARÁ TODOS los combates y resultados de esas categorías, incluidos los de competidores que no cambian de edad. Después tendrás que generar sus llaves de nuevo. Cancelar conserva todo. ¿Eliminar esas llaves y aplicar?')) continue;
+          if (prompt('Para confirmar la pérdida de esos combates y resultados, escribe ACTUALIZAR:') !== 'ACTUALIZAR') continue;
+          changed += await Categories.applyAgeUpdate(cat.id, moves, true);
+        }
+      }
+      state.activeCategory = null;
+      Display.toast(`${changed} inscripción(es) actualizada(s). Las decisiones ya confirmadas se guardaron.`, 'success');
+    } catch (e) {
+      Display.toast(`${e.message}. El proceso se detuvo; las categorías confirmadas anteriormente pueden haberse actualizado.`, 'error');
+    } finally {
+      button.disabled = false;
+      await _loadCategories();
+    }
+  });
+
   document.getElementById('btn-autogenerate').addEventListener('click', async () => {
     if (!state.activeTournament) return;
     if (!confirm('¿Generar categorías automáticamente? Se analizarán todos los competidores inscritos.')) return;
@@ -3736,7 +3806,7 @@
     const dojoInfo = (typeof Dojos !== 'undefined') ? Dojos.getFromCache(comp.dojo_id) : null;
     document.getElementById('c-club').value    = dojoInfo?.name || comp.club || '';
     _populateCountrySelect();
-    document.getElementById('c-country').value = comp.country || '';
+    document.getElementById('c-country').value = comp.country_manual === false ? '' : (getCountryInfo(comp.country).code || comp.country || '');
     const disc = comp.discipline || 'kumite';
     document.querySelectorAll('input[name="c-discipline"]').forEach(r => r.checked = r.value === disc);
     // Ocultar preview de categoría (no aplica al editar)
@@ -3780,7 +3850,7 @@
         weight:      row['peso']             || '',
         belt_id:     BELT_ALIAS[(row['cinturon'] || row['cinturón'] || '').toLowerCase()] || row['cinturon'] || '',
         club:        row['club']             || '',
-        country:     row['pais'] || row['país'] || 'Argentina',
+        country:     row['pais'] || row['país'] || '',
         discipline:  _normalizeDiscipline(row['modalidad'] || row['discipline'] || ''),
         _row:        i + 2,
       };
@@ -4701,7 +4771,7 @@
   function _populateCountrySelect() {
     const select = document.getElementById('c-country');
     if (!select) return;
-    select.innerHTML = '<option value="">— Seleccionar País —</option>' +
+    select.innerHTML = '<option value="">Heredar país del dojo</option>' +
       COUNTRIES.map(c => `<option value="${c.code}">${c.name}</option>`).join('');
     _enhanceCountrySelect(select);
   }

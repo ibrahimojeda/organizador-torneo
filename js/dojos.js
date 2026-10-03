@@ -309,7 +309,7 @@ const Dojos = (() => {
   function renderCompetitorIdentity(competitor, size = 18) {
     const c = competitor?.competitors || competitor || {};
     const dojo = c.dojo_id ? getFromCache(c.dojo_id) : null;
-    const country = c.country || dojo?.country_code;
+    const country = c.country || dojo?.country_code || dojo?.country_name;
     return `${renderDojoBadge(dojo, size)} ${renderCountryBadge(country, size)}`;
   }
 
@@ -441,14 +441,17 @@ const Dojos = (() => {
     if (!id) return true;
     if (Auth.isDevMode()) {
       _devSave(_devList().filter(d => d.id !== id));
+      const comps = JSON.parse(localStorage.getItem('ot_dev_competitors') || '[]');
+      localStorage.setItem('ot_dev_competitors', JSON.stringify(comps.map(c => c.dojo_id === id ? { ...c, dojo_id: null } : c)));
       invalidateCache();
       return true;
     }
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from(TABLE_DOJOS)
       .delete()
-      .eq('id', id);
+      .eq('id', id).select('id');
     if (error) throw error;
+    if (!data?.length) throw new Error('No tienes permiso para eliminar este dojo.');
     invalidateCache();
     return true;
   }

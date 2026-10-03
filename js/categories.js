@@ -129,7 +129,13 @@ const Categories = (() => {
       .order('gender')
       .order('name');
     if (error) throw error;
-    return data || [];
+    return (data || []).sort((a, b) => {
+      const ageIndex = c => {
+        const index = AGE_GROUPS.findIndex(g => g.id === c.age_group_id);
+        return index < 0 ? AGE_GROUPS.length : index;
+      };
+      return a.discipline.localeCompare(b.discipline) || a.gender.localeCompare(b.gender) || ageIndex(a) - ageIndex(b) || (a.name || '').localeCompare(b.name || '');
+    });
   }
 
   /* --------------------------------------------------------
@@ -184,18 +190,25 @@ const Categories = (() => {
   -------------------------------------------------------- */
   async function remove(id) {
     if (Auth.isDevMode()) {
+      const matches = JSON.parse(localStorage.getItem('ot_dev_matches') || '[]');
+      if (matches.some(m => m.category_id === id)) {
+        throw new Error('No se puede eliminar: la categoría ya tiene combates generados.');
+      }
       const list = _devList();
       const idx  = list.findIndex(c => c.id === id);
       if (idx === -1) throw new Error('Categoría no encontrada.');
       list.splice(idx, 1);
       _devSave(list);
+      const regs = JSON.parse(localStorage.getItem('ot_dev_registrations') || '[]');
+      localStorage.setItem('ot_dev_registrations', JSON.stringify(regs.filter(r => r.category_id !== id)));
       return;
     }
 
-    const { count } = await supabase
+    const { count, error: matchError } = await supabase
       .from('matches')
       .select('id', { count: 'exact' })
       .eq('category_id', id);
+    if (matchError) throw matchError;
     if (count > 0) throw new Error('No se puede eliminar: la categoría ya tiene combates generados.');
 
     const { error } = await supabase.from(TABLE).delete().eq('id', id);
@@ -703,7 +716,33 @@ const Categories = (() => {
 
 
 
+  async function previewAgeUpdate(tournamentId) {
+    const tournament = await Tournament.getById(tournamentId);
+    const cats = await listByTournament(tournamentId);
+    const entries = await Competitors.listByTournament(tournamentId);
+    return cats.map(cat => {
+      const moves = entries.filter(c => c.category_id === cat.id).map(c => {
+        const age = getAgeGroup(c.dob, tournament.date_start);
+        return age && age.id !== cat.age_group_id ? { registration_id: c.registration_id, age_group_id: age.id, name: c.full_name } : null;
+      }).filter(Boolean);
+      return { cat, moves };
+    }).filter(item => item.moves.length);
+  }
+
+  async function applyAgeUpdate(categoryId, moves, resetMatches) {
+    if (Auth.isDevMode()) throw new Error('La actualización transaccional requiere Supabase.');
+    const { data, error } = await supabase.rpc('update_category_ages', {
+      p_category_id: categoryId,
+      p_moves: moves.map(({ registration_id, age_group_id }) => ({ registration_id, age_group_id })),
+      p_reset_matches: resetMatches,
+    });
+    if (error) throw error;
+    return data;
+  }
+
   return {
+    previewAgeUpdate,
+    applyAgeUpdate,
     autoGenerate,
     create,
     listByTournament,

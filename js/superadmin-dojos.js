@@ -151,7 +151,7 @@
     remove: async function(id) {
       const dojo = _allDojos.find(d => d.id === id);
       if (!dojo) return;
-      if (!confirm(`¿Eliminar el dojo "${dojo.name}" de la base global?`)) return;
+      if (!confirm(`¿Eliminar el dojo "${dojo.name}" de la base global? Sus estudiantes, inscripciones y resultados se conservarán.`)) return;
       try {
         await Dojos.remove(id);
         Display.toast('Dojo eliminado.', 'success');
@@ -212,7 +212,8 @@
   $('btn-sa-save-dojo')?.addEventListener('click', async () => {
     const payload = {
       name: $('sa-dojo-form-name').value.trim(),
-      country_name: $('sa-dojo-form-country').value.trim() || null,
+      country_name: getCountryInfo($('sa-dojo-form-country').value.trim()).name || null,
+      country_code: getCountryInfo($('sa-dojo-form-country').value.trim()).code || null,
       contact_name: $('sa-dojo-form-contact').value.trim() || null,
       email: $('sa-dojo-form-email').value.trim() || null,
       phone: $('sa-dojo-form-phone').value.trim() || null,
