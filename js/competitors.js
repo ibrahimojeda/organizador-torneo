@@ -685,7 +685,30 @@ const Competitors = (() => {
     return (copies || []).length;
   }
 
+  function countUnique(entries) {
+    return new Set(entries.map(c => c.competitor_id || c.competitors?.id || c.id).filter(Boolean)).size;
+  }
+
+  async function countRegistered(tournamentId) {
+    if (Auth.isDevMode()) {
+      const regs = JSON.parse(localStorage.getItem('ot_dev_registrations') || '[]');
+      return countUnique(regs.filter(r => !tournamentId || r.tournament_id === tournamentId));
+    }
+    const ids = new Set();
+    for (let offset = 0; ; offset += 1000) {
+      let query = supabase.from(TABLE_REG).select('id, competitor_id').order('id');
+      if (tournamentId) query = query.eq('tournament_id', tournamentId);
+      const { data, error } = await query.range(offset, offset + 999);
+      if (error) throw error;
+      (data || []).forEach(r => { if (r.competitor_id) ids.add(r.competitor_id); });
+      if (!data || data.length < 1000) break;
+    }
+    return ids.size;
+  }
+
   return {
+    countUnique,
+    countRegistered,
     register,
     registerBatch,
     listByTournament,

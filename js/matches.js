@@ -1657,7 +1657,7 @@ const Matches = (() => {
         competitor_b:registrations!matches_competitor_b_id_fkey(
           competitors(full_name, club)
         ),
-        category:categories(name, discipline)
+        category:categories(name, discipline, gender, age_group_id, belt_group_id, weight_class_id)
       `)
       .eq('tournament_id', tournamentId)
       .not('scheduled_time', 'is', null)

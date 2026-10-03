@@ -19,6 +19,34 @@ async function test() {
   });
   vm.runInContext(fs.readFileSync(path.join(root, 'js/categories.js'), 'utf8') + ';globalThis.api=Categories;', context);
   const before = JSON.stringify(store);
+  const counting = vm.createContext({ Auth: { isDevMode: () => true }, localStorage: context.localStorage });
+  vm.runInContext(fs.readFileSync(path.join(root, 'js/competitors.js'), 'utf8') + ';globalThis.api=Competitors;', counting);
+  assert.equal(counting.api.countUnique([{ id: 'a' }, { id: 'a' }, { id: 'b' }]), 2);
+  assert.equal(counting.api.countUnique([{ id: 'r1', competitor_id: 'a' }, { id: 'r2', competitor_id: 'a' }]), 1);
+  store.ot_dev_registrations = JSON.stringify([
+    { competitor_id: 'a', tournament_id: 't' },
+    { competitor_id: 'a', tournament_id: 't' },
+    { competitor_id: 'b', tournament_id: 'other' },
+  ]);
+  assert.equal(await counting.api.countRegistered('t'), 1);
+  assert.equal(await counting.api.countRegistered(), 2);
+  delete store.ot_dev_registrations;
+  const pages = [];
+  const remote = vm.createContext({
+    Auth: { isDevMode: () => false },
+    supabase: { from: () => {
+      const q = {
+        select: () => q, order: () => q, eq: () => q,
+        range: (start) => { pages.push(start); return Promise.resolve({ data: start === 0
+          ? Array.from({ length: 1000 }, (_, i) => ({ competitor_id: 'c' + i }))
+          : [{ competitor_id: 'c0' }, { competitor_id: 'last' }], error: null }); },
+      };
+      return q;
+    } },
+  });
+  vm.runInContext(fs.readFileSync(path.join(root, 'js/competitors.js'), 'utf8') + ';globalThis.api=Competitors;', remote);
+  assert.equal(await remote.api.countRegistered('t'), 1001);
+  assert.deepEqual(pages, [0, 1000], 'Los conteos incluyen más de 1000 inscripciones');
   const plan = await context.api.previewAgeUpdate('t');
   assert.equal(plan.length, 1);
   assert.equal(plan[0].moves[0].registration_id, 'r');

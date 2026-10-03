@@ -1373,11 +1373,11 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
 <script src="../js/config.js?v=20261003a"></script>
 <script src="../js/auth.js?v=20260421b"></script>
-<script src="../js/tournament.js?v=20260919c"></script>
+<script src="../js/tournament.js?v=20261003b"></script>
 <script src="../js/categories.js?v=20261003a"></script>
-<script src="../js/competitors.js?v=20261003a"></script>
+<script src="../js/competitors.js?v=20261003b"></script>
 <script src="../js/bracket.js"></script>
-<script src="../js/matches.js"></script>
+<script src="../js/matches.js?v=20261003b"></script>
 <script src="../js/reports.js"></script>
 <script src="../js/display.js?v=20260919a"></script>
 <script src="../js/dojos.js?v=20261003a"></script>
@@ -2018,8 +2018,8 @@
 
     document.getElementById('competitors-count-label').textContent =
       list.length === _competitorsList.length
-        ? `${list.length} competidor(es) inscrito(s)`
-        : `${list.length} de ${_competitorsList.length} competidor(es)`;
+        ? `${Competitors.countUnique(list)} atleta(s) · ${list.length} inscripciones`
+        : `${Competitors.countUnique(list)} de ${Competitors.countUnique(_competitorsList)} atleta(s) · ${list.length} inscripciones visibles`;
 
     if (!list.length) {
       tbody.innerHTML = `<tr><td colspan="11" class="text-center text-muted p-3">Sin resultados para los filtros aplicados.</td></tr>`;
@@ -4645,8 +4645,7 @@
       // Contar competidores totales
       let totalComps = 0;
       try {
-        const { count } = await supabase.from('registrations').select('id', { count: 'exact', head: true });
-        totalComps = count || 0;
+        totalComps = await Competitors.countRegistered();
       } catch (_) {}
 
       document.getElementById('sys-stat-tournaments').textContent = allTournaments.length;

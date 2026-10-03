@@ -16,7 +16,7 @@
 
     const tournamentStats = [];
     const monthlyMap = {};
-    let totalAthletes = 0;
+    const totalAthletes = await Competitors.countRegistered();
 
     for (const tournament of tournaments) {
       let competitors = [];
@@ -27,7 +27,7 @@
       } catch (_) {
         competitors = [];
       }
-      const athletes = competitors.length;
+      const athletes = await Competitors.countRegistered(tournament.id);
       const schools = new Set(competitors.map(c => c.club).filter(Boolean)).size;
       const systemIncome = athletes * 0.5;
       const date = tournament.date_start || tournament.created_at || new Date().toISOString();
@@ -42,7 +42,6 @@
       monthlyMap[monthKey].income += systemIncome;
       if ((tournament.status || '') === 'cancelled') monthlyMap[monthKey].cancelled += 1;
 
-      totalAthletes += athletes;
       tournamentStats.push({
         id: tournament.id,
         name: tournament.name || 'Torneo',
@@ -63,7 +62,7 @@
       dashboardStats.innerHTML = `
         ${card('Torneos modelados', tournaments.length, '#1d4ed8')}
         ${card('Usuarios en plataforma', users.length, '#0f766e')}
-        ${card('Inscritos acumulados', totalAthletes, '#7c3aed')}
+        ${card('Atletas únicos', totalAthletes, '#7c3aed')}
         ${card('Ingresos al sistema', money(totalSystemIncome), '#b45309')}
       `;
     }

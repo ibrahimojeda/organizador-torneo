@@ -374,7 +374,7 @@
   <div class="tabs" id="main-tabs">
     <div class="tabs-list" id="tabs-list">
       <button class="tab-btn active" data-tab="tab-categories">Categorías</button>
-      <button class="tab-btn" data-tab="tab-schedule">Programa</button>
+      <button class="tab-btn" data-tab="tab-schedule">📅 Cronograma</button>
       <button class="tab-btn" data-tab="tab-results">Resultados</button>
       <button class="tab-btn" data-tab="tab-dojos">🏘 Dojos</button>
     </div>
@@ -458,11 +458,11 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
 <script src="../js/config.js?v=20261003a"></script>
 <script src="../js/auth.js"></script>
-<script src="../js/tournament.js?v=20260919c"></script>
+<script src="../js/tournament.js?v=20261003b"></script>
 <script src="../js/categories.js?v=20261003a"></script>
-<script src="../js/competitors.js?v=20261003a"></script>
+<script src="../js/competitors.js?v=20261003b"></script>
 <script src="../js/bracket.js"></script>
-<script src="../js/matches.js?v=20260421c"></script>
+<script src="../js/matches.js?v=20261003b"></script>
 <script src="../js/display.js?v=20260919a"></script>
 <script src="../js/dojos.js?v=20261003a"></script>
 <script>
@@ -1806,7 +1806,7 @@ function _renderAthleteBadgesCompact(competitor) {
         if (!byTatami[k]) byTatami[k] = [];
         byTatami[k].push(m);
       });
-      el.innerHTML = Object.entries(byTatami).map(([tatamiLabel, ms]) => `
+      el.innerHTML = '<p class="text-muted text-sm mb-3">Cronograma por tatami. Los horarios pueden cambiar durante el torneo.</p>' + Object.entries(byTatami).map(([tatamiLabel, ms]) => `
         <div class="mb-3">
           <h4 class="text-sm text-muted mb-1" style="text-transform:uppercase;">${tatamiLabel}</h4>
           <div class="card p-0">
@@ -1815,8 +1815,8 @@ function _renderAthleteBadgesCompact(competitor) {
                 <thead><tr><th>Hora</th><th>Categoría</th><th>Competidores</th><th>Estado</th></tr></thead>
                 <tbody>
                   ${ms.map(m => `<tr>
-                    <td class="text-sm">${m.scheduled_time ? m.scheduled_time.slice(11,16) : '—'}</td>
-                    <td class="text-sm">${m.category?.name || '—'}</td>
+                    <td class="text-sm">${m.scheduled_time ? new Date(m.scheduled_time).toLocaleString('es', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                    <td class="text-sm">${m.category ? (m.category.name || Categories.buildLabel(m.category)) : '—'}</td>
                     <td class="text-sm">
                       ${m.competitor_a?.competitors?.full_name || '?'}
                       <span class="text-muted">vs</span>
@@ -1948,7 +1948,7 @@ function _renderAthleteBadgesCompact(competitor) {
       clubs.forEach(club => {
         const opt = document.createElement('option');
         opt.value = club;
-        opt.textContent = `${club} (${competitors.filter(c => c.club === club).length})`;
+        opt.textContent = `${club} (${Competitors.countUnique(competitors.filter(c => c.club === club))} atletas)`;
         sel.appendChild(opt);
       });
       // If no clubs, show all competitors summary directly
@@ -1967,7 +1967,7 @@ function _renderAthleteBadgesCompact(competitor) {
         content.innerHTML = `
           <div class="alert alert-info mb-2">Los competidores no tienen club/dojo asignado.</div>
           <div class="card p-0">
-            <div class="card-header"><h4 class="card-title">Todos los competidores (${competitors.length})</h4></div>
+            <div class="card-header"><h4 class="card-title">Todos los atletas (${Competitors.countUnique(competitors)})</h4></div>
             <div class="table-wrapper">
               <table class="table">
                 <thead><tr><th>#</th><th>Nombre</th><th>Gén.</th><th>Cinturón</th><th>Categoría</th></tr></thead>
@@ -2009,7 +2009,7 @@ function _renderAthleteBadgesCompact(competitor) {
     }).join('');
     el.innerHTML = `
       <div class="card p-0">
-        <div class="card-header"><h4 class="card-title">${club} — ${comps.length} competidor(es)</h4></div>
+        <div class="card-header"><h4 class="card-title">${club} — ${Competitors.countUnique(comps)} atleta(s) · ${comps.length} inscripciones</h4></div>
         <div class="table-wrapper">
           <table class="table">
             <thead><tr><th>Nombre</th><th>Gén.</th><th>Cinturón</th><th>Disciplina</th><th>Categoría / Llave</th></tr></thead>

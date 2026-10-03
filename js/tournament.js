@@ -214,13 +214,13 @@ if (!window.Tournament) {
         // Categorías con al menos 1 inscripción
         const withReg   = new Set(regs.map(r => r.category_id));
         const catCount  = cats.filter(c => withReg.has(c.id) || c.is_manual).length;
-        return { categories: catCount, competitors: regs.length, totalMatches: total, finishedMatches: finished,
+        return { categories: catCount, competitors: Competitors.countUnique(regs), totalMatches: total, finishedMatches: finished,
                  progress: total > 0 ? Math.round((finished / total) * 100) : 0 };
       } catch { return { categories: 0, competitors: 0, totalMatches: 0, finishedMatches: 0, progress: 0 }; }
     }
     const [categoriesRes, competitionsRes, matches] = await Promise.all([
       supabase.from('categories').select('id, is_manual, registrations(count)').eq('tournament_id', tournamentId),
-      supabase.from('registrations').select('id', { count: 'exact' }).eq('tournament_id', tournamentId),
+      Competitors.countRegistered(tournamentId),
       supabase.from('matches').select('id, status', { count: 'exact' }).eq('tournament_id', tournamentId),
     ]);
     const catsArr     = categoriesRes.data || [];
@@ -229,7 +229,7 @@ if (!window.Tournament) {
     const finishedMatches = (matches.data || []).filter(m => m.status === MATCH_STATUS.FINISHED).length;
     return {
       categories:    catCount,
-      competitors:   competitionsRes.count || 0,
+      competitors:   competitionsRes,
       totalMatches,
       finishedMatches,
       progress: totalMatches > 0 ? Math.round((finishedMatches / totalMatches) * 100) : 0,
