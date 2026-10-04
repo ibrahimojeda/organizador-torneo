@@ -241,7 +241,8 @@ const Bracket = (() => {
   /* --------------------------------------------------------
      REGENERAR LLAVES (borra y vuelve a crear)
   -------------------------------------------------------- */
-  async function regenerate(categoryId) {
+  async function regenerate(categoryId, allowReset = false) {
+    if (allowReset) await Competitors.editBracketRegistration('reset', null, categoryId);
     return generate(categoryId);
   }
 

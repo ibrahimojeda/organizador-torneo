@@ -5,6 +5,14 @@ Antes de usar la nueva versión, ejecutar en el SQL Editor del proyecto Supabase
 1. `supabase-migrations/009_fix_dojos_permissions.sql` si aún no se aplicó.
 2. `supabase-migrations/012_add_kata_mode.sql` si aún no se aplicó.
 3. `supabase-migrations/013_guided_category_update.sql`.
+4. `supabase-migrations/014_edit_bracket_registrations.sql` para quitar/mover
+   inscripciones con llaves y permitir rehacer categorías con resultados.
+
+Quitar/mover con combates exige confirmar y escribir REHACER. Se borran todos los
+combates de origen y, al mover, de destino; las otras categorías se conservan.
+Luego usar Generar Llaves en las categorías afectadas. Regenerar también permite
+reiniciar resultados confirmados. Si la generación posterior falla, las llaves
+anteriores ya se han borrado: corregir el error y volver a generar.
 
 No ejecutar todo el esquema como sustituto de estas migraciones. Hacer un respaldo
 antes de aceptar cambios que impliquen borrar combates.

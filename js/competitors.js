@@ -303,20 +303,54 @@ const Competitors = (() => {
      Solo si no tiene combates asignados.
   -------------------------------------------------------- */
   async function unregister(registrationId) {
-    if (Auth.isDevMode()) {
-      const regs = _devRegList().filter(r => r.id !== registrationId);
-      _devSaveR(regs);
-      return;
-    }
-    const { count } = await supabase
-      .from('matches')
-      .select('id', { count: 'exact' })
-      .or(`competitor_a_id.eq.${registrationId},competitor_b_id.eq.${registrationId}`)
-      .neq('status', 'bye');
-    if (count > 0) throw new Error('No se puede eliminar: el competidor ya tiene combates generados.');
+    return editBracketRegistration('remove', registrationId);
+  }
 
-    const { error } = await supabase.from(TABLE_REG).delete().eq('id', registrationId);
-    if (error) throw error;
+  async function editBracketRegistration(action, registrationId = null, categoryId = null) {
+    const entries = registrationId ? await listByTournamentForRegistration(registrationId) : null;
+    if (registrationId && !entries) throw new Error('Inscripción no encontrada.');
+    const sourceId = entries?.category_id || categoryId;
+    const ids = [...new Set([sourceId, categoryId].filter(Boolean))];
+    const cats = await Promise.all(ids.map(id => Categories.getById(id)));
+    const label = cats.map(c => c.name || Categories.buildLabel(c)).join(' / ');
+    const confirmReset = () => {
+      if (!confirm(`Categorías afectadas: ${label}. Se borrarán TODAS sus llaves, combates y resultados, incluidos los de otros atletas. Las inscripciones restantes se conservan. Después puedes generar las llaves nuevamente. ¿Continuar?`)) return false;
+      return prompt('Escribe REHACER para confirmar la pérdida de esos resultados:') === 'REHACER';
+    };
+    if (Auth.isDevMode()) {
+      const regs = _devRegList();
+      const reg = regs.find(r => r.id === registrationId);
+      if (action !== 'reset' && !reg) throw new Error('Inscripción no encontrada.');
+      if (action === 'move') {
+        if (reg.category_id === categoryId) return [];
+        if (cats.some(c => c.tournament_id !== reg.tournament_id)) throw new Error('El destino debe pertenecer al mismo torneo.');
+        if (regs.some(r => r.category_id === categoryId && r.competitor_id === reg.competitor_id)) throw new Error('El competidor ya está inscrito en destino.');
+      }
+      const matches = JSON.parse(localStorage.getItem('ot_dev_matches') || '[]');
+      if (matches.some(m => ids.includes(m.category_id)) && !confirmReset()) throw new Error('Operación cancelada; no se modificó ninguna llave.');
+      localStorage.setItem('ot_dev_matches', JSON.stringify(matches.filter(m => !ids.includes(m.category_id))));
+      const podio = JSON.parse(localStorage.getItem('ot_dev_podio') || '{}');
+      ids.forEach(id => delete podio[id]);
+      localStorage.setItem('ot_dev_podio', JSON.stringify(podio));
+      if (action === 'remove') _devSaveR(regs.filter(r => r.id !== registrationId));
+      if (action === 'move') _devSaveR(regs.map(r => r.id === registrationId ? { ...r, category_id: categoryId } : r));
+      return ids;
+    }
+    const call = reset => supabase.rpc('edit_bracket_registration', {
+      p_action: action, p_registration_id: registrationId, p_category_id: categoryId, p_reset: reset,
+    });
+    let result = await call(false);
+    if (result.error?.message?.includes('BRACKET_RESET_REQUIRED')) {
+      if (!confirmReset()) throw new Error('Operación cancelada; no se modificó ninguna llave.');
+      result = await call(true);
+    }
+    if (result.error) throw result.error;
+    return result.data;
+  }
+
+  async function listByTournamentForRegistration(id) {
+    if (Auth.isDevMode()) return _devRegList().find(r => r.id === id);
+    return _getRegistrationById(id);
   }
 
   /* --------------------------------------------------------
@@ -324,18 +358,7 @@ const Competitors = (() => {
      Mueve al competidor a otra categoría del mismo torneo.
   -------------------------------------------------------- */
   async function moveCategory(registrationId, newCategoryId) {
-    if (Auth.isDevMode()) {
-      const regs = _devRegList().map(r =>
-        r.id === registrationId ? { ...r, category_id: newCategoryId } : r
-      );
-      _devSaveR(regs);
-      return;
-    }
-    const { error } = await supabase
-      .from(TABLE_REG)
-      .update({ category_id: newCategoryId })
-      .eq('id', registrationId);
-    if (error) throw error;
+    return editBracketRegistration('move', registrationId, newCategoryId);
   }
 
   /* --------------------------------------------------------
@@ -707,6 +730,7 @@ const Competitors = (() => {
   }
 
   return {
+    editBracketRegistration,
     countUnique,
     countRegistered,
     register,

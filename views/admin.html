@@ -1375,8 +1375,8 @@
 <script src="../js/auth.js?v=20260421b"></script>
 <script src="../js/tournament.js?v=20261003b"></script>
 <script src="../js/categories.js?v=20261003a"></script>
-<script src="../js/competitors.js?v=20261003b"></script>
-<script src="../js/bracket.js"></script>
+<script src="../js/competitors.js?v=20261003d"></script>
+<script src="../js/bracket.js?v=20261003d"></script>
 <script src="../js/matches.js?v=20261003b"></script>
 <script src="../js/reports.js"></script>
 <script src="../js/display.js?v=20260919a"></script>
@@ -2606,8 +2606,8 @@
           <div class="flex gap-1">
             <button class="btn btn-ghost btn-sm btn-icon" title="Mover a otra categoría"
               onclick="_openMoveCategoryModal('${safeRegId}','${safeName}')">📦</button>
-            ${!hasMatches ? `<button class="btn btn-ghost btn-sm btn-icon text-danger" title="Quitar de esta categoría"
-              onclick="_removeFromCategory('${safeRegId}','${safeName}')">✕</button>` : ''}
+            <button class="btn btn-ghost btn-sm btn-icon text-danger" title="Quitar de esta categoría"
+              onclick="_removeFromCategory('${safeRegId}','${safeName}')">✕</button>
           </div>
         </div>`;
       }).join('');
@@ -2624,7 +2624,7 @@
   }
 
   window._removeFromCategory = async function(registrationId, competitorName) {
-    if (!confirm(`¿Quitar a "${competitorName}" de esta categoría? No se eliminará del torneo.`)) return;
+    if (!confirm(`¿Quitar la inscripción de "${competitorName}" de esta categoría? Sus otras inscripciones se conservan. Si es la última, dejará de figurar como inscrito en el torneo.`)) return;
     try {
       await Competitors.unregister(registrationId);
       Display.toast(`${competitorName} quitado de la categoría.`, 'success');
@@ -2692,9 +2692,9 @@
 
   document.getElementById('btn-regenerate').addEventListener('click', async () => {
     if (!state.activeCategory) return;
-    if (!confirm('¿Regenerar las llaves? Se borrarán los combates pendientes.')) return;
+    if (!confirm('¿Rehacer las llaves de esta categoría? Si existen combates o resultados, se solicitará confirmación adicional para borrarlos.')) return;
     try {
-      const result = await Bracket.regenerate(state.activeCategory.id);
+      const result = await Bracket.regenerate(state.activeCategory.id, true);
       if (result.warnings?.length) {
         alert('⚠️ Competidores del mismo dojo en primera ronda (inevitable por la cantidad):\n\n' + result.warnings.join('\n'));
       }
