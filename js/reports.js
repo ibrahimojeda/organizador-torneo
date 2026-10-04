@@ -1,4 +1,36 @@
 const Reports = (() => {
+  function openPrintWindow() {
+    const w = window.open('', '_blank', 'width=1100,height=900');
+    if (!w) throw new Error('Permite las ventanas emergentes para imprimir.');
+    w.document.write('<p>Cargando documento...</p>');
+    w.document.close();
+    return w;
+  }
+
+  function finishPrint(w, html) {
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    const print = () => { w.focus(); w.print(); };
+    if (w.document.readyState === 'complete') print();
+    else w.addEventListener('load', print, { once: true });
+  }
+
+  async function printCategories(tournamentId) {
+    const w = openPrintWindow();
+    try {
+      const [cats, tournament, athletes] = await Promise.all([
+        Categories.listByTournament(tournamentId), Tournament.getById(tournamentId), Competitors.countRegistered(tournamentId),
+      ]);
+      finishPrint(w, `<html><head><meta charset="utf-8"><title>Categorías</title><style>
+        @page{size:A4;margin:12mm}body{font-family:Arial;color:#111}table{width:100%;border-collapse:collapse}th,td{border:1px solid #aaa;padding:6px}thead{display:table-header-group}tr{break-inside:avoid}
+        </style></head><body><h1>${escape(tournament.name)} — Categorías</h1>
+        <p>${cats.length} categorías · ${athletes} atletas únicos</p>
+        <table><thead><tr><th>Categoría</th><th>Tatami</th><th>Participantes</th><th>Sistema</th><th>Reglamento</th></tr></thead>
+        <tbody>${cats.map(c => `<tr><td>${escape(c.name || Categories.buildLabel(c))}</td><td>${escape(c.tatami || 'Sin asignar')}</td><td>${c.registrations?.[0]?.count ?? c.registrations_count ?? 0}</td><td>${escape(c.bracket_system)}</td><td>${escape(c.ruleset || 'local')}</td></tr>`).join('')}</tbody></table>
+        ${cats.length ? '' : '<p>No hay categorías creadas.</p>'}</body></html>`);
+    } catch (e) { w.close(); throw e; }
+  }
   async function generateMedallero(tournamentId) {
     const cats = await Categories.listByTournament(tournamentId);
     const table = {}; // dojo/club -> { gold, silver, bronze }
@@ -36,15 +68,19 @@ const Reports = (() => {
   }
 
   async function printBrackets(tournamentId) {
+    const w = openPrintWindow();
+    try {
     const cats = await Categories.listByTournament(tournamentId);
-    const matches = await Bracket.getByTournamentId(tournamentId);
+    const tournament = await Tournament.getById(tournamentId);
     
     let fullHtml = `
       <html><head><title>Llaves del Torneo</title>
       <link rel="stylesheet" href="../css/print-styles.css">
       <style>
         body { font-family: sans-serif; padding: 20px; }
-        .page-break { page-break-after: always; }
+        @page { size: A4 landscape; margin: 10mm; }
+        .page-break { break-before: page; }
+        .page-break:first-child { break-before: auto; }
         .bracket-grid-print { display: flex; gap: 30px; }
         .bracket-round-print { display: flex; flex-direction: column; justify-content: space-around; }
         .bracket-match { border: 1px solid black; width: 180px; margin-bottom: 15px; font-size: 11px; background: white; }
@@ -56,20 +92,29 @@ const Reports = (() => {
 
     for (const cat of cats) {
       const bracketHtml = await Bracket.renderPrintableBracket(cat.id, cat);
-      fullHtml += `<div class="page-break">${bracketHtml}</div>`;
+      fullHtml += `<div class="page-break"><h2>${escape(tournament.name)} — ${escape(cat.name || Categories.buildLabel(cat))}</h2><p>Tatami ${escape(cat.tatami || 'Sin asignar')}</p>${bracketHtml}</div>`;
     }
 
     fullHtml += `</body></html>`;
-    const w = window.open('', '_blank', 'width=1100,height=900');
-    if (!w) return;
-    w.document.write(fullHtml);
-    w.document.close();
-    w.print();
+    finishPrint(w, fullHtml);
+    } catch (e) { w.close(); throw e; }
   }
 
   async function printSchedule(tournamentId) {
+    const w = openPrintWindow();
+    try {
     const cats = await Categories.listByTournament(tournamentId);
     const tournament = await Tournament.getById(tournamentId);
+    const scheduled = await Matches.listScheduled(tournamentId);
+    if (scheduled.length) {
+      finishPrint(w, `<html><head><meta charset="utf-8"><title>Cronograma</title><style>
+        @page{size:A4;margin:12mm}body{font-family:Arial;color:#111}table{width:100%;border-collapse:collapse}th,td{border:1px solid #aaa;padding:6px}thead{display:table-header-group}tr{break-inside:avoid}
+        </style></head><body><h1>${escape(tournament.name)} — Cronograma</h1><p>Horarios programados; sujetos a cambios.</p>
+        <table><thead><tr><th>Fecha y hora</th><th>Tatami</th><th>Categoría</th><th>Competidores</th><th>Estado</th></tr></thead><tbody>
+        ${scheduled.map(m => `<tr><td>${escape(new Date(m.scheduled_time).toLocaleString('es'))}</td><td>${escape(m.tatami || 'Sin asignar')}</td><td>${escape(m.category ? (m.category.name || Categories.buildLabel(m.category)) : cats.find(c => c.id === m.category_id)?.name || 'Sin categoría')}</td><td>${escape(m.competitor_a?.competitors?.full_name || 'Por definir')} / ${escape(m.competitor_b?.competitors?.full_name || 'Por definir')}</td><td>${escape(MATCH_STATUS_LABELS[m.status] || m.status)}</td></tr>`).join('')}
+        </tbody></table></body></html>`);
+      return;
+    }
 
     // Replica la lógica de cálculo de horarios de admin.html
     const startTime = (tournament.time_start || '09:00').slice(0, 5);
@@ -122,7 +167,7 @@ const Reports = (() => {
         const catEnd = _addMinutes(cursor, minutes);
         cursor = catEnd;
         scheduleRows.push({
-          category: cat.name || '—',
+          category: cat.name || Categories.buildLabel(cat),
           discipline: cat.discipline || '—',
           gender: cat.gender || '—',
           tatami: tNum,
@@ -146,6 +191,7 @@ const Reports = (() => {
       </head><body>
       <div class="header">
         <h1>Programación de Tatamis</h1>
+        <p>Horarios ESTIMADOS: aún no hay horarios de combates asignados.</p>
         <p>${escape(tournament.name)} - ${escape(tournament.date_start || '')} · Inicio: ${startTime}</p>
       </div>
       <table>
@@ -166,11 +212,8 @@ const Reports = (() => {
       </table>
       </body></html>`;
     
-    const w = window.open('', '_blank', 'width=900,height=800');
-    if (!w) return;
-    w.document.write(html);
-    w.document.close();
-    w.print();
+    finishPrint(w, html);
+    } catch (e) { w.close(); throw e; }
   }
 
   async function printCompetitorsList(tournamentId) {
@@ -221,5 +264,5 @@ const Reports = (() => {
 
   function escape(s){ return String(s||'').replace(/[&<>]/g, c=> ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 
-  return { generateMedallero, printMedallero, printBrackets, printSchedule, printCompetitorsList };
+  return { generateMedallero, printMedallero, printBrackets, printCategories, printSchedule, printCompetitorsList };
 })();

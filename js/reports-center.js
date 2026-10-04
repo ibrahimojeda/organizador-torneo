@@ -23,13 +23,22 @@
 
     // Cargar selector de torneos
     _loadTournamentSelector();
+    const btnCategories = document.getElementById('btn-report-categories');
+    if (btnCategories) btnCategories.onclick = async () => {
+      const tournamentId = document.getElementById('report-tournament-select')?.value;
+      if (!tournamentId) return _toast('Selecciona un torneo primero', 'warning');
+      btnCategories.disabled = true;
+      try { await Reports.printCategories(tournamentId); }
+      catch (e) { _toast('Error al imprimir categorías: ' + e.message, 'error'); }
+      finally { btnCategories.disabled = false; }
+    };
 
     // 1. Imprimir Llaves (A4)
     const btnBrackets = document.getElementById('btn-report-brackets');
     if (btnBrackets) {
       btnBrackets.onclick = async () => {
         try {
-          const tournamentId = await getCurrentTournamentId();
+          const tournamentId = document.getElementById('report-tournament-select')?.value;
           if (!tournamentId) return _toast('Selecciona un torneo primero', 'warning');
           _toast('Generando llaves profesionales...', 'info');
           await Reports.printBrackets(tournamentId);
@@ -45,7 +54,7 @@
     if (btnMedals) {
       btnMedals.onclick = async () => {
         try {
-          const tournamentId = await getCurrentTournamentId();
+          const tournamentId = document.getElementById('report-tournament-select')?.value;
           if (!tournamentId) return _toast('Selecciona un torneo primero', 'warning');
           _toast('Generando medallero...', 'info');
           await Reports.printMedallero(tournamentId);
@@ -61,7 +70,7 @@
     if (btnSchedule) {
       btnSchedule.onclick = async () => {
         try {
-          const tournamentId = await getCurrentTournamentId();
+          const tournamentId = document.getElementById('report-tournament-select')?.value;
           if (!tournamentId) return _toast('Selecciona un torneo primero', 'warning');
           _toast('Generando programación...', 'info');
           await Reports.printSchedule(tournamentId);

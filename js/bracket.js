@@ -206,8 +206,8 @@ const Bracket = (() => {
     
     let html = `<div class="bracket-print-page">`;
     html += `<div class="print-header">
-                <h1>${escape(category.name)}</h1>
-                <p>${escape(category.discipline)} - ${escape(category.gender)} - ${escape(category.age_group)}</p>
+                <h1>${escape(category.name || Categories.buildLabel(category))}</h1>
+                <p>${escape(Categories.buildLabel(category))}</p>
               </div>`;
     
     html += `<div class="bracket-grid-print" style="display: flex; gap: 20px; align-items: flex-start;">`;
