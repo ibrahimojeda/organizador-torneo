@@ -16,19 +16,29 @@ const Reports = (() => {
     else w.addEventListener('load', print, { once: true });
   }
 
-  async function printCategories(tournamentId) {
+  function _filterByTatami(cats, tatamis) {
+    if (!Array.isArray(tatamis) || !tatamis.length) return cats;
+    return cats.filter(c => tatamis.includes(String(c.tatami ?? '')));
+  }
+  function _tatamiSuffix(tatamis) {
+    if (!Array.isArray(tatamis) || !tatamis.length) return '';
+    return ` · Tatami ${tatamis.map(t => escape(t)).join(', ')}`;
+  }
+
+  async function printCategories(tournamentId, tatamis) {
     const w = openPrintWindow();
     try {
       const [cats, tournament, athletes] = await Promise.all([
         Categories.listByTournament(tournamentId), Tournament.getById(tournamentId), Competitors.countRegistered(tournamentId),
       ]);
+      const list = _filterByTatami(cats, tatamis);
       finishPrint(w, `<html><head><meta charset="utf-8"><title>Categorías</title><style>
         @page{size:A4;margin:12mm}body{font-family:Arial;color:#111}table{width:100%;border-collapse:collapse}th,td{border:1px solid #aaa;padding:6px}thead{display:table-header-group}tr{break-inside:avoid}
-        </style></head><body><h1>${escape(tournament.name)} — Categorías</h1>
-        <p>${cats.length} categorías · ${athletes} atletas únicos</p>
+        </style></head><body><h1>${escape(tournament.name)} — Categorías${_tatamiSuffix(tatamis)}</h1>
+        <p>${list.length} categorías · ${athletes} atletas únicos</p>
         <table><thead><tr><th>Categoría</th><th>Tatami</th><th>Participantes</th><th>Sistema</th><th>Reglamento</th></tr></thead>
-        <tbody>${cats.map(c => `<tr><td>${escape(c.name || Categories.buildLabel(c))}</td><td>${escape(c.tatami || 'Sin asignar')}</td><td>${c.registrations?.[0]?.count ?? c.registrations_count ?? 0}</td><td>${escape(c.bracket_system)}</td><td>${escape(c.ruleset || 'local')}</td></tr>`).join('')}</tbody></table>
-        ${cats.length ? '' : '<p>No hay categorías creadas.</p>'}</body></html>`);
+        <tbody>${list.map(c => `<tr><td>${escape(c.name || Categories.buildLabel(c))}</td><td>${escape(c.tatami || 'Sin asignar')}</td><td>${c.registrations?.[0]?.count ?? c.registrations_count ?? 0}</td><td>${escape(c.bracket_system)}</td><td>${escape(c.ruleset || 'local')}</td></tr>`).join('')}</tbody></table>
+        ${list.length ? '' : '<p>No hay categorías para los tatamis seleccionados.</p>'}</body></html>`);
     } catch (e) { w.close(); throw e; }
   }
   async function generateMedallero(tournamentId) {
@@ -67,14 +77,14 @@ const Reports = (() => {
     const w = window.open('', '_blank', 'width=900,height=800'); if (!w) return; w.document.write(html); w.document.close(); w.print();
   }
 
-  async function printBrackets(tournamentId) {
+  async function printBrackets(tournamentId, tatamis) {
     const w = openPrintWindow();
     try {
-    const cats = await Categories.listByTournament(tournamentId);
+    const cats = _filterByTatami(await Categories.listByTournament(tournamentId), tatamis);
     const tournament = await Tournament.getById(tournamentId);
     
     let fullHtml = `
-      <html><head><title>Llaves del Torneo</title>
+      <html><head><title>Llaves del Torneo${_tatamiSuffix(tatamis)}</title>
       <link rel="stylesheet" href="../css/print-styles.css">
       <style>
         body { font-family: sans-serif; padding: 20px; }

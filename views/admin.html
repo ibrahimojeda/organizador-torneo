@@ -2332,7 +2332,39 @@
       state.activeCategory = cat;
       await _loadBracket(cat);
     }, { hideEmpty: true });
+
+    // Indicador flotante: categorías con competidores y sin llaves generadas
+    const sinLlaves = allCats.filter(c => (c.registrations_count || 0) > 0 && !(c.matches_count || 0));
+    let banner = document.getElementById('brackets-no-brackets-banner');
+    if (sinLlaves.length) {
+      if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'brackets-no-brackets-banner';
+        banner.className = 'alert alert-warning mb-2';
+        banner.style.cssText = 'font-size:.85rem;';
+        listEl.prepend(banner);
+      }
+      banner.innerHTML = `⚠️ <strong>${sinLlaves.length} categoría(s) con competidores y sin llaves:</strong> ${sinLlaves.slice(0, 8).map(c => c.name || Categories.buildLabel(c)).join(' · ')}${sinLlaves.length > 8 ? ' · …' : ''} <button class="btn btn-outline btn-sm" onclick="_generateMissingBrackets()">Generar llaves</button>`;
+    } else if (banner) {
+      banner.remove();
+    }
   }
+
+  window._generateMissingBrackets = async function() {
+    if (!state.activeTournament) return;
+    try {
+      const cats = _enrichCatsWithCounts(await Categories.listByTournament(state.activeTournament.id));
+      const pending = cats.filter(c => (c.registrations_count || 0) >= 2 && !(c.matches_count || 0));
+      if (!pending.length) { Display.toast('Todas las categorías ya tienen llaves.', 'info'); return; }
+      let ok = 0, fail = 0;
+      for (const cat of pending) {
+        try { await Bracket.generate(cat.id); ok++; }
+        catch (e) { fail++; Display.toast(`${cat.name || Categories.buildLabel(cat)}: ${e.message}`, 'error'); }
+      }
+      Display.toast(`Llaves generadas: ${ok}${fail ? ` · errores: ${fail}` : ''}.`, ok ? 'success' : 'info');
+      await _loadBracketPanel();
+    } catch (e) { Display.toast(e.message, 'error'); }
+  };
 
   function _enrichDevMatchesWithCompetitors(matches = []) {
     if (!Auth.isDevMode() || !matches.length) return matches;
@@ -3599,9 +3631,20 @@
       });
       _catProgress.set('Guardando categorías...', 95);
       _catProgress.log(`✅ ${created.length} categoría(s) creada(s)/actualizada(s).`, 'ok');
+
+      // Generar llaves automáticamente con los parámetros del torneo
+      _catProgress.set('Generando llaves automáticamente...', 97);
+      const allCats = _enrichCatsWithCounts(await Categories.listByTournament(state.activeTournament.id));
+      let bracketsOk = 0;
+      for (const cat of allCats) {
+        if ((cat.registrations_count || 0) < 2 || (cat.matches_count || 0)) continue;
+        try { await Bracket.generate(cat.id); bracketsOk++; } catch (_) {}
+      }
+
       const _extra = totalComp ? ` · ${totalComp} competidor(es) analizado(s)` : '';
-      _catProgress.done(`${created.length} categoría(s) listas${_extra}.`);
-      Display.toast(`${created.length} categoría(s) creada(s).`, 'success');
+      const bracketMsg = bracketsOk ? ` · ${bracketsOk} llave(s) generada(s)` : '';
+      _catProgress.done(`${created.length} categoría(s) listas${bracketMsg}${_extra}.`);
+      Display.toast(`${created.length} categoría(s) creada(s)${bracketMsg}.`, 'success');
       await _loadCategories();
     } catch (e) {
       _catProgress.log('❌ ' + (e.message || e), 'err');
