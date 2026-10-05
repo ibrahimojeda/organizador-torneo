@@ -265,6 +265,41 @@ const Reports = (() => {
     w.print();
   }
 
+  async function printCategoriesReport(tournamentId) {
+    const w = openPrintWindow();
+    try {
+      const [cats, tournament] = await Promise.all([
+        Categories.listByTournament(tournamentId), Tournament.getById(tournamentId),
+      ]);
+      const rows = cats.map(c => {
+        const count = c.registrations?.[0]?.count ?? c.registrations_count ?? 0;
+        const matchCount = (c.matches || []).length;
+        return { name: c.name || Categories.buildLabel(c), tatami: c.tatami || 'Sin asignar', discipline: c.discipline || '—', gender: c.gender || '—', count, matchCount };
+      }).sort((a, b) => String(a.tatami).localeCompare(String(b.tatami)) || a.name.localeCompare(b.name));
+
+      const single = rows.filter(r => r.count === 1);
+      const sinLlaves = rows.filter(r => r.count >= 2 && !r.matchCount);
+      const conLlaves = rows.filter(r => r.matchCount > 0);
+      const sinCompetidores = rows.filter(r => r.count === 0);
+
+      const estado = r => r.count === 0 ? '<span style="color:#64748b;">Sin competidores</span>'
+        : r.count === 1 ? '<span style="color:#b45309;">⚠️ Un solo competidor (no arma llave)</span>'
+        : r.matchCount > 0 ? '<span style="color:#059669;">✓ Llaves generadas</span>'
+        : '<span style="color:#b45309;">⚠️ Sin llaves generadas</span>';
+
+      finishPrint(w, `<html><head><meta charset="utf-8"><title>Reporte de categorías</title><style>
+        @page{size:A4;margin:12mm}body{font-family:Arial;color:#111}table{width:100%;border-collapse:collapse}th,td{border:1px solid #aaa;padding:6px}thead{display:table-header-group}tr{break-inside:avoid}.summary{margin:8px 0 16px;}
+        </style></head><body>
+        <h1>${escape(tournament.name)} — Reporte final de categorías</h1>
+        <div class="summary">
+          <p><strong>${rows.length}</strong> categorías · <strong>${conLlaves.length}</strong> con llaves · <strong>${sinLlaves.length}</strong> sin llaves (2+ competidores) · <strong>${single.length}</strong> con un solo competidor · <strong>${sinCompetidores.length}</strong> sin competidores</p>
+        </div>
+        <table><thead><tr><th>#</th><th>Categoría</th><th>Tatami</th><th>Disciplina</th><th>Género</th><th>Participantes</th><th>Estado</th></tr></thead>
+        <tbody>${rows.map((r, i) => `<tr><td>${i + 1}</td><td>${escape(r.name)}</td><td>${escape(r.tatami)}</td><td>${escape(r.discipline)}</td><td>${escape(r.gender)}</td><td>${r.count}</td><td>${estado(r)}</td></tr>`).join('')}</tbody></table>
+        </body></html>`);
+    } catch (e) { w.close(); throw e; }
+  }
+
   async function getTournamentName(id) {
     try {
       const t = await Tournament.getById(id);
@@ -274,5 +309,5 @@ const Reports = (() => {
 
   function escape(s){ return String(s||'').replace(/[&<>]/g, c=> ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 
-  return { generateMedallero, printMedallero, printBrackets, printCategories, printSchedule, printCompetitorsList };
+  return { generateMedallero, printMedallero, printBrackets, printCategories, printCategoriesReport, printSchedule, printCompetitorsList };
 })();

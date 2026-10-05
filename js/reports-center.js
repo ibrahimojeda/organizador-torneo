@@ -26,6 +26,14 @@
     const btnCategories = document.getElementById('btn-report-categories');
     if (btnCategories) btnCategories.onclick = () => _openTatamiPrintModal('categories');
 
+    const btnCategoryReport = document.getElementById('btn-report-category-report');
+    if (btnCategoryReport) btnCategoryReport.onclick = async () => {
+      const tournamentId = document.getElementById('report-tournament-select')?.value;
+      if (!tournamentId) return _toast('Selecciona un torneo primero', 'warning');
+      try { await Reports.printCategoriesReport(tournamentId); }
+      catch (e) { _toast('Error al generar el reporte: ' + e.message, 'error'); }
+    };
+
     // 1. Imprimir Llaves (A4)
     const btnBrackets = document.getElementById('btn-report-brackets');
     if (btnBrackets) btnBrackets.onclick = () => _openTatamiPrintModal('brackets');

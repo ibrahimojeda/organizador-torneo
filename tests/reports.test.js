@@ -4,7 +4,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 async function test() {
   const windows = [];
-  const cats = [{ id: 'a', name: 'Kata <Mini>', discipline: 'kata', tatami: 2, registrations: [{ count: 2 }] }, { id: 'b', discipline: 'kumite', tatami: 1 }];
+  const cats = [{ id: 'a', name: 'Kata <Mini>', discipline: 'kata', tatami: 2, registrations: [{ count: 2 }] }, { id: 'b', discipline: 'kumite', tatami: 1 }, { id: 'c', name: 'Kata Solo', discipline: 'kata', tatami: 1, registrations: [{ count: 1 }] }];
   const context = vm.createContext({
     window: { open: () => {
       const w = { html: '', prints: 0, document: { readyState: 'complete', open() { w.html = ''; }, write(s) { w.html += s; }, close() {} }, focus() {}, print() { w.prints++; }, close() {} };
@@ -37,6 +37,9 @@ async function test() {
   context.Matches.listScheduled = async () => [];
   await context.api.printSchedule('t');
   assert.match(windows[5].html, /ESTIMADOS/);
+  await context.api.printCategoriesReport('t');
+  assert.match(windows[6].html, /Un solo competidor/);
+  assert.match(windows[6].html, /Kata Solo/);
   windows.forEach(w => assert.equal(w.prints, 1));
   context.window.open = () => null;
   await assert.rejects(context.api.printCategories('t'), /ventanas emergentes/);
