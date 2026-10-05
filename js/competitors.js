@@ -42,7 +42,7 @@ const Competitors = (() => {
     return _devRegList().some(r => r.competitor_id === competitorId && r.tournament_id === tournamentId && r.status !== 'denied');
   }
   function _devCreateReg(competitorId, tournamentId, categoryId) {
-    const r = { id: generateId(), competitor_id: competitorId, tournament_id: tournamentId, category_id: categoryId, status: 'pending', seed: null, registered_at: new Date().toISOString() };
+    const r = { id: generateId(), competitor_id: competitorId, tournament_id: tournamentId, category_id: categoryId, status: 'accepted', seed: null, registered_at: new Date().toISOString() };
     const list = _devRegList(); list.push(r); _devSaveR(list); return r;
   }
   function _devListByTournament(tournamentId) {
@@ -195,12 +195,12 @@ const Competitors = (() => {
           registration_id: r.id,
           category_id: r.category_id,
           seed: r.seed,
-          status: 'pending',
+          status: 'accepted',
         }));
       }
       throw error;
     }
-    return (data || []).map(r => ({ ...r.competitors, registration_id: r.id, category_id: r.category_id, seed: r.seed, status: r.status || 'pending' }));
+    return (data || []).map(r => ({ ...r.competitors, registration_id: r.id, category_id: r.category_id, seed: r.seed, status: r.status || 'accepted' }));
   }
 
   /* --------------------------------------------------------
@@ -240,7 +240,7 @@ const Competitors = (() => {
           registration_id: r.id,
           category_id:     categoryId,
           seed:            r.seed,
-          status:          'pending',
+          status:          'accepted',
         }));
       }
       throw error;
@@ -250,7 +250,7 @@ const Competitors = (() => {
       registration_id: r.id,
       category_id:     categoryId,
       seed:            r.seed,
-      status:          r.status || 'pending',
+      status:          r.status || 'accepted',
     }));
   }
 
@@ -600,22 +600,22 @@ const Competitors = (() => {
       .eq('category_id', categoryId)
       .maybeSingle();
     if (existing) {
-      // Si estaba denegado, se reactiva como pendiente para asegurar la inscripción.
+      // Si estaba denegado, se reactiva como aceptado para asegurar la inscripción.
       if (existing.status === 'denied') {
         const { data: reactivated, error: reactErr } = await supabase
           .from(TABLE_REG)
-          .update({ status: 'pending' })
+          .update({ status: 'accepted' })
           .eq('id', existing.id)
           .select()
           .single();
         if (!reactErr && reactivated) return reactivated;
-        return { ...existing, status: 'pending' };
+        return { ...existing, status: 'accepted' };
       }
       return existing;
     }
     const { data, error } = await supabase
       .from(TABLE_REG)
-      .insert({ competitor_id: competitorId, tournament_id: tournamentId, category_id: categoryId, status: 'pending' })
+      .insert({ competitor_id: competitorId, tournament_id: tournamentId, category_id: categoryId, status: 'accepted' })
       .select()
       .single();
     if (error) {

@@ -314,12 +314,6 @@
           <select class="form-control" id="competitor-filter-belt" style="max-width:180px;">
             <option value="">Todos los cinturones</option>
           </select>
-          <select class="form-control" id="competitor-filter-status" style="max-width:150px;">
-            <option value="">Todos los estados</option>
-            <option value="pending">⏳ Pendiente</option>
-            <option value="accepted">✅ Aceptado</option>
-            <option value="denied">❌ Negado</option>
-          </select>
         </div>
       </div>
 
@@ -346,12 +340,11 @@
                 <th>Dojo</th>
                 <th>País</th>
                 <th>Categorías</th>
-                <th>Estado</th>
                 <th></th>
               </tr>
             </thead>
             <tbody id="competitors-table-body">
-              <tr><td colspan="11" class="text-center text-muted p-4">Cargando...</td></tr>
+              <tr><td colspan="10" class="text-center text-muted p-4">Cargando...</td></tr>
             </tbody>
           </table>
         </div>
@@ -478,7 +471,7 @@
                   <button class="btn btn-outline btn-sm" id="btn-add-competitor-category">➕ Añadir competidor</button>
                 </div>
                 <div id="bracket-competitors-list" style="max-height:220px;overflow-y:auto;">
-                  <div class="text-center text-muted text-sm p-3">Sin competidores aceptados en esta categoría.</div>
+                  <div class="text-center text-muted text-sm p-3">Sin competidores en esta categoría.</div>
                 </div>
               </div>
             </div>
@@ -1375,7 +1368,7 @@
 <script src="../js/auth.js?v=20260421b"></script>
 <script src="../js/tournament.js?v=20261003b"></script>
 <script src="../js/categories.js?v=20261003a"></script>
-<script src="../js/competitors.js?v=20261003d"></script>
+<script src="../js/competitors.js?v=20261005a"></script>
 <script src="../js/bracket.js?v=20261003d"></script>
 <script src="../js/matches.js?v=20261003b"></script>
 <script src="../js/reports.js"></script>
@@ -1754,7 +1747,7 @@
       _competitorsList = await Competitors.listByTournament(state.activeTournament.id);
       await Dojos.ensureCache(state.activeTournament.id);
       if (!_competitorsList.length) {
-        tbody.innerHTML = `<tr><td colspan="11"><div class="empty-state"><div class="empty-icon">👤</div><h3>Sin competidores</h3><p>Registra el primer competidor del torneo.</p></div></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">👤</div><h3>Sin competidores</h3><p>Registra el primer competidor del torneo.</p></div></td></tr>`;
         document.getElementById('competitors-count-label').textContent = '0 competidor(es) inscrito(s)';
         return;
       }
@@ -1774,7 +1767,7 @@
       }
       _filterAndRenderCompetitors();
     } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="11"><div class="alert alert-danger">${e.message}</div></td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="10"><div class="alert alert-danger">${e.message}</div></td></tr>`;
     }
   }
 
@@ -2022,7 +2015,7 @@
         : `${Competitors.countUnique(list)} de ${Competitors.countUnique(_competitorsList)} atleta(s) · ${list.length} inscripciones visibles`;
 
     if (!list.length) {
-      tbody.innerHTML = `<tr><td colspan="11" class="text-center text-muted p-3">Sin resultados para los filtros aplicados.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="10" class="text-center text-muted p-3">Sin resultados para los filtros aplicados.</td></tr>`;
       return;
     }
     tbody.innerHTML = list.map(c => {
@@ -2031,9 +2024,8 @@
       const safeId    = (c.id || '').replace(/'/g, '');
       const safeRegId = (c.registration_id || '').replace(/'/g, '');
       const safeName  = (c.full_name || '').replace(/'/g, '\\x27');
-      const regStatus = c.status || 'pending';
-      return `<tr${regStatus === 'denied' ? ' style="opacity:.55;"' : ''}>
-        <td><input type="checkbox" class="chk-competitor" data-reg-id="${safeRegId}" data-comp-id="${safeId}" data-name="${safeName}" data-status="${regStatus}" onchange="_updateBulkToolbar()" /></td>
+      return `<tr>
+        <td><input type="checkbox" class="chk-competitor" data-reg-id="${safeRegId}" data-comp-id="${safeId}" data-name="${safeName}" onchange="_updateBulkToolbar()" /></td>
         <td><strong>${c.full_name}</strong></td>
         <td>${c.gender === 'M' ? '♂ Masc.' : '♀ Fem.'}</td>
         <td>${age} años</td>
@@ -2046,14 +2038,6 @@
         <td class="text-muted">${_compClubBadge(c)} ${_compDojoLogoBtn(c)}</td>
         <td>${typeof Dojos !== 'undefined' ? Dojos.renderCountryBadge(Dojos.getFromCache(c.dojo_id)?.country_code || c.country, 16) : ''}</td>
         <td class="text-muted text-xs">${c.category_id ? '1 categoría' : '—'}</td>
-        <td>
-          <select class="form-control form-control-sm" style="font-size:.75rem;padding:.15rem .3rem;min-width:100px;"
-            onchange="changeRegistrationStatus(this,'${safeRegId}','${state.activeTournament.id}')">
-            <option value="pending"${regStatus === 'pending' ? ' selected' : ''}>⏳ Pendiente</option>
-            <option value="accepted"${regStatus === 'accepted' ? ' selected' : ''}>✅ Aceptado</option>
-            <option value="denied"${regStatus === 'denied' ? ' selected' : ''}>❌ Negado</option>
-          </select>
-        </td>
         <td class="flex gap-1">
           <button class="btn btn-ghost btn-sm btn-icon" title="Editar" onclick="openEditCompetitor('${safeId}','${safeRegId}')">✏️</button>
           <button class="btn btn-ghost btn-sm btn-icon" title="Eliminar" onclick="removeCompetitor('${safeRegId}')">🗑</button>
@@ -2588,19 +2572,18 @@
       const allComps = await Competitors.listByCategory(category.id);
       await Dojos.ensureCache();
       // Filtrar solo aceptados (listByCategory ya filtra denied, pero reforzamos)
-      const accepted = allComps.filter(c => c.status !== 'denied');
+      const accepted = allComps;
       if (!accepted.length) {
-        listEl.innerHTML = '<div class="text-center text-muted text-sm p-3">Sin competidores aceptados en esta categoría.</div>';
+        listEl.innerHTML = '<div class="text-center text-muted text-sm p-3">Sin competidores en esta categoría.</div>';
         return;
       }
       const hasMatches = await _categoryHasMatches(category.id);
       listEl.innerHTML = accepted.map(c => {
         const safeRegId = (c.registration_id || '').replace(/'/g, '');
         const safeName = (c.full_name || '').replace(/'/g, '\\x27');
-        const statusBadge = c.status === 'accepted' ? '🟢' : '⏳';
         return `<div class="flex items-center justify-between px-3 py-2" style="border-bottom:1px solid var(--border);">
           <div>
-            <span class="text-sm font-semibold">${statusBadge} ${c.full_name}</span>
+            <span class="text-sm font-semibold">${c.full_name}</span>
             <span class="text-xs text-muted ml-2">${_compClubBadge(c)} ${Dojos.renderCountryBadge(Dojos.getFromCache(c.dojo_id)?.country_code || c.country, 14)}</span>
           </div>
           <div class="flex gap-1">
@@ -4732,23 +4715,7 @@
     tab.addEventListener('click', () => window.switchPanel(tab.dataset.panel));
   });
 
-  /* ---- changeRegistrationStatus ---- */
-  window.changeRegistrationStatus = async function(selectEl, registrationId, tournamentId) {
-    const newStatus = selectEl.value;
-    if (!registrationId || !tournamentId) return;
-    if (newStatus === 'denied' && !confirm('¿Negar acceso? Se eliminará de llaves y se regenerarán.')) {
-      selectEl.value = selectEl.dataset.prevVal || 'pending'; return;
-    }
-    selectEl.dataset.prevVal = newStatus;
-    try {
-      await Competitors.setStatus(registrationId, newStatus, tournamentId);
-      Display.toast('Estado actualizado a ' + ({pending:'Pendiente',accepted:'Aceptado',denied:'Negado'}[newStatus] || newStatus), 'success');
-      if (newStatus === 'denied' && state.activeCategory) await _loadBracket(state.activeCategory);
-    } catch (e) {
-      selectEl.value = selectEl.dataset.prevVal || 'pending';
-      Display.toast(e.message, 'error');
-    }
-  };
+  /* Estado de inscripción removido: todo queda aceptado automáticamente. */
 
   /* ---- match:click (round-robin y kata) ---- */
   document.addEventListener('match:click', async (e) => {
