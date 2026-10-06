@@ -300,6 +300,50 @@ const Reports = (() => {
     } catch (e) { w.close(); throw e; }
   }
 
+  async function exportCompetitorsExcel(tournamentId) {
+    const entries = await Competitors.listByTournament(tournamentId);
+    const seen = new Set();
+    const comps = entries.filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
+    const beltLabel = id => (typeof BELTS !== 'undefined' ? (BELTS.find(b => b.id === id)?.label || id) : id);
+    const header = ['Dojo', 'Nombre', 'Documento', 'Género', 'Fecha de nacimiento', 'Peso', 'Cinturón', 'País', 'Kata', 'Kumite'];
+    const rows = comps.map(c => {
+      const disc = c.discipline || 'kumite';
+      return {
+        'Dojo': c.club || '',
+        'Nombre': c.full_name || '',
+        'Documento': c.document_id || '',
+        'Género': c.gender || '',
+        'Fecha de nacimiento': c.dob || '',
+        'Peso': c.weight ?? '',
+        'Cinturón': beltLabel(c.belt_id) || '',
+        'País': c.country || '',
+        'Kata': (disc === 'kata' || disc === 'both') ? 'Sí' : 'No',
+        'Kumite': (disc === 'kumite' || disc === 'both') ? 'Sí' : 'No',
+      };
+    });
+    const t = await Tournament.getById(tournamentId).catch(() => null);
+    const baseName = (t?.name || 'torneo').replace(/[^\w\-]+/g, '_');
+
+    if (typeof XLSX !== 'undefined' && XLSX.utils && XLSX.writeFile) {
+      const ws = XLSX.utils.json_to_sheet(rows, { header });
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Competidores');
+      XLSX.writeFile(wb, baseName + '_competidores.xlsx');
+      return;
+    }
+
+    // Fallback CSV compatible con Excel
+    const csv = [header, ...rows.map(r => header.map(h => String(r[h] ?? '').replace(/"/g, '""')))]
+      .map(cols => cols.map(v => `"${v}"`).join(';')).join('\r\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = baseName + '_competidores.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  }
+
   async function getTournamentName(id) {
     try {
       const t = await Tournament.getById(id);
@@ -309,5 +353,5 @@ const Reports = (() => {
 
   function escape(s){ return String(s||'').replace(/[&<>]/g, c=> ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 
-  return { generateMedallero, printMedallero, printBrackets, printCategories, printCategoriesReport, printSchedule, printCompetitorsList };
+  return { generateMedallero, printMedallero, printBrackets, printCategories, printCategoriesReport, printSchedule, printCompetitorsList, exportCompetitorsExcel };
 })();

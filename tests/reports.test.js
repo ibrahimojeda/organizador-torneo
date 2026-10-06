@@ -43,6 +43,20 @@ async function test() {
   windows.forEach(w => assert.equal(w.prints, 1));
   context.window.open = () => null;
   await assert.rejects(context.api.printCategories('t'), /ventanas emergentes/);
-  console.log('OK: categorías, todas las llaves, cronograma programado/estimado y bloqueo de ventanas.');
+
+  // Exportación a Excel (fallback CSV en entorno sin XLSX)
+  let csvText = '';
+  context.Blob = function (parts) { csvText = parts.join(''); return {}; };
+  context.URL = { createObjectURL: () => 'blob:test', revokeObjectURL: () => {} };
+  context.document = { body: { appendChild: () => {} }, createElement: () => ({ click() {}, remove() {} }) };
+  context.Competitors.listByTournament = async () => [
+    { id: 'c1', full_name: 'Ana', club: 'Dojo A', document_id: '1', gender: 'F', dob: '2010-01-01', weight: 40, belt_id: 'amarillo', country: 'AR', discipline: 'both' },
+    { id: 'c2', full_name: 'Luis', club: 'Dojo B', document_id: '2', gender: 'M', dob: '2012-01-01', weight: 45, belt_id: 'naranja', country: 'UY', discipline: 'kumite' },
+  ];
+  await context.api.exportCompetitorsExcel('t');
+  assert.match(csvText, /"Dojo A";"Ana";"1"/);
+  assert.match(csvText, /"Ana".*"Sí";"Sí"/);
+  assert.match(csvText, /"Luis".*"No";"Sí"/);
+  console.log('OK: categorías, todas las llaves, cronograma programado/estimado, bloqueo de ventanas y exportación Excel.');
 }
 test().catch(e => { console.error(e); process.exitCode = 1; });

@@ -34,6 +34,14 @@
       catch (e) { _toast('Error al generar el reporte: ' + e.message, 'error'); }
     };
 
+    const btnExcel = document.getElementById('btn-report-excel');
+    if (btnExcel) btnExcel.onclick = async () => {
+      const tournamentId = document.getElementById('report-tournament-select')?.value;
+      if (!tournamentId) return _toast('Selecciona un torneo primero', 'warning');
+      try { await Reports.exportCompetitorsExcel(tournamentId); }
+      catch (e) { _toast('Error al exportar: ' + e.message, 'error'); }
+    };
+
     // 1. Imprimir Llaves (A4)
     const btnBrackets = document.getElementById('btn-report-brackets');
     if (btnBrackets) btnBrackets.onclick = () => _openTatamiPrintModal('brackets');
